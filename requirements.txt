@@ -7,8 +7,11 @@ drf-spectacular==0.28.0
 # MongoDB integration (using pymongo directly instead of djongo)
 pymongo==4.10.1
 
-# Google Gemini AI
-google-generativeai==0.8.3
+# LangChain and Gemini AI
+langchain==0.3.13
+langchain-google-genai==2.0.8
+langchain-community==0.3.13
+langchain-core==0.3.28
 
 # Machine Learning
 scikit-learn==1.6.0

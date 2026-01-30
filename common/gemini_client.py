@@ -1,38 +1,42 @@
 """
-Google Gemini Client for AI Health Intelligence System
+LangChain-based Gemini Client for AI Health Intelligence System
 
-This client provides a wrapper around Google's Generative AI API for explanation generation.
-It includes error handling, rate limiting, and fallback mechanisms.
+This client provides a LangChain wrapper around Google's Generative AI API 
+for explanation generation with enhanced agent capabilities.
 
 Validates: Requirements 9.1, 9.2, 9.4
 """
 
-import google.generativeai as genai
-from typing import Dict, Any, Optional
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnablePassthrough
+from typing import Dict, Any, Optional, List
 import logging
 import time
 from datetime import datetime, timedelta
 from django.conf import settings
-import json
 
 logger = logging.getLogger('health_ai.gemini')
 
 
-class GeminiClient:
+class LangChainGeminiClient:
     """
-    Wrapper class for Google Gemini API with health-specific safeguards.
+    LangChain-based wrapper for Google Gemini API with health-specific safeguards.
     
-    Key constraints:
+    Key features:
+    - LangChain integration for better agent orchestration
     - Used ONLY for explanation and reasoning
     - NEVER for medical diagnosis or disease prediction
     - Includes rate limiting and error handling
     """
     
     def __init__(self):
-        """Initialize the Gemini client with API key and safety settings."""
+        """Initialize the LangChain Gemini client with API key and safety settings."""
         self.api_key = settings.GEMINI_API_KEY
         self.model_name = "gemini-1.5-flash"
-        self.model = None
+        self.llm = None
         self.last_request_time = None
         self.min_request_interval = 1.0  # Minimum seconds between requests
         
@@ -50,61 +54,37 @@ class GeminiClient:
         self._initialize_client()
     
     def _initialize_client(self):
-        """Initialize the Gemini API client."""
+        """Initialize the LangChain Gemini client."""
         try:
             if not self.api_key:
                 logger.warning("Gemini API key not provided - using fallback explanations only")
                 return
             
-            genai.configure(api_key=self.api_key)
-            
-            # Configure safety settings to prevent harmful content
-            safety_settings = [
-                {
-                    "category": "HARM_CATEGORY_MEDICAL",
-                    "threshold": "BLOCK_NONE"  # We handle medical disclaimers ourselves
-                },
-                {
-                    "category": "HARM_CATEGORY_HARASSMENT",
-                    "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-                },
-                {
-                    "category": "HARM_CATEGORY_HATE_SPEECH",
-                    "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-                },
-                {
-                    "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                    "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-                },
-                {
-                    "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-                    "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+            # Initialize LangChain ChatGoogleGenerativeAI
+            self.llm = ChatGoogleGenerativeAI(
+                model=self.model_name,
+                google_api_key=self.api_key,
+                temperature=0.3,  # Lower temperature for more consistent explanations
+                max_output_tokens=500,  # Limit response length
+                top_p=0.8,
+                top_k=40,
+                safety_settings={
+                    "HARM_CATEGORY_HARASSMENT": "BLOCK_MEDIUM_AND_ABOVE",
+                    "HARM_CATEGORY_HATE_SPEECH": "BLOCK_MEDIUM_AND_ABOVE", 
+                    "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_MEDIUM_AND_ABOVE",
+                    "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_MEDIUM_AND_ABOVE",
                 }
-            ]
-            
-            # Generation configuration
-            generation_config = {
-                "temperature": 0.3,  # Lower temperature for more consistent explanations
-                "top_p": 0.8,
-                "top_k": 40,
-                "max_output_tokens": 500,  # Limit response length
-            }
-            
-            self.model = genai.GenerativeModel(
-                model_name=self.model_name,
-                safety_settings=safety_settings,
-                generation_config=generation_config
             )
             
-            logger.info("Gemini client initialized successfully")
+            logger.info("LangChain Gemini client initialized successfully")
             
         except Exception as e:
-            logger.error(f"Failed to initialize Gemini client: {str(e)}")
-            self.model = None
+            logger.error(f"Failed to initialize LangChain Gemini client: {str(e)}")
+            self.llm = None
     
     def generate_explanation(self, disease: str, probability: float, confidence: str, symptoms: list) -> str:
         """
-        Generate a human-readable explanation for a health risk assessment.
+        Generate a human-readable explanation for a health risk assessment using LangChain.
         
         Args:
             disease: The disease being assessed
@@ -122,34 +102,41 @@ class GeminiClient:
                 return self._get_fallback_explanation(confidence)
             
             # If no API key or model failed to initialize, use fallback
-            if not self.model:
+            if not self.llm:
                 return self._get_fallback_explanation(confidence)
             
-            # Create the prompt
-            prompt = self._create_explanation_prompt(disease, probability, confidence, symptoms)
+            # Create the LangChain prompt template
+            prompt_template = self._create_langchain_prompt_template()
             
-            # Generate explanation
-            response = self.model.generate_content(prompt)
+            # Create the chain
+            chain = prompt_template | self.llm | StrOutputParser()
             
-            if response and response.text:
-                explanation = response.text.strip()
-                logger.info(f"Generated explanation for {disease} with {confidence} confidence")
+            # Prepare input data
+            input_data = {
+                "disease": disease.replace('_', ' ').title(),
+                "probability_percent": round(probability * 100, 1),
+                "confidence": confidence,
+                "symptoms": ", ".join(symptoms)
+            }
+            
+            # Generate explanation using the chain
+            explanation = chain.invoke(input_data)
+            
+            if explanation:
+                explanation = explanation.strip()
+                logger.info(f"Generated explanation for {disease} with {confidence} confidence using LangChain")
                 return explanation
             else:
-                logger.warning("Empty response from Gemini API")
+                logger.warning("Empty response from LangChain Gemini")
                 return self._get_fallback_explanation(confidence)
                 
         except Exception as e:
-            logger.error(f"Error generating explanation: {str(e)}")
+            logger.error(f"Error generating explanation with LangChain: {str(e)}")
             return self._get_fallback_explanation(confidence)
     
-    def _create_explanation_prompt(self, disease: str, probability: float, confidence: str, symptoms: list) -> str:
-        """Create a prompt for explanation generation."""
-        symptoms_text = ", ".join(symptoms)
-        probability_percent = round(probability * 100, 1)
-        
-        prompt = f"""
-You are an AI assistant helping to explain health risk assessments. Your role is to provide clear, educational explanations while emphasizing that this is NOT medical diagnosis.
+    def _create_langchain_prompt_template(self) -> ChatPromptTemplate:
+        """Create a LangChain prompt template for explanation generation."""
+        system_template = """You are an AI assistant helping to explain health risk assessments. Your role is to provide clear, educational explanations while emphasizing that this is NOT medical diagnosis.
 
 CRITICAL REQUIREMENTS:
 - This is NOT a medical diagnosis
@@ -157,12 +144,15 @@ CRITICAL REQUIREMENTS:
 - Use simple, non-medical language
 - Be supportive but not alarming
 - Focus on education, not treatment advice
+- Keep explanations under 300 words
+- Maintain a supportive, educational tone"""
 
-Assessment Details:
-- Condition assessed: {disease}
-- Risk probability: {probability_percent}%
-- Confidence level: {confidence}
-- Symptoms provided: {symptoms_text}
+        human_template = """Please explain this health risk assessment:
+
+Condition assessed: {disease}
+Risk probability: {probability_percent}%
+Confidence level: {confidence}
+Symptoms provided: {symptoms}
 
 Please explain:
 1. What this risk assessment means in simple terms
@@ -170,9 +160,70 @@ Please explain:
 3. What factors contributed to this assessment
 4. The importance of professional medical consultation
 
-Keep the explanation under 300 words and maintain a supportive, educational tone.
-"""
-        return prompt
+Remember: This is for educational purposes only and not a medical diagnosis."""
+
+        return ChatPromptTemplate.from_messages([
+            SystemMessagePromptTemplate.from_template(system_template),
+            HumanMessagePromptTemplate.from_template(human_template)
+        ])
+    
+    def generate_agent_response(self, agent_type: str, context: Dict[str, Any]) -> str:
+        """
+        Generate agent-specific responses using LangChain.
+        
+        Args:
+            agent_type: Type of agent (validation, explanation, recommendation)
+            context: Context data for the agent
+            
+        Returns:
+            Generated agent response
+        """
+        try:
+            if not self.llm:
+                return self._get_agent_fallback(agent_type, context)
+            
+            # Create agent-specific prompt
+            prompt_template = self._create_agent_prompt_template(agent_type)
+            
+            # Create the chain
+            chain = prompt_template | self.llm | StrOutputParser()
+            
+            # Generate response
+            response = chain.invoke(context)
+            
+            if response:
+                logger.info(f"Generated {agent_type} agent response using LangChain")
+                return response.strip()
+            else:
+                return self._get_agent_fallback(agent_type, context)
+                
+        except Exception as e:
+            logger.error(f"Error generating {agent_type} agent response: {str(e)}")
+            return self._get_agent_fallback(agent_type, context)
+    
+    def _create_agent_prompt_template(self, agent_type: str) -> ChatPromptTemplate:
+        """Create agent-specific prompt templates."""
+        templates = {
+            "validation": {
+                "system": "You are a validation agent for a health assessment system. Provide clear, helpful feedback about input validation issues.",
+                "human": "The user input has validation issues: {validation_issues}. Please provide a clear, helpful message explaining what needs to be corrected."
+            },
+            "explanation": {
+                "system": "You are an explanation agent for health risk assessments. Provide clear, educational explanations while emphasizing this is not medical diagnosis.",
+                "human": "Explain this health assessment: Disease: {disease}, Probability: {probability}%, Confidence: {confidence}, Symptoms: {symptoms}"
+            },
+            "recommendation": {
+                "system": "You are a recommendation agent for health assessments. Provide appropriate professional referral recommendations based on confidence levels.",
+                "human": "Provide recommendations for: Disease: {disease}, Confidence: {confidence}, Probability: {probability}%. Focus on professional referrals and next steps."
+            }
+        }
+        
+        template = templates.get(agent_type, templates["explanation"])
+        
+        return ChatPromptTemplate.from_messages([
+            SystemMessagePromptTemplate.from_template(template["system"]),
+            HumanMessagePromptTemplate.from_template(template["human"])
+        ])
     
     def _check_rate_limit(self) -> bool:
         """Check if we're within rate limits."""
@@ -212,12 +263,43 @@ Keep the explanation under 300 words and maintain a supportive, educational tone
         
         return base_explanation + disclaimer
     
+    def _get_agent_fallback(self, agent_type: str, context: Dict[str, Any]) -> str:
+        """Get fallback response for agent-specific requests."""
+        fallbacks = {
+            "validation": "Please check your input and ensure all required fields are provided correctly.",
+            "explanation": f"Assessment completed with {context.get('confidence', 'MEDIUM')} confidence. Please consult healthcare professionals for detailed explanation.",
+            "recommendation": "We recommend consulting with a healthcare professional for proper evaluation and guidance."
+        }
+        
+        return fallbacks.get(agent_type, fallbacks["explanation"])
+    
+    def create_conversation_chain(self, system_prompt: str) -> Any:
+        """
+        Create a LangChain conversation chain for complex interactions.
+        
+        Args:
+            system_prompt: System prompt for the conversation
+            
+        Returns:
+            LangChain conversation chain
+        """
+        if not self.llm:
+            return None
+        
+        prompt_template = ChatPromptTemplate.from_messages([
+            SystemMessagePromptTemplate.from_template(system_prompt),
+            HumanMessagePromptTemplate.from_template("{input}")
+        ])
+        
+        return prompt_template | self.llm | StrOutputParser()
+    
     def get_client_status(self) -> Dict[str, Any]:
-        """Get the current status of the Gemini client."""
+        """Get the current status of the LangChain Gemini client."""
         return {
             "api_configured": bool(self.api_key),
-            "model_initialized": bool(self.model),
+            "model_initialized": bool(self.llm),
             "model_name": self.model_name,
+            "framework": "LangChain",
             "rate_limit_status": {
                 "requests_in_last_minute": len(self.request_timestamps),
                 "max_requests_per_minute": self.requests_per_minute,
@@ -227,29 +309,32 @@ Keep the explanation under 300 words and maintain a supportive, educational tone
         }
     
     def test_connection(self) -> Dict[str, Any]:
-        """Test the Gemini API connection."""
+        """Test the LangChain Gemini connection."""
         try:
-            if not self.model:
+            if not self.llm:
                 return {
                     "success": False,
-                    "error": "Model not initialized",
+                    "error": "LangChain model not initialized",
                     "fallback_available": True
                 }
             
-            # Simple test prompt
-            test_prompt = "Respond with 'Connection successful' if you can read this."
-            response = self.model.generate_content(test_prompt)
+            # Simple test using LangChain
+            test_chain = self.create_conversation_chain(
+                "You are a test assistant. Respond with 'LangChain connection successful' if you can read this."
+            )
             
-            if response and response.text:
+            if test_chain:
+                response = test_chain.invoke({"input": "Test connection"})
                 return {
                     "success": True,
-                    "response": response.text.strip(),
+                    "response": response,
+                    "framework": "LangChain",
                     "model_name": self.model_name
                 }
             else:
                 return {
                     "success": False,
-                    "error": "Empty response from API",
+                    "error": "Failed to create test chain",
                     "fallback_available": True
                 }
                 

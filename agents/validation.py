@@ -1,8 +1,8 @@
 """
-Validation Agent for AI Health Intelligence System
+LangChain-based Validation Agent for AI Health Intelligence System
 
-This agent provides the first line of defense against incomplete or unsafe inputs.
-It validates user symptoms and metadata before they reach the ML prediction layer.
+This agent provides the first line of defense against incomplete or unsafe inputs
+using LangChain framework for enhanced agent capabilities.
 
 Validates: Requirements 1.2, 1.3, 1.5
 """
@@ -11,14 +11,17 @@ import re
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 import logging
+from agents.base_agent import BaseHealthAgent
 
 logger = logging.getLogger('health_ai.validation')
 
 
-class ValidationAgent:
+class LangChainValidationAgent(BaseHealthAgent):
     """
-    First-line defense against incomplete or unsafe inputs.
-    Validates user symptoms and metadata according to system requirements.
+    LangChain-based validation agent for health intelligence system.
+    
+    Provides first-line defense against incomplete or unsafe inputs
+    with enhanced LangChain capabilities for intelligent validation.
     """
     
     # Required fields as per Requirements 1.2
@@ -46,25 +49,65 @@ class ValidationAgent:
     ]
     
     def __init__(self):
-        """Initialize the validation agent."""
+        """Initialize the LangChain validation agent."""
+        super().__init__("ValidationAgent")
         self.compiled_patterns = [re.compile(pattern, re.IGNORECASE) for pattern in self.UNSAFE_PATTERNS]
-        logger.info("ValidationAgent initialized")
+        
+        # Create LangChain chain for intelligent validation feedback
+        self.validation_chain = self.create_agent_chain(
+            system_prompt="""You are a validation agent for a health assessment system. 
+            Your role is to provide clear, helpful feedback about input validation issues.
+            Always be supportive and guide users on how to correct their input.
+            Keep responses concise and actionable.""",
+            
+            human_prompt="""The user input has validation issues: {validation_issues}
+            Please provide a clear, helpful message explaining what needs to be corrected.
+            Be specific about what the user should do to fix the issues."""
+        )
+        
+        logger.info("LangChain ValidationAgent initialized")
+    
+    def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Main processing method for validation.
+        
+        Args:
+            input_data: User input to validate
+            
+        Returns:
+            Validation result with LangChain-enhanced feedback
+        """
+        self.log_agent_action("validate_input", {"fields_count": len(input_data)})
+        
+        try:
+            # Perform basic validation
+            validation_result = self.validate_symptoms(input_data)
+            
+            # If validation failed and LangChain is available, enhance the feedback
+            if not validation_result["valid"] and self.validation_chain:
+                enhanced_feedback = self._get_enhanced_feedback(validation_result)
+                if enhanced_feedback:
+                    validation_result["enhanced_feedback"] = enhanced_feedback
+            
+            return self.format_agent_response(
+                success=validation_result["valid"],
+                data=validation_result,
+                message="Input validation completed"
+            )
+            
+        except Exception as e:
+            logger.error(f"Validation processing error: {str(e)}")
+            return self.get_fallback_response(input_data)
     
     def validate_symptoms(self, user_input: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Main validation method for symptom input.
+        Main validation method for symptom input with LangChain enhancements.
         
         Args:
             user_input: Dictionary containing user symptoms and metadata
             
         Returns:
-            Dictionary with validation results:
-            {
-                "valid": bool,
-                "reason": str (if invalid),
-                "missing": List[str] (if fields missing),
-                "sanitized_input": Dict (if valid)
-            }
+            Dictionary with validation results and enhanced feedback
         """
         logger.info(f"Validating symptoms input: {len(user_input)} fields provided")
         
@@ -101,7 +144,8 @@ class ValidationAgent:
             return {
                 "valid": True,
                 "sanitized_input": sanitized_input,
-                "validation_timestamp": datetime.utcnow().isoformat()
+                "validation_timestamp": datetime.utcnow().isoformat(),
+                "agent": "LangChainValidationAgent"
             }
             
         except Exception as e:
@@ -109,8 +153,45 @@ class ValidationAgent:
             return {
                 "valid": False,
                 "reason": "Internal validation error",
-                "error": str(e)
+                "error": str(e),
+                "agent": "LangChainValidationAgent"
             }
+    
+    def _get_enhanced_feedback(self, validation_result: Dict[str, Any]) -> Optional[str]:
+        """
+        Get enhanced feedback using LangChain for validation failures.
+        
+        Args:
+            validation_result: Basic validation result
+            
+        Returns:
+            Enhanced feedback message or None
+        """
+        try:
+            if not self.validation_chain:
+                return None
+            
+            # Prepare validation issues for LangChain
+            issues = []
+            if "reason" in validation_result:
+                issues.append(validation_result["reason"])
+            if "missing" in validation_result:
+                issues.append(f"Missing fields: {', '.join(validation_result['missing'])}")
+            
+            if not issues:
+                return None
+            
+            # Get enhanced feedback from LangChain
+            enhanced_feedback = self.execute_chain(
+                self.validation_chain,
+                {"validation_issues": "; ".join(issues)}
+            )
+            
+            return enhanced_feedback
+            
+        except Exception as e:
+            logger.error(f"Error getting enhanced feedback: {str(e)}")
+            return None
     
     def _validate_required_fields(self, user_input: Dict[str, Any]) -> Dict[str, Any]:
         """Validate that all required fields are present."""
@@ -262,6 +343,8 @@ class ValidationAgent:
     def get_validation_summary(self) -> Dict[str, Any]:
         """Get a summary of validation rules for documentation."""
         return {
+            "agent_type": "LangChainValidationAgent",
+            "framework": "LangChain",
             "required_fields": self.REQUIRED_FIELDS,
             "age_range": {"min": self.MIN_AGE, "max": self.MAX_AGE},
             "valid_genders": self.VALID_GENDERS,
@@ -272,8 +355,10 @@ class ValidationAgent:
             },
             "safety_features": [
                 "HTML/Script injection prevention",
-                "SQL injection prevention",
+                "SQL injection prevention", 
                 "Input sanitization",
-                "Length validation"
-            ]
+                "Length validation",
+                "LangChain-enhanced feedback"
+            ],
+            "llm_available": bool(self.llm)
         }
