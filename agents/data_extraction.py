@@ -1,416 +1,328 @@
 """
 LangChain-based Data Extraction Agent for AI Health Intelligence System
 
-This agent uses Gemini AI to intelligently extract and map user input data
-to the trained ML model's expected feature columns.
+This agent uses Gemini AI to extract and map user input data to match
+the trained ML model's expected features/columns.
 
-Validates: Requirements 1.1, 1.4, 2.2
+Validates: Requirements 1.1, 1.4
 """
 
 from typing import Dict, Any, List, Optional
 import logging
-from datetime import datetime
+import json
 from agents.base_agent import BaseHealthAgent
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import JsonOutputParser
-from pydantic import BaseModel, Field
 
 logger = logging.getLogger('health_ai.data_extraction')
 
 
-class ExtractedFeatures(BaseModel):
-    """Pydantic model for extracted features."""
-    age: int = Field(description="Patient age in years")
-    gender: str = Field(description="Patient gender (male/female/other)")
-    bmi: Optional[float] = Field(description="Body Mass Index if available")
-    blood_pressure_systolic: Optional[int] = Field(description="Systolic blood pressure")
-    blood_pressure_diastolic: Optional[int] = Field(description="Diastolic blood pressure")
-    glucose_level: Optional[float] = Field(description="Blood glucose level")
-    cholesterol: Optional[float] = Field(description="Cholesterol level")
-    heart_rate: Optional[int] = Field(description="Heart rate in bpm")
-    symptoms_encoded: List[str] = Field(description="List of encoded symptoms")
-    medical_history_flags: Dict[str, bool] = Field(description="Medical history flags")
-    lifestyle_factors: Dict[str, Any] = Field(description="Lifestyle factors")
-
-
-class LangChainDataExtractionAgent(BaseHealthAgent):
+class DataExtractionAgent(BaseHealthAgent):
     """
-    LangChain-based agent for intelligent data extraction and feature mapping.
+    LangChain-based agent for extracting and mapping user input to ML model features.
     
     Uses Gemini AI to:
-    - Extract structured data from natural language input
-    - Map user input to ML model feature columns
-    - Handle missing data intelligently
-    - Validate and normalize extracted features
+    - Parse natural language symptom descriptions
+    - Map symptoms to standardized medical terms
+    - Extract relevant features for ML model
+    - Handle missing or ambiguous data
     """
     
     def __init__(self):
         """Initialize the data extraction agent."""
         super().__init__("DataExtractionAgent")
         
-        # ML model feature schemas for different diseases
-        self.ml_feature_schemas = {
-            "diabetes": {
-                "required": ["age", "gender", "glucose_level", "bmi"],
-                "optional": ["blood_pressure_systolic", "blood_pressure_diastolic", 
-                           "cholesterol", "family_history_diabetes", "physical_activity"],
-                "symptom_features": ["increased_thirst", "frequent_urination", "fatigue", 
-                                   "blurred_vision", "slow_healing", "weight_loss"]
-            },
-            "heart_disease": {
-                "required": ["age", "gender", "blood_pressure_systolic", "cholesterol"],
-                "optional": ["bmi", "heart_rate", "smoking", "diabetes", "family_history_heart"],
-                "symptom_features": ["chest_pain", "shortness_of_breath", "fatigue", 
-                                   "irregular_heartbeat", "dizziness", "nausea"]
-            },
-            "hypertension": {
-                "required": ["age", "gender", "blood_pressure_systolic", "blood_pressure_diastolic"],
-                "optional": ["bmi", "sodium_intake", "alcohol_consumption", "stress_level"],
-                "symptom_features": ["headaches", "dizziness", "chest_pain", "vision_problems", 
-                                   "fatigue", "nosebleeds"]
-            }
+        # Define expected ML model features for different diseases
+        self.model_features = {
+            "diabetes": [
+                "age", "gender", "polyuria", "polydipsia", "sudden_weight_loss",
+                "weakness", "polyphagia", "genital_thrush", "visual_blurring",
+                "itching", "irritability", "delayed_healing", "partial_paresis",
+                "muscle_stiffness", "alopecia", "obesity"
+            ],
+            "heart_disease": [
+                "age", "gender", "chest_pain_type", "resting_blood_pressure",
+                "cholesterol", "fasting_blood_sugar", "resting_ecg",
+                "max_heart_rate", "exercise_angina", "oldpeak", "slope",
+                "ca", "thal"
+            ],
+            "hypertension": [
+                "age", "gender", "systolic_bp", "diastolic_bp", "bmi",
+                "smoking", "alcohol", "physical_activity", "stress_level",
+                "family_history", "salt_intake", "sleep_hours"
+            ]
         }
         
-        # Create extraction chain with JSON output parser
-        self.extraction_chain = self._create_extraction_chain()
+        # Symptom to feature mapping
+        self.symptom_mappings = {
+            "increased_thirst": "polydipsia",
+            "excessive_thirst": "polydipsia",
+            "frequent_urination": "polyuria",
+            "excessive_urination": "polyuria",
+            "weight_loss": "sudden_weight_loss",
+            "losing_weight": "sudden_weight_loss",
+            "fatigue": "weakness",
+            "tired": "weakness",
+            "excessive_hunger": "polyphagia",
+            "always_hungry": "polyphagia",
+            "blurred_vision": "visual_blurring",
+            "vision_problems": "visual_blurring",
+            "chest_pain": "chest_pain_type",
+            "chest_discomfort": "chest_pain_type",
+            "shortness_of_breath": "exercise_angina",
+            "breathing_difficulty": "exercise_angina",
+            "headache": "systolic_bp",  # Indicator for hypertension
+            "dizziness": "systolic_bp"
+        }
         
-        logger.info("LangChain DataExtractionAgent initialized")
-    
-    def _create_extraction_chain(self):
-        """Create LangChain chain for data extraction with structured output."""
-        if not self.llm:
-            logger.warning("LLM not available for data extraction")
-            return None
-        
-        system_prompt = """You are a medical data extraction specialist. Your task is to extract structured health data from user input and map it to specific medical features.
+        # Create LangChain chain for intelligent data extraction
+        self.extraction_chain = self.create_agent_chain(
+            system_prompt="""You are a medical data extraction agent. Your role is to:
+1. Parse user-provided symptoms and health information
+2. Map symptoms to standardized medical terms
+3. Extract relevant features for disease prediction models
+4. Handle ambiguous or incomplete information
 
-CRITICAL INSTRUCTIONS:
-1. Extract all available numerical health metrics (age, BMI, blood pressure, glucose, cholesterol, heart rate)
-2. Identify and encode symptoms mentioned by the user
-3. Extract medical history information
-4. Infer lifestyle factors when mentioned
-5. Handle missing data by marking fields as null
-6. Be conservative - only extract data that is clearly stated or strongly implied
-7. Convert all measurements to standard units
-
-OUTPUT FORMAT:
-Return a JSON object with the following structure:
-{{
-    "age": <integer>,
-    "gender": "<male/female/other>",
-    "bmi": <float or null>,
-    "blood_pressure_systolic": <integer or null>,
-    "blood_pressure_diastolic": <integer or null>,
-    "glucose_level": <float or null>,
-    "cholesterol": <float or null>,
-    "heart_rate": <integer or null>,
-    "symptoms_encoded": [<list of symptom strings>],
-    "medical_history_flags": {{
-        "diabetes": <boolean>,
-        "hypertension": <boolean>,
-        "heart_disease": <boolean>,
-        "family_history": <boolean>
-    }},
-    "lifestyle_factors": {{
-        "smoking": <boolean or null>,
-        "alcohol": <boolean or null>,
-        "exercise": <string or null>,
-        "diet": <string or null>
-    }}
-}}"""
-
-        human_prompt = """Extract structured health data from the following user input:
+IMPORTANT:
+- Be precise in symptom mapping
+- Ask for clarification when needed
+- Use medical terminology correctly
+- Return structured data in JSON format""",
+            
+            human_prompt="""Extract and map the following health information to standardized medical features:
 
 User Input:
-{user_input}
+- Symptoms: {symptoms}
+- Age: {age}
+- Gender: {gender}
+- Additional Info: {additional_info}
 
 Target Disease: {disease}
 Required Features: {required_features}
-Optional Features: {optional_features}
 
-Please extract all available data and return it in the specified JSON format."""
-
-        prompt_template = ChatPromptTemplate.from_messages([
-            ("system", system_prompt),
-            ("human", human_prompt)
-        ])
+Please extract and map the data to match the required features. Return a JSON object with:
+1. "mapped_features": Dictionary of feature names and values
+2. "confidence": Your confidence in the extraction (0-1)
+3. "missing_features": List of features that couldn't be extracted
+4. "clarifications_needed": List of questions to ask user for better accuracy"""
+        )
         
-        # Use JSON output parser for structured extraction
-        json_parser = JsonOutputParser()
-        
-        return prompt_template | self.llm | json_parser
+        logger.info("DataExtractionAgent initialized with LangChain")
     
     def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Main processing method for data extraction.
         
         Args:
-            input_data: Contains user_input, disease, and raw data
+            input_data: Raw user input containing symptoms, age, gender, etc.
             
         Returns:
-            Extracted and mapped features ready for ML model
+            Extracted and mapped data ready for ML model
         """
-        self.log_agent_action("extract_features", {
-            "disease": input_data.get("disease"),
-            "has_llm": bool(self.llm)
+        required_fields = ["symptoms", "age", "gender"]
+        validation = self.validate_input(input_data, required_fields)
+        
+        if not validation["valid"]:
+            return self.format_agent_response(
+                success=False,
+                message=validation["message"],
+                data=validation
+            )
+        
+        self.log_agent_action("extract_data", {
+            "symptoms_count": len(input_data.get("symptoms", [])),
+            "disease": input_data.get("disease", "unknown")
         })
         
         try:
-            # Validate input
-            if "user_input" not in input_data or "disease" not in input_data:
-                return self.format_agent_response(
-                    success=False,
-                    message="Missing required fields: user_input or disease"
-                )
-            
-            disease = input_data["disease"]
-            user_input = input_data["user_input"]
-            
-            # Get ML feature schema for the disease
-            feature_schema = self.ml_feature_schemas.get(disease)
-            if not feature_schema:
-                return self.format_agent_response(
-                    success=False,
-                    message=f"Unknown disease: {disease}"
-                )
-            
-            # Extract features using Gemini AI
-            extracted_features = self._extract_features_with_gemini(
-                user_input, disease, feature_schema
-            )
-            
-            # Validate and normalize extracted features
-            validated_features = self._validate_and_normalize(
-                extracted_features, feature_schema
-            )
-            
-            # Map to ML model format
-            ml_ready_features = self._map_to_ml_format(
-                validated_features, disease
+            # Extract and map data
+            extracted_data = self.extract_and_map(
+                symptoms=input_data["symptoms"],
+                age=input_data["age"],
+                gender=input_data["gender"],
+                disease=input_data.get("disease", "diabetes"),
+                additional_info=input_data.get("additional_info", {})
             )
             
             return self.format_agent_response(
                 success=True,
-                data={
-                    "extracted_features": validated_features,
-                    "ml_ready_features": ml_ready_features,
-                    "feature_schema": feature_schema,
-                    "extraction_method": "gemini_ai" if self.llm else "rule_based"
-                },
-                message="Features extracted and mapped successfully"
+                data=extracted_data,
+                message="Data extraction completed successfully"
             )
             
         except Exception as e:
             logger.error(f"Error in data extraction: {str(e)}")
             return self.get_fallback_response(input_data)
     
-    def _extract_features_with_gemini(self, user_input: Dict[str, Any], 
-                                     disease: str, feature_schema: Dict[str, Any]) -> Dict[str, Any]:
+    def extract_and_map(self, symptoms: List[str], age: int, gender: str,
+                       disease: str, additional_info: Dict[str, Any] = None) -> Dict[str, Any]:
         """
-        Extract features using Gemini AI with LangChain.
+        Extract and map user data to ML model features using Gemini AI.
         
         Args:
-            user_input: Raw user input data
+            symptoms: List of user symptoms
+            age: User age
+            gender: User gender
             disease: Target disease for prediction
-            feature_schema: ML model feature schema
+            additional_info: Additional health information
             
         Returns:
-            Extracted features dictionary
+            Dictionary with mapped features and metadata
         """
+        logger.info(f"Extracting data for {disease} prediction")
+        
+        try:
+            # Get required features for the disease
+            required_features = self.model_features.get(disease, [])
+            
+            # Try LangChain extraction first
+            if self.extraction_chain:
+                langchain_result = self._extract_with_langchain(
+                    symptoms, age, gender, disease, required_features, additional_info
+                )
+                if langchain_result:
+                    return langchain_result
+            
+            # Fallback to rule-based extraction
+            return self._extract_with_rules(
+                symptoms, age, gender, disease, required_features, additional_info
+            )
+            
+        except Exception as e:
+            logger.error(f"Error in extract_and_map: {str(e)}")
+            return self._get_fallback_extraction(symptoms, age, gender, disease)
+    
+    def _extract_with_langchain(self, symptoms: List[str], age: int, gender: str,
+                                disease: str, required_features: List[str],
+                                additional_info: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Extract data using LangChain and Gemini AI."""
         try:
             if not self.extraction_chain:
-                # Fallback to rule-based extraction
-                return self._rule_based_extraction(user_input, feature_schema)
+                return None
             
-            # Prepare input for Gemini
+            # Prepare input for LangChain
             chain_input = {
-                "user_input": str(user_input),
+                "symptoms": ", ".join(symptoms),
+                "age": age,
+                "gender": gender,
                 "disease": disease,
-                "required_features": ", ".join(feature_schema["required"]),
-                "optional_features": ", ".join(feature_schema["optional"])
+                "required_features": ", ".join(required_features),
+                "additional_info": json.dumps(additional_info or {})
             }
             
-            # Execute extraction chain
-            extracted = self.execute_chain(self.extraction_chain, chain_input)
+            # Execute chain
+            result = self.execute_chain(self.extraction_chain, chain_input)
             
-            if extracted:
-                logger.info("Features extracted successfully using Gemini AI")
-                return extracted
-            else:
-                logger.warning("Gemini extraction failed, using rule-based fallback")
-                return self._rule_based_extraction(user_input, feature_schema)
-                
-        except Exception as e:
-            logger.error(f"Gemini extraction error: {str(e)}")
-            return self._rule_based_extraction(user_input, feature_schema)
-    
-    def _rule_based_extraction(self, user_input: Dict[str, Any], 
-                              feature_schema: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Fallback rule-based extraction when Gemini is unavailable.
-        
-        Args:
-            user_input: Raw user input
-            feature_schema: Feature schema
-            
-        Returns:
-            Extracted features using rules
-        """
-        logger.info("Using rule-based feature extraction")
-        
-        extracted = {
-            "age": user_input.get("age"),
-            "gender": user_input.get("gender"),
-            "bmi": user_input.get("bmi"),
-            "blood_pressure_systolic": user_input.get("blood_pressure_systolic"),
-            "blood_pressure_diastolic": user_input.get("blood_pressure_diastolic"),
-            "glucose_level": user_input.get("glucose_level"),
-            "cholesterol": user_input.get("cholesterol"),
-            "heart_rate": user_input.get("heart_rate"),
-            "symptoms_encoded": user_input.get("symptoms", []),
-            "medical_history_flags": {
-                "diabetes": user_input.get("has_diabetes", False),
-                "hypertension": user_input.get("has_hypertension", False),
-                "heart_disease": user_input.get("has_heart_disease", False),
-                "family_history": user_input.get("family_history", False)
-            },
-            "lifestyle_factors": {
-                "smoking": user_input.get("smoking"),
-                "alcohol": user_input.get("alcohol"),
-                "exercise": user_input.get("exercise"),
-                "diet": user_input.get("diet")
-            }
-        }
-        
-        return extracted
-    
-    def _validate_and_normalize(self, extracted_features: Dict[str, Any], 
-                                feature_schema: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Validate and normalize extracted features.
-        
-        Args:
-            extracted_features: Raw extracted features
-            feature_schema: Expected feature schema
-            
-        Returns:
-            Validated and normalized features
-        """
-        validated = {}
-        
-        # Validate age
-        if "age" in extracted_features and extracted_features["age"]:
-            age = int(extracted_features["age"])
-            validated["age"] = max(1, min(120, age))  # Clamp to valid range
-        
-        # Validate gender
-        if "gender" in extracted_features and extracted_features["gender"]:
-            gender = str(extracted_features["gender"]).lower()
-            validated["gender"] = gender if gender in ["male", "female", "other"] else "other"
-        
-        # Validate numerical features
-        numerical_features = ["bmi", "blood_pressure_systolic", "blood_pressure_diastolic",
-                            "glucose_level", "cholesterol", "heart_rate"]
-        
-        for feature in numerical_features:
-            if feature in extracted_features and extracted_features[feature] is not None:
+            if result:
+                # Parse JSON response from Gemini
                 try:
-                    value = float(extracted_features[feature])
-                    # Apply reasonable bounds
-                    if feature == "bmi":
-                        validated[feature] = max(10, min(60, value))
-                    elif "blood_pressure" in feature:
-                        validated[feature] = max(40, min(250, value))
-                    elif feature == "glucose_level":
-                        validated[feature] = max(50, min(500, value))
-                    elif feature == "cholesterol":
-                        validated[feature] = max(100, min(400, value))
-                    elif feature == "heart_rate":
-                        validated[feature] = max(40, min(200, value))
-                except (ValueError, TypeError):
-                    validated[feature] = None
-            else:
-                validated[feature] = None
-        
-        # Validate symptoms
-        if "symptoms_encoded" in extracted_features:
-            symptoms = extracted_features["symptoms_encoded"]
-            if isinstance(symptoms, list):
-                validated["symptoms_encoded"] = [str(s).lower().strip() for s in symptoms]
-            else:
-                validated["symptoms_encoded"] = []
-        else:
-            validated["symptoms_encoded"] = []
-        
-        # Validate medical history flags
-        validated["medical_history_flags"] = extracted_features.get("medical_history_flags", {})
-        
-        # Validate lifestyle factors
-        validated["lifestyle_factors"] = extracted_features.get("lifestyle_factors", {})
-        
-        return validated
-    
-    def _map_to_ml_format(self, validated_features: Dict[str, Any], 
-                         disease: str) -> Dict[str, Any]:
-        """
-        Map validated features to ML model input format.
-        
-        Args:
-            validated_features: Validated features
-            disease: Target disease
+                    parsed_result = json.loads(result)
+                    
+                    # Add basic features
+                    parsed_result["mapped_features"]["age"] = age
+                    parsed_result["mapped_features"]["gender"] = 1 if gender.lower() == "male" else 0
+                    
+                    return {
+                        "features": parsed_result["mapped_features"],
+                        "extraction_confidence": parsed_result.get("confidence", 0.7),
+                        "missing_features": parsed_result.get("missing_features", []),
+                        "clarifications_needed": parsed_result.get("clarifications_needed", []),
+                        "extraction_method": "langchain_gemini",
+                        "disease": disease
+                    }
+                except json.JSONDecodeError:
+                    logger.warning("Failed to parse LangChain JSON response, using fallback")
+                    return None
             
-        Returns:
-            Features in ML model format
-        """
-        feature_schema = self.ml_feature_schemas[disease]
-        ml_features = {}
-        
-        # Map basic features
-        ml_features["age"] = validated_features.get("age", 0)
-        ml_features["gender_encoded"] = 1 if validated_features.get("gender") == "male" else 0
-        
-        # Map numerical features
-        for feature in ["bmi", "blood_pressure_systolic", "blood_pressure_diastolic",
-                       "glucose_level", "cholesterol", "heart_rate"]:
-            ml_features[feature] = validated_features.get(feature, 0) or 0
-        
-        # Encode symptoms as binary features
-        for symptom in feature_schema["symptom_features"]:
-            symptom_key = f"symptom_{symptom}"
-            ml_features[symptom_key] = 1 if symptom in validated_features.get("symptoms_encoded", []) else 0
-        
-        # Encode medical history
-        history = validated_features.get("medical_history_flags", {})
-        ml_features["has_diabetes"] = 1 if history.get("diabetes") else 0
-        ml_features["has_hypertension"] = 1 if history.get("hypertension") else 0
-        ml_features["has_heart_disease"] = 1 if history.get("heart_disease") else 0
-        ml_features["family_history"] = 1 if history.get("family_history") else 0
-        
-        # Encode lifestyle factors
-        lifestyle = validated_features.get("lifestyle_factors", {})
-        ml_features["smoking"] = 1 if lifestyle.get("smoking") else 0
-        ml_features["alcohol"] = 1 if lifestyle.get("alcohol") else 0
-        
-        return ml_features
+            return None
+            
+        except Exception as e:
+            logger.error(f"LangChain extraction failed: {str(e)}")
+            return None
     
-    def get_feature_schema(self, disease: str) -> Optional[Dict[str, Any]]:
-        """Get the ML feature schema for a specific disease."""
-        return self.ml_feature_schemas.get(disease)
+    def _extract_with_rules(self, symptoms: List[str], age: int, gender: str,
+                           disease: str, required_features: List[str],
+                           additional_info: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract data using rule-based mapping."""
+        logger.info("Using rule-based extraction")
+        
+        features = {}
+        
+        # Add basic features
+        features["age"] = age
+        features["gender"] = 1 if gender.lower() == "male" else 0
+        
+        # Map symptoms to features
+        for symptom in symptoms:
+            symptom_lower = symptom.lower().strip().replace(" ", "_")
+            
+            # Direct mapping
+            if symptom_lower in self.symptom_mappings:
+                feature_name = self.symptom_mappings[symptom_lower]
+                if feature_name in required_features:
+                    features[feature_name] = 1  # Binary feature
+            
+            # Check if symptom matches any required feature
+            for feature in required_features:
+                if symptom_lower in feature or feature in symptom_lower:
+                    features[feature] = 1
+        
+        # Add additional info if provided
+        if additional_info:
+            for key, value in additional_info.items():
+                if key in required_features:
+                    features[key] = value
+        
+        # Fill missing features with defaults
+        missing_features = []
+        for feature in required_features:
+            if feature not in features and feature not in ["age", "gender"]:
+                features[feature] = 0  # Default to 0 for binary features
+                missing_features.append(feature)
+        
+        return {
+            "features": features,
+            "extraction_confidence": 0.6,  # Lower confidence for rule-based
+            "missing_features": missing_features,
+            "clarifications_needed": [],
+            "extraction_method": "rule_based",
+            "disease": disease
+        }
+    
+    def _get_fallback_extraction(self, symptoms: List[str], age: int, 
+                                gender: str, disease: str) -> Dict[str, Any]:
+        """Get minimal fallback extraction."""
+        return {
+            "features": {
+                "age": age,
+                "gender": 1 if gender.lower() == "male" else 0,
+                "symptoms_count": len(symptoms)
+            },
+            "extraction_confidence": 0.3,
+            "missing_features": ["most_features"],
+            "clarifications_needed": ["Please provide more detailed health information"],
+            "extraction_method": "fallback",
+            "disease": disease
+        }
+    
+    def get_supported_diseases(self) -> List[str]:
+        """Get list of diseases with feature mappings."""
+        return list(self.model_features.keys())
+    
+    def get_required_features(self, disease: str) -> List[str]:
+        """Get required features for a specific disease."""
+        return self.model_features.get(disease, [])
     
     def get_extraction_summary(self) -> Dict[str, Any]:
         """Get summary of extraction capabilities."""
         return {
-            "agent_type": "LangChainDataExtractionAgent",
+            "agent_type": "DataExtractionAgent",
             "framework": "LangChain",
-            "extraction_method": "gemini_ai" if self.llm else "rule_based",
-            "supported_diseases": list(self.ml_feature_schemas.keys()),
+            "supported_diseases": self.get_supported_diseases(),
+            "extraction_methods": ["langchain_gemini", "rule_based", "fallback"],
             "features": [
-                "Intelligent feature extraction using Gemini AI",
-                "Natural language to structured data mapping",
+                "Natural language symptom parsing",
+                "Intelligent feature mapping",
                 "Missing data handling",
-                "Feature validation and normalization",
-                "ML model format conversion",
-                "Rule-based fallback extraction"
+                "Clarification suggestions"
             ],
             "llm_available": bool(self.llm)
         }

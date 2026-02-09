@@ -7,12 +7,16 @@ validation, explanation, and recommendation generation using LangChain framework
 
 from .base_agent import BaseHealthAgent
 from .validation import LangChainValidationAgent
+from .data_extraction import DataExtractionAgent
 from .explanation import LangChainExplanationAgent
 from .recommendation import RecommendationAgent
+from .orchestrator import OrchestratorAgent
 
 __all__ = [
     'BaseHealthAgent',
     'LangChainValidationAgent',
+    'DataExtractionAgent',
     'LangChainExplanationAgent', 
-    'RecommendationAgent'
+    'RecommendationAgent',
+    'OrchestratorAgent'
 ]

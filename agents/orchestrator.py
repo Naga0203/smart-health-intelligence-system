@@ -1,0 +1,399 @@
+"""
+LangChain-based Orchestrator Agent for AI Health Intelligence System
+
+This agent coordinates the entire health assessment pipeline:
+1. Data Extraction (Gemini AI)
+2. ML Prediction
+3. Confidence Evaluation
+4. Explanation Generation
+5. Recommendation Generation
+6. MongoDB Storage
+
+Validates: Requirements 8.2, 8.5
+"""
+
+from typing import Dict, Any, Optional
+import logging
+from datetime import datetime
+import uuid
+from agents.base_agent import BaseHealthAgent
+from agents.data_extraction import DataExtractionAgent
+from agents.validation import LangChainValidationAgent
+from agents.explanation import LangChainExplanationAgent
+from agents.recommendation import RecommendationAgent
+from prediction.predictor import DiseasePredictor
+from common.database import get_database
+
+logger = logging.getLogger('health_ai.orchestrator')
+
+
+class OrchestratorAgent(BaseHealthAgent):
+    """
+    Main orchestrator agent coordinating the entire health assessment pipeline.
+    
+    Pipeline Flow:
+    1. Validate input (ValidationAgent)
+    2. Extract and map data (DataExtractionAgent + Gemini)
+    3. Predict disease (ML Model)
+    4. Evaluate confidence
+    5. Generate explanation (ExplanationAgent + Gemini)
+    6. Generate recommendations (RecommendationAgent)
+    7. Store in MongoDB
+    8. Return complete assessment
+    """
+    
+    # Confidence thresholds
+    CONFIDENCE_THRESHOLDS = {
+        "LOW": 0.55,
+        "MEDIUM": 0.75
+    }
+    
+    def __init__(self):
+        """Initialize the orchestrator agent."""
+        super().__init__("OrchestratorAgent")
+        
+        # Initialize all agents
+        self.validation_agent = LangChainValidationAgent()
+        self.extraction_agent = DataExtractionAgent()
+        self.prediction_engine = DiseasePredictor()
+        self.explanation_agent = LangChainExplanationAgent()
+        self.recommendation_agent = RecommendationAgent()
+        
+        # Initialize database
+        self.db = get_database()
+        
+        logger.info("OrchestratorAgent initialized with complete pipeline")
+    
+    def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Main processing method - orchestrates the entire pipeline.
+        
+        Args:
+            input_data: Raw user input
+            
+        Returns:
+            Complete assessment result
+        """
+        self.log_agent_action("start_pipeline", {"user_id": input_data.get("user_id", "anonymous")})
+        
+        try:
+            # Run the complete pipeline
+            result = self.run_pipeline(input_data)
+            
+            return self.format_agent_response(
+                success=True,
+                data=result,
+                message="Health assessment completed successfully"
+            )
+            
+        except Exception as e:
+            logger.error(f"Pipeline error: {str(e)}")
+            return self.format_agent_response(
+                success=False,
+                message=f"Pipeline error: {str(e)}",
+                data={"error": str(e)}
+            )
+    
+    def run_pipeline(self, user_input: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Execute the complete health assessment pipeline.
+        
+        Args:
+            user_input: User input data
+            
+        Returns:
+            Complete assessment result
+        """
+        pipeline_start = datetime.utcnow()
+        user_id = user_input.get("user_id", str(uuid.uuid4()))
+        
+        logger.info(f"Starting pipeline for user: {user_id}")
+        
+        # Step 1: Validate Input
+        self.log_agent_action("step_1_validation")
+        validation_result = self.validation_agent.process(user_input)
+        
+        if not validation_result["success"]:
+            return self._blocked_response(
+                "validation_failed",
+                validation_result["data"]["reason"],
+                validation_result["data"]
+            )
+        
+        sanitized_input = validation_result["data"]["sanitized_input"]
+        
+        # Step 2: Extract and Map Data using Gemini AI
+        self.log_agent_action("step_2_data_extraction")
+        
+        disease = self._select_disease(sanitized_input["symptoms"])
+        
+        extraction_input = {
+            "symptoms": sanitized_input["symptoms"],
+            "age": sanitized_input["age"],
+            "gender": sanitized_input["gender"],
+            "disease": disease,
+            "additional_info": user_input.get("additional_info", {})
+        }
+        
+        extraction_result = self.extraction_agent.process(extraction_input)
+        
+        if not extraction_result["success"]:
+            return self._blocked_response(
+                "extraction_failed",
+                "Failed to extract features from input",
+                extraction_result
+            )
+        
+        extracted_features = extraction_result["data"]["features"]
+        extraction_confidence = extraction_result["data"]["extraction_confidence"]
+        
+        # Step 3: ML Prediction
+        self.log_agent_action("step_3_prediction", {"disease": disease})
+        
+        probability, prediction_metadata = self.prediction_engine.predict(disease, extracted_features)
+        
+        # Step 4: Evaluate Confidence
+        confidence = self._evaluate_confidence(probability)
+        
+        self.log_agent_action("step_4_confidence_evaluation", {
+            "probability": probability,
+            "confidence": confidence
+        })
+        
+        # Step 5: Generate Explanation using Gemini
+        self.log_agent_action("step_5_explanation_generation")
+        
+        explanation_input = {
+            "disease": disease,
+            "probability": probability,
+            "confidence": confidence,
+            "symptoms": sanitized_input["symptoms"]
+        }
+        
+        explanation_result = self.explanation_agent.process(explanation_input)
+        explanation_data = explanation_result["data"] if explanation_result["success"] else {}
+        
+        # Step 6: Generate Recommendations
+        self.log_agent_action("step_6_recommendation_generation")
+        
+        recommendations = self.recommendation_agent.get_recommendations(
+            disease=disease,
+            probability=probability,
+            confidence=confidence,
+            symptoms=sanitized_input["symptoms"],
+            user_context={"age": sanitized_input["age"], "gender": sanitized_input["gender"]}
+        )
+        
+        # Step 7: Store in MongoDB
+        self.log_agent_action("step_7_database_storage")
+        
+        storage_ids = self._store_assessment(
+            user_id=user_id,
+            sanitized_input=sanitized_input,
+            disease=disease,
+            probability=probability,
+            confidence=confidence,
+            extraction_data=extraction_result["data"],
+            prediction_metadata=prediction_metadata,
+            explanation_data=explanation_data,
+            recommendations=recommendations
+        )
+        
+        # Step 8: Build Complete Response
+        pipeline_end = datetime.utcnow()
+        processing_time = (pipeline_end - pipeline_start).total_seconds()
+        
+        complete_response = self._build_response(
+            user_id=user_id,
+            disease=disease,
+            probability=probability,
+            confidence=confidence,
+            extraction_confidence=extraction_confidence,
+            explanation=explanation_data,
+            recommendations=recommendations,
+            storage_ids=storage_ids,
+            processing_time=processing_time,
+            prediction_metadata=prediction_metadata
+        )
+        
+        logger.info(f"Pipeline completed for user: {user_id} in {processing_time:.2f}s")
+        
+        return complete_response
+    
+    def _select_disease(self, symptoms: list) -> str:
+        """
+        Select the most likely disease based on symptoms.
+        
+        Args:
+            symptoms: List of symptoms
+            
+        Returns:
+            Disease name
+        """
+        # Simple keyword-based disease selection
+        # In production, this could use a more sophisticated classifier
+        
+        symptom_text = " ".join(symptoms).lower()
+        
+        diabetes_keywords = ["thirst", "urination", "weight_loss", "fatigue", "hunger"]
+        heart_keywords = ["chest_pain", "shortness_of_breath", "heart", "angina"]
+        hypertension_keywords = ["headache", "dizziness", "blood_pressure", "hypertension"]
+        
+        diabetes_score = sum(1 for kw in diabetes_keywords if kw in symptom_text)
+        heart_score = sum(1 for kw in heart_keywords if kw in symptom_text)
+        hypertension_score = sum(1 for kw in hypertension_keywords if kw in symptom_text)
+        
+        scores = {
+            "diabetes": diabetes_score,
+            "heart_disease": heart_score,
+            "hypertension": hypertension_score
+        }
+        
+        selected_disease = max(scores, key=scores.get)
+        
+        # Default to diabetes if no clear match
+        if scores[selected_disease] == 0:
+            selected_disease = "diabetes"
+        
+        logger.info(f"Selected disease: {selected_disease} (scores: {scores})")
+        return selected_disease
+    
+    def _evaluate_confidence(self, probability: float) -> str:
+        """
+        Evaluate confidence level based on probability.
+        
+        Args:
+            probability: Prediction probability
+            
+        Returns:
+            Confidence level (LOW, MEDIUM, HIGH)
+        """
+        if probability < self.CONFIDENCE_THRESHOLDS["LOW"]:
+            return "LOW"
+        elif probability < self.CONFIDENCE_THRESHOLDS["MEDIUM"]:
+            return "MEDIUM"
+        else:
+            return "HIGH"
+    
+    def _store_assessment(self, user_id: str, sanitized_input: Dict[str, Any],
+                         disease: str, probability: float, confidence: str,
+                         extraction_data: Dict[str, Any], prediction_metadata: Dict[str, Any],
+                         explanation_data: Dict[str, Any], recommendations: Dict[str, Any]) -> Dict[str, str]:
+        """
+        Store complete assessment in MongoDB.
+        
+        Returns:
+            Dictionary of storage IDs
+        """
+        try:
+            # Store symptom input
+            symptom_id = self.db.store_symptom_input(
+                user_id=user_id,
+                symptoms=sanitized_input["symptoms"],
+                metadata={
+                    "age": sanitized_input["age"],
+                    "gender": sanitized_input["gender"],
+                    "extraction_confidence": extraction_data.get("extraction_confidence"),
+                    "extraction_method": extraction_data.get("extraction_method")
+                }
+            )
+            
+            # Store prediction
+            prediction_id = self.db.store_prediction(
+                user_id=user_id,
+                symptom_id=symptom_id,
+                disease=disease,
+                probability=probability,
+                confidence=confidence,
+                model_version=prediction_metadata.get("model_version", "unknown")
+            )
+            
+            # Store explanation
+            explanation_id = self.db.store_explanation(
+                prediction_id=prediction_id,
+                explanation_data=explanation_data
+            )
+            
+            # Store recommendation
+            recommendation_id = self.db.store_recommendation(
+                prediction_id=prediction_id,
+                recommendation_data=recommendations
+            )
+            
+            # Store audit log
+            self.db.store_audit_log(
+                event_type="health_assessment_completed",
+                user_id=user_id,
+                payload={
+                    "disease": disease,
+                    "confidence": confidence,
+                    "probability": probability
+                }
+            )
+            
+            return {
+                "symptom_id": symptom_id,
+                "prediction_id": prediction_id,
+                "explanation_id": explanation_id,
+                "recommendation_id": recommendation_id
+            }
+            
+        except Exception as e:
+            logger.error(f"Error storing assessment: {str(e)}")
+            return {}
+    
+    def _build_response(self, user_id: str, disease: str, probability: float,
+                       confidence: str, extraction_confidence: float,
+                       explanation: Dict[str, Any], recommendations: Dict[str, Any],
+                       storage_ids: Dict[str, str], processing_time: float,
+                       prediction_metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """Build the complete response for the frontend."""
+        return {
+            "user_id": user_id,
+            "assessment_id": storage_ids.get("prediction_id"),
+            "prediction": {
+                "disease": disease.replace("_", " ").title(),
+                "probability": round(probability, 4),
+                "probability_percent": round(probability * 100, 2),
+                "confidence": confidence,
+                "model_version": prediction_metadata.get("model_version")
+            },
+            "extraction": {
+                "confidence": extraction_confidence,
+                "method": "gemini_ai_extraction"
+            },
+            "explanation": explanation,
+            "recommendations": recommendations,
+            "metadata": {
+                "processing_time_seconds": round(processing_time, 2),
+                "timestamp": datetime.utcnow().isoformat(),
+                "storage_ids": storage_ids,
+                "pipeline_version": "v1.0"
+            }
+        }
+    
+    def _blocked_response(self, reason: str, message: str, details: Dict[str, Any]) -> Dict[str, Any]:
+        """Build a blocked response when pipeline cannot proceed."""
+        return {
+            "blocked": True,
+            "reason": reason,
+            "message": message,
+            "details": details,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    
+    def get_pipeline_status(self) -> Dict[str, Any]:
+        """Get status of all pipeline components."""
+        return {
+            "orchestrator": self.get_agent_status(),
+            "validation_agent": self.validation_agent.get_agent_status(),
+            "extraction_agent": self.extraction_agent.get_agent_status(),
+            "explanation_agent": self.explanation_agent.get_agent_status(),
+            "prediction_engine": {
+                "supported_diseases": self.prediction_engine.get_supported_diseases(),
+                "model_version": self.prediction_engine.model_version
+            },
+            "database": {
+                "connected": self.db.client is not None
+            }
+        }
