@@ -2,15 +2,17 @@
 AI Agents package for Health Intelligence System
 
 This package contains all AI agents responsible for reasoning,
-validation, explanation, and recommendation generation.
+validation, explanation, and recommendation generation using LangChain framework.
 """
 
-from .validation import ValidationAgent
-from .explanation import ExplanationAgent
+from .base_agent import BaseHealthAgent
+from .validation import LangChainValidationAgent
+from .explanation import LangChainExplanationAgent
 from .recommendation import RecommendationAgent
 
 __all__ = [
-    'ValidationAgent',
-    'ExplanationAgent', 
+    'BaseHealthAgent',
+    'LangChainValidationAgent',
+    'LangChainExplanationAgent', 
     'RecommendationAgent'
 ]
