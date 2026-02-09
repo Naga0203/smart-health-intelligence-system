@@ -35,7 +35,7 @@ class LangChainGeminiClient:
     def __init__(self):
         """Initialize the LangChain Gemini client with API key and safety settings."""
         self.api_key = settings.GEMINI_API_KEY
-        self.model_name = "gemini-1.5-flash"
+        self.model_name = "gemini-2.5-flash"
         self.llm = None
         self.last_request_time = None
         self.min_request_interval = 1.0  # Minimum seconds between requests

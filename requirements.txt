@@ -19,6 +19,10 @@ numpy==2.2.1
 pandas==2.2.3
 joblib==1.4.2
 
+# PyTorch
+torch==2.5.1
+torchvision==0.20.1
+
 # Environment management
 python-decouple==3.8
 
