@@ -22,7 +22,7 @@ from agents.validation import LangChainValidationAgent
 from agents.explanation import LangChainExplanationAgent
 from agents.recommendation import RecommendationAgent
 from prediction.predictor import DiseasePredictor
-from common.database import get_database
+from common.firebase_db import get_firebase_db
 
 logger = logging.getLogger('health_ai.orchestrator')
 
@@ -59,8 +59,8 @@ class OrchestratorAgent(BaseHealthAgent):
         self.explanation_agent = LangChainExplanationAgent()
         self.recommendation_agent = RecommendationAgent()
         
-        # Initialize database
-        self.db = get_database()
+        # Initialize Firebase database
+        self.db = get_firebase_db()
         
         logger.info("OrchestratorAgent initialized with complete pipeline")
     
@@ -280,43 +280,49 @@ class OrchestratorAgent(BaseHealthAgent):
                          extraction_data: Dict[str, Any], prediction_metadata: Dict[str, Any],
                          explanation_data: Dict[str, Any], recommendations: Dict[str, Any]) -> Dict[str, str]:
         """
-        Store complete assessment in MongoDB.
+        Store complete assessment in Firebase Firestore.
         
         Returns:
             Dictionary of storage IDs
         """
         try:
-            # Store symptom input
-            symptom_id = self.db.store_symptom_input(
-                user_id=user_id,
-                symptoms=sanitized_input["symptoms"],
-                metadata={
-                    "age": sanitized_input["age"],
-                    "gender": sanitized_input["gender"],
-                    "extraction_confidence": extraction_data.get("extraction_confidence"),
-                    "extraction_method": extraction_data.get("extraction_method")
-                }
-            )
+            # Store complete assessment in one document
+            assessment_data = {
+                'symptoms': sanitized_input["symptoms"],
+                'age': sanitized_input["age"],
+                'gender': sanitized_input["gender"],
+                'disease': disease,
+                'probability': probability,
+                'confidence': confidence,
+                'extraction_data': extraction_data,
+                'prediction_metadata': prediction_metadata,
+                'explanation': explanation_data,
+                'recommendations': recommendations
+            }
             
-            # Store prediction
+            assessment_id = self.db.store_assessment(user_id, assessment_data)
+            
+            # Store prediction separately for querying
             prediction_id = self.db.store_prediction(
                 user_id=user_id,
-                symptom_id=symptom_id,
-                disease=disease,
-                probability=probability,
-                confidence=confidence,
-                model_version=prediction_metadata.get("model_version", "unknown")
+                assessment_id=assessment_id,
+                prediction_data={
+                    'disease': disease,
+                    'probability': probability,
+                    'confidence': confidence,
+                    'model_version': prediction_metadata.get("model_version", "unknown")
+                }
             )
             
             # Store explanation
             explanation_id = self.db.store_explanation(
-                prediction_id=prediction_id,
+                assessment_id=assessment_id,
                 explanation_data=explanation_data
             )
             
             # Store recommendation
             recommendation_id = self.db.store_recommendation(
-                prediction_id=prediction_id,
+                assessment_id=assessment_id,
                 recommendation_data=recommendations
             )
             
@@ -332,7 +338,7 @@ class OrchestratorAgent(BaseHealthAgent):
             )
             
             return {
-                "symptom_id": symptom_id,
+                "assessment_id": assessment_id,
                 "prediction_id": prediction_id,
                 "explanation_id": explanation_id,
                 "recommendation_id": recommendation_id

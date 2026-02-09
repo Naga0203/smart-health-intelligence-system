@@ -6,6 +6,7 @@ Defines all REST API endpoints.
 
 from django.urls import path
 from .views import (
+    HealthAnalysisAPI,
     HealthAssessmentView,
     TopPredictionsView,
     SystemStatusView,
@@ -17,6 +18,9 @@ from .views import (
 app_name = 'api'
 
 urlpatterns = [
+    # Primary health analysis endpoint with Firebase auth
+    path('health/analyze/', HealthAnalysisAPI.as_view(), name='health-analysis'),
+    
     # Main health assessment endpoint
     path('assess/', HealthAssessmentView.as_view(), name='health-assessment'),
     

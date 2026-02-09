@@ -14,17 +14,22 @@
   - [x] 1.2.3 Add `.env` to `.gitignore` for security
   - [x] 1.2.4 Create secure configuration loading in settings.py
 
-### 2. Database and Core Infrastructure (Validates: Requirements 7.2, 6.3)
-- [x] 2.1 Setup MongoDB integration
-  - [x] 2.1.1 Install pymongo and configure MongoDB connection
-  - [x] 2.1.2 Create database connection layer in `common/database.py`
-  - [x] 2.1.3 Define MongoDB collections for symptoms, predictions, explanations, audit logs
-  - [x] 2.1.4 Test MongoDB connectivity and basic operations
+### 2. Database and Core Infrastructure (Validates: Requirements 7.2, 6.3, 6.6, 6.7)
+- [x] 2.1 Setup Firebase integration
+  - [x] 2.1.1 Install firebase-admin and configure Firebase connection
+  - [x] 2.1.2 Create Firebase database layer in `common/firebase_db.py`
+  - [x] 2.1.3 Define Firestore collections for users, assessments, predictions, explanations, recommendations, audit logs
+  - [x] 2.1.4 Test Firebase connectivity and basic operations
 - [x] 2.2 Setup Django REST Framework (Validates: Requirements 7.1)
   - [x] 2.2.1 Install and configure DRF with proper settings
   - [x] 2.2.2 Create base API structure and common serializers
   - [x] 2.2.3 Configure CORS and basic security middleware
   - [x] 2.2.4 Setup API documentation with DRF Spectacular
+- [x] 2.3 Setup Firebase Authentication (Validates: Requirements 6.6)
+  - [x] 2.3.1 Create Firebase authentication middleware in `common/firebase_auth.py`
+  - [x] 2.3.2 Implement FirebaseUser class for Django compatibility
+  - [x] 2.3.3 Add Firebase ID token verification
+  - [x] 2.3.4 Configure Django REST Framework to use Firebase authentication
 
 ## Phase 2: ML Prediction Engine (Validates: Requirements 7.4, 8.5)
 
@@ -118,32 +123,44 @@
   - [x] 9.2.1 Implement disease selection logic based on symptoms
   - [x] 9.2.2 Add orchestration error handling and fallback responses
   - [x] 9.2.3 Create confidence threshold management system
-- [x] 9.3 Integrate complete pipeline
+- [x] 9.3 Integrate complete pipeline with Firebase
   - [x] 9.3.1 Connect validation → extraction → prediction → explanation → recommendation
-  - [x] 9.3.2 Implement MongoDB storage integration
+  - [x] 9.3.2 Implement Firebase Firestore storage integration
   - [x] 9.3.3 Add complete response building
   - [x] 9.3.4 Implement processing time tracking
 
 ### 10. Audit and Logging System (Validates: Requirements 6.3, 6.4)
 - [x] 10.1 Implement audit logging
-  - [x] 10.1.1 Create audit logging in MongoDB database layer
+  - [x] 10.1.1 Create audit logging in Firebase Firestore database layer
   - [x] 10.1.2 Add event tracking throughout the system pipeline
-  - [x] 10.1.3 Implement audit log storage in MongoDB
+  - [x] 10.1.3 Implement audit log storage in Firestore
   - [x] 10.1.4 Create audit log querying capabilities for monitoring
 
-## Phase 5: API Layer (Validates: Requirements 7.1, 3.4, 3.5)
+## Phase 5: API Layer (Validates: Requirements 7.1, 3.4, 3.5, 6.6)
 
-### 11. Health Analysis API
-- [ ] 11.1 Create primary API endpoint
-  - [ ] 11.1.1 Implement `HealthAnalysisAPI` view in `api/views.py`
-  - [ ] 11.1.2 Add request validation and parsing with proper error handling
-  - [ ] 11.1.3 Integrate with orchestrator agent for complete pipeline
-  - [ ] 11.1.4 Implement response formatting with confidence-aware structure
+### 11. Health Analysis API with Firebase Authentication
+- [x] 11.1 Create primary API endpoint with Firebase auth
+  - [x] 11.1.1 Implement `HealthAnalysisAPI` view in `api/views.py` with Firebase authentication
+  - [x] 11.1.2 Add request validation and parsing with proper error handling
+  - [x] 11.1.3 Integrate with orchestrator agent for complete pipeline
+  - [x] 11.1.4 Implement response formatting with confidence-aware structure
+  - [x] 11.1.5 Extract user_id from Firebase authenticated user
 - [ ] 11.2 Add API features and security
   - [ ] 11.2.1 Create different response formats for LOW/MEDIUM/HIGH confidence
   - [ ] 11.2.2 Add comprehensive error handling and appropriate HTTP status codes
   - [ ] 11.2.3 Implement API rate limiting to prevent abuse
   - [ ] 11.2.4 Add API documentation with request/response examples
+  - [ ] 11.2.5 Handle Firebase authentication errors gracefully
+- [ ] 11.3 Add user profile endpoints
+  - [ ] 11.3.1 Create GET /api/user/profile endpoint to retrieve user profile
+  - [ ] 11.3.2 Create PUT /api/user/profile endpoint to update user profile
+  - [ ] 11.3.3 Implement user profile creation on first login
+  - [ ] 11.3.4 Add user statistics endpoint
+- [ ] 11.4 Add assessment history endpoints
+  - [ ] 11.4.1 Create GET /api/user/assessments endpoint for user's assessment history
+  - [ ] 11.4.2 Add pagination for assessment history
+  - [ ] 11.4.3 Create GET /api/user/assessments/{id} endpoint for specific assessment
+  - [ ] 11.4.4 Implement assessment filtering and sorting
 
 ## Phase 6: Testing and Validation
 
@@ -156,8 +173,9 @@
 - [ ] 12.2 Test utilities and services
   - [ ] 12.2.1 Write tests for treatment knowledge base retrieval
   - [ ] 12.2.2 Write tests for audit logging completeness
-  - [ ] 12.2.3 Write tests for MongoDB database operations
+  - [ ] 12.2.3 Write tests for Firebase Firestore database operations
   - [ ] 12.2.4 Write tests for Gemini client integration
+  - [ ] 12.2.5 Write tests for Firebase authentication middleware
 
 ### 13. Integration Testing
 - [ ] 13.1 Test API endpoints and workflows
@@ -188,13 +206,19 @@
 - [ ] 15.1 Create deployment configuration
   - [ ] 15.1.1 Create Docker configuration for containerized deployment
   - [ ] 15.1.2 Setup production environment variables and security settings
-  - [ ] 15.1.3 Configure production database settings and connection pooling
+  - [ ] 15.1.3 Configure production Firebase settings and service account
   - [ ] 15.1.4 Add monitoring and logging configuration for production
 - [ ] 15.2 Security hardening
   - [ ] 15.2.1 Implement security headers and middleware
   - [ ] 15.2.2 Add input sanitization and validation at all entry points
   - [ ] 15.2.3 Configure rate limiting and DDoS protection
   - [ ] 15.2.4 Ensure no hardcoded credentials in codebase
+  - [ ] 15.2.5 Configure Firebase Security Rules for Firestore
+- [ ] 15.3 Firebase setup documentation
+  - [ ] 15.3.1 Create Firebase project setup guide
+  - [ ] 15.3.2 Document Google Sign-In configuration
+  - [ ] 15.3.3 Create Firestore security rules documentation
+  - [ ] 15.3.4 Document service account setup and credentials
 
 ### 16. Documentation
 - [ ] 16.1 Create system documentation

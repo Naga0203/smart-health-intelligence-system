@@ -97,9 +97,8 @@ DATABASES = {
 
 # MongoDB Configuration
 MONGODB_SETTINGS = {
-    'URI': config('MONGO_URI', default='mongodb://localhost:27017/health_ai_db'),
-    'DATABASE_NAME': config('MONGO_DB_NAME', default='health_ai_db'),
-}
+# Firebase Configuration
+FIREBASE_CREDENTIALS_PATH = config('FIREBASE_CREDENTIALS_PATH', default='config/firebase-credentials.json')
 
 # Google Gemini Configuration
 GEMINI_API_KEY = config('GEMINI_API_KEY', default='')
@@ -107,6 +106,12 @@ GEMINI_API_KEY = config('GEMINI_API_KEY', default='')
 # Django REST Framework Configuration
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'common.firebase_auth.FirebaseAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+    ],
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],

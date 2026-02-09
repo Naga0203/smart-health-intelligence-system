@@ -15,6 +15,7 @@ import logging
 
 from agents.orchestrator import OrchestratorAgent
 from prediction.multi_disease_predictor import MultiDiseasePredictor
+from common.firebase_auth import FirebaseAuthentication
 from .serializers import (
     HealthAssessmentInputSerializer,
     HealthAssessmentOutputSerializer,
@@ -25,6 +26,148 @@ from .serializers import (
 )
 
 logger = logging.getLogger('health_ai.api')
+
+
+class HealthAnalysisAPI(APIView):
+    """
+    Primary health analysis endpoint with Firebase authentication.
+    
+    This is the main endpoint for authenticated health assessments.
+    Requires Firebase ID token in Authorization header.
+    
+    Validates: Requirements 7.1, 3.4, 3.5, 6.6
+    """
+    
+    authentication_classes = [FirebaseAuthentication]
+    
+    @extend_schema(
+        request=HealthAssessmentInputSerializer,
+        responses={200: HealthAssessmentOutputSerializer},
+        description="Perform authenticated health analysis with complete pipeline"
+    )
+    def post(self, request):
+        """
+        POST /api/health/analyze
+        
+        Perform complete health analysis with Firebase authentication.
+        
+        Headers:
+        Authorization: Bearer <firebase_id_token>
+        
+        Request Body:
+        {
+            "symptoms": ["fever", "cough", "headache"],
+            "age": 35,
+            "gender": "male",
+            "additional_info": {"weight": 70, "height": 175}
+        }
+        
+        Response (HIGH confidence):
+        {
+            "user_id": "firebase_uid",
+            "assessment_id": "...",
+            "prediction": {
+                "disease": "Diabetes",
+                "probability": 0.78,
+                "probability_percent": 78.0,
+                "confidence": "HIGH",
+                "model_version": "v1.0"
+            },
+            "extraction": {
+                "confidence": 0.85,
+                "method": "gemini_ai_extraction"
+            },
+            "explanation": {
+                "text": "Based on the symptoms provided...",
+                "generated_by": "gemini",
+                "confidence": "HIGH"
+            },
+            "recommendations": {
+                "items": ["Consult healthcare professional", ...],
+                "urgency": "medium",
+                "confidence": "HIGH"
+            },
+            "metadata": {
+                "processing_time_seconds": 2.5,
+                "timestamp": "2026-02-09T...",
+                "storage_ids": {...},
+                "pipeline_version": "v1.0"
+            }
+        }
+        
+        Response (LOW confidence):
+        {
+            "blocked": true,
+            "reason": "low_confidence",
+            "message": "Insufficient information for reliable assessment",
+            "details": {...}
+        }
+        """
+        # Extract user_id from authenticated Firebase user
+        user_id = request.user.uid
+        
+        logger.info(f"Health analysis request from user: {user_id}")
+        
+        # Validate input
+        serializer = HealthAssessmentInputSerializer(data=request.data)
+        if not serializer.is_valid():
+            logger.warning(f"Invalid input from user {user_id}: {serializer.errors}")
+            return Response(
+                {
+                    "error": "Invalid input",
+                    "details": serializer.errors,
+                    "message": "Please provide valid symptoms, age, and gender"
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Initialize orchestrator
+            orchestrator = OrchestratorAgent()
+            
+            # Add user_id to validated data
+            input_data = serializer.validated_data
+            input_data['user_id'] = user_id
+            
+            # Process through complete pipeline
+            result = orchestrator.process(input_data)
+            
+            if result.get('success'):
+                response_data = result['data']
+                
+                # Check if response was blocked
+                if response_data.get('blocked'):
+                    return Response(
+                        response_data,
+                        status=status.HTTP_200_OK
+                    )
+                
+                # Return successful assessment
+                return Response(
+                    response_data,
+                    status=status.HTTP_200_OK
+                )
+            else:
+                logger.error(f"Assessment failed for user {user_id}: {result.get('message')}")
+                return Response(
+                    {
+                        "error": "Assessment failed",
+                        "message": result.get('message', 'Unknown error occurred'),
+                        "details": result.get('data', {})
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+                
+        except Exception as e:
+            logger.error(f"Unexpected error for user {user_id}: {str(e)}", exc_info=True)
+            return Response(
+                {
+                    "error": "Internal server error",
+                    "message": "An unexpected error occurred during assessment",
+                    "details": str(e)
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class HealthAssessmentView(APIView):

@@ -64,6 +64,8 @@ The AI Health Intelligence System is a decision-support platform designed to ass
 - 6.3 System maintains complete audit logs of all operations
 - 6.4 System follows healthcare data privacy best practices
 - 6.5 System allows users to understand what data is stored and how it's used
+- 6.6 Firebase Authentication provides secure Google Sign-In integration
+- 6.7 Firebase Security Rules protect user data access
 
 ## Technical Requirements
 
@@ -72,10 +74,11 @@ The AI Health Intelligence System is a decision-support platform designed to ass
 
 **Acceptance Criteria:**
 - 7.1 Django handles all API endpoints, authentication, and request routing
-- 7.2 MongoDB stores flexible medical data without rigid schema constraints
+- 7.2 Firebase Firestore stores flexible medical data with real-time capabilities
 - 7.3 ML models perform prediction only, with no business logic
 - 7.4 AI agents handle reasoning, confidence evaluation, and ethical gating
 - 7.5 Clear separation between prediction (ML) and reasoning (AI agents)
+- 7.6 Firebase Authentication handles Google Sign-In and user management
 
 ### 8. Agent Orchestration
 **As a developer**, I need an agent-based system that can make ethical decisions and provide explanations.

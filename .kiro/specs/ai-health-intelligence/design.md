@@ -10,17 +10,20 @@ The AI Health Intelligence System follows an **Agent-Orchestrated, Confidence-Aw
 3. **Ethical Safeguards**: Multiple layers prevent inappropriate medical advice
 4. **Explainable AI**: Every decision includes reasoning and transparency
 5. **No Diagnosis**: System provides decision support, never medical diagnosis
+6. **Firebase Integration**: Secure authentication and real-time data storage
 
 ## System Architecture
 
 ```
 ┌─────────────────┐
 │   Client/UI     │
+│ (Google Sign-In)│
 └─────────┬───────┘
           │
 ┌─────────▼───────┐
 │  Django REST    │
 │      API        │
+│ (Firebase Auth) │
 └─────────┬───────┘
           │
 ┌─────────▼───────┐
@@ -44,7 +47,7 @@ The AI Health Intelligence System follows an **Agent-Orchestrated, Confidence-Aw
 └─────────┬───────┘
           │
 ┌─────────▼───────┐
-│    MongoDB      │
+│Firebase Firestore│
 │ (Audit & Data)  │
 └─────────────────┘
 ```
@@ -53,22 +56,64 @@ The AI Health Intelligence System follows an **Agent-Orchestrated, Confidence-Aw
 
 ### 1. Django REST API Layer
 **Purpose**: Handle HTTP requests, authentication, and response formatting
-**Technology**: Django REST Framework
+**Technology**: Django REST Framework with Firebase Authentication
 
 ```python
 # apps/api/views.py
 class HealthAnalysisAPI(APIView):
+    authentication_classes = [FirebaseAuthentication]
+    
     def post(self, request):
+        # request.user is FirebaseUser instance
+        user_id = request.user.uid
+        
         # Delegate to orchestrator
-        result = OrchestratorAgent().run_pipeline(request.data)
+        result = OrchestratorAgent().run_pipeline({
+            **request.data,
+            'user_id': user_id
+        })
         return self.format_response(result)
 ```
 
 **Key Features**:
-- Single entry point for all health analysis requests
+- Firebase ID token authentication on all requests
 - Request validation and sanitization
 - Response formatting with consistent structure
 - Error handling and status codes
+- User context from Firebase authentication
+
+### 1.5 Firebase Authentication Layer
+**Purpose**: Secure user authentication with Google Sign-In
+**Technology**: Firebase Admin SDK
+
+```python
+# common/firebase_auth.py
+class FirebaseAuthentication(BaseAuthentication):
+    def authenticate(self, request):
+        # Extract Bearer token from Authorization header
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        id_token = auth_header.split('Bearer ')[1]
+        
+        # Verify token with Firebase
+        decoded_token = auth.verify_id_token(id_token)
+        
+        # Create FirebaseUser instance
+        user = FirebaseUser(
+            uid=decoded_token['uid'],
+            email=decoded_token.get('email'),
+            display_name=decoded_token.get('name'),
+            email_verified=decoded_token.get('email_verified')
+        )
+        
+        return (user, decoded_token)
+```
+
+**Key Features**:
+- Google Sign-In integration
+- Firebase ID token verification
+- Custom FirebaseUser class for Django compatibility
+- Automatic user profile creation/update in Firestore
+- Token expiration handling
 
 ### 2. Agent Orchestrator
 **Purpose**: Control system flow and coordinate all agents
@@ -264,52 +309,85 @@ TREATMENTS = {
 
 ## Data Architecture
 
-### MongoDB Collections
+### Firebase Firestore Collections
 
 ```javascript
-// Symptoms collection
+// users collection
 {
-  "_id": ObjectId,
-  "user_id": "string",
-  "symptoms": ["symptom1", "symptom2"],
-  "metadata": {
-    "age": 35,
-    "gender": "female",
-    "medical_history": []
-  },
-  "timestamp": ISODate
+  "uid": "firebase_user_id",
+  "email": "user@example.com",
+  "display_name": "John Doe",
+  "photo_url": "https://...",
+  "email_verified": true,
+  "created_at": Timestamp,
+  "updated_at": Timestamp,
+  "last_login": Timestamp
 }
 
-// Predictions collection
+// assessments collection
 {
-  "_id": ObjectId,
-  "user_id": "string",
+  "id": "auto_generated_id",
+  "user_id": "firebase_user_id",
+  "symptoms": ["symptom1", "symptom2"],
+  "age": 35,
+  "gender": "female",
+  "disease": "diabetes",
+  "probability": 0.73,
+  "confidence": "MEDIUM",
+  "extraction_data": {...},
+  "prediction_metadata": {...},
+  "explanation": {...},
+  "recommendations": {...},
+  "created_at": Timestamp,
+  "status": "completed"
+}
+
+// predictions collection
+{
+  "id": "auto_generated_id",
+  "user_id": "firebase_user_id",
+  "assessment_id": "assessment_doc_id",
   "disease": "diabetes",
   "probability": 0.73,
   "confidence": "MEDIUM",
   "model_version": "v1.2",
-  "timestamp": ISODate
+  "created_at": Timestamp
 }
 
-// Explanations collection
+// explanations collection
 {
-  "_id": ObjectId,
-  "prediction_id": ObjectId,
+  "id": "auto_generated_id",
+  "assessment_id": "assessment_doc_id",
   "explanation": "string",
   "generated_by": "gemini",
-  "timestamp": ISODate
+  "created_at": Timestamp
 }
 
-// Audit logs collection
+// recommendations collection
 {
-  "_id": ObjectId,
-  "event_type": "prediction_request",
-  "user_id": "string",
-  "payload": {},
-  "timestamp": ISODate,
-  "ip_address": "string"
+  "id": "auto_generated_id",
+  "assessment_id": "assessment_doc_id",
+  "recommendations": {...},
+  "created_at": Timestamp
+}
+
+// audit_logs collection
+{
+  "id": "auto_generated_id",
+  "event_type": "health_assessment_completed",
+  "user_id": "firebase_user_id",
+  "payload": {...},
+  "timestamp": Timestamp,
+  "ip_address": "string",
+  "user_agent": "string"
 }
 ```
+
+### Firebase Authentication
+- Google Sign-In integration for user authentication
+- Firebase ID tokens verified on each API request
+- Custom FirebaseUser class for Django compatibility
+- Token-based authentication with Bearer tokens
 
 ## Security Architecture
 
@@ -318,16 +396,23 @@ TREATMENTS = {
 # .env file (never committed to version control)
 DJANGO_SECRET_KEY=your_django_secret_key
 DEBUG=False
-MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/health_ai_db
+FIREBASE_CREDENTIALS_PATH=config/firebase-credentials.json
 GEMINI_API_KEY=your_gemini_api_key
 ```
+
+### Firebase Configuration
+1. **Service Account**: Firebase Admin SDK credentials in JSON file
+2. **Authentication**: Firebase ID token verification on each request
+3. **Firestore**: Real-time database with automatic scaling
+4. **Security Rules**: Firestore security rules to protect user data
 
 ### Security Measures
 1. **No Hardcoded Secrets**: All sensitive data in environment variables
 2. **Input Validation**: Comprehensive validation at multiple layers
 3. **Audit Logging**: Complete trail of all system operations
 4. **Rate Limiting**: Prevent abuse of AI services
-5. **Data Encryption**: Encrypt sensitive data in transit and at rest
+5. **Data Encryption**: Firebase handles encryption in transit and at rest
+6. **Token Verification**: Firebase ID tokens verified on each API request
 
 ## API Design
 
