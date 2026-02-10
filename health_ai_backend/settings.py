@@ -95,8 +95,17 @@ DATABASES = {
     }
 }
 
-# MongoDB Configuration
-MONGODB_SETTINGS = {
+# Cache Configuration for Rate Limiting
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'health-ai-cache',
+        'OPTIONS': {
+            'MAX_ENTRIES': 10000
+        }
+    }
+}
+
 # Firebase Configuration
 FIREBASE_CREDENTIALS_PATH = config('FIREBASE_CREDENTIALS_PATH', default='config/firebase-credentials.json')
 
@@ -124,7 +133,14 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_THROTTLE_RATES': {
         'anon': '100/hour',
-        'user': '1000/hour'
+        'user': '1000/hour',
+        # Health analysis specific rates
+        'health_analysis': '100/hour',  # 100 requests per hour for authenticated users
+        'health_analysis_burst': '10/min',  # 10 requests per minute burst limit
+        'anon_health_analysis': '5/hour',  # Stricter limit for anonymous users
+        'ip_based': '200/hour',  # IP-based limit regardless of auth
+        'daily_health_analysis': '200/day',  # Daily limit per user
+        'adaptive': '100/hour',  # Adaptive rate limit (can be adjusted dynamically)
     }
 }
 

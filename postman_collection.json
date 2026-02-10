@@ -1,0 +1,362 @@
+{
+  "info": {
+    "name": "AI Health Intelligence API",
+    "_postman_id": "ai-health-intelligence-api",
+    "description": "Complete API collection for AI Health Intelligence System with rate limiting and Firebase authentication",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{firebase_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api",
+      "type": "string"
+    },
+    {
+      "key": "firebase_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Analysis",
+      "item": [
+        {
+          "name": "Health Analysis (Authenticated)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symptoms\": [\"fatigue\", \"increased_thirst\", \"frequent_urination\"],\n  \"age\": 35,\n  \"gender\": \"male\",\n  \"additional_info\": {\n    \"weight\": 75,\n    \"height\": 175\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/health/analyze",
+              "host": ["{{base_url}}"],
+              "path": ["health", "analyze"]
+            },
+            "description": "Primary health analysis endpoint with Firebase authentication. Tests complete pipeline with rate limiting."
+          },
+          "response": []
+        },
+        {
+          "name": "Health Assessment (No Auth)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symptoms\": [\"fever\", \"cough\", \"headache\"],\n  \"age\": 28,\n  \"gender\": \"female\",\n  \"user_id\": \"test_user_123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/assess",
+              "host": ["{{base_url}}"],
+              "path": ["assess"]
+            },
+            "description": "Health assessment without authentication. Has stricter rate limits (5/hour for anonymous users)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "User Profile",
+      "item": [
+        {
+          "name": "Get User Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/profile",
+              "host": ["{{base_url}}"],
+              "path": ["user", "profile"]
+            },
+            "description": "Retrieve authenticated user's profile. Creates profile on first access."
+          },
+          "response": []
+        },
+        {
+          "name": "Update User Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"display_name\": \"John Doe\",\n  \"phone_number\": \"+1234567890\",\n  \"date_of_birth\": \"1990-01-01\",\n  \"gender\": \"male\",\n  \"address\": {\n    \"street\": \"123 Main St\",\n    \"city\": \"New York\",\n    \"state\": \"NY\",\n    \"zip\": \"10001\",\n    \"country\": \"USA\"\n  },\n  \"emergency_contact\": {\n    \"name\": \"Jane Doe\",\n    \"relationship\": \"spouse\",\n    \"phone\": \"+1234567891\"\n  },\n  \"medical_history\": [\"diabetes\", \"hypertension\"],\n  \"allergies\": [\"penicillin\"],\n  \"current_medications\": [\"metformin\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/user/profile",
+              "host": ["{{base_url}}"],
+              "path": ["user", "profile"]
+            },
+            "description": "Update authenticated user's profile information."
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/statistics",
+              "host": ["{{base_url}}"],
+              "path": ["user", "statistics"]
+            },
+            "description": "Get user assessment statistics including total assessments, confidence breakdown, and most common diseases."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Assessment History",
+      "item": [
+        {
+          "name": "Get Assessment History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/assessments?page=1&page_size=10&sort=created_at&order=desc",
+              "host": ["{{base_url}}"],
+              "path": ["user", "assessments"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "page_size",
+                  "value": "10"
+                },
+                {
+                  "key": "sort",
+                  "value": "created_at"
+                },
+                {
+                  "key": "order",
+                  "value": "desc"
+                }
+              ]
+            },
+            "description": "Get paginated assessment history with sorting options."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Assessment Detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/assessments/{{assessment_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["user", "assessments", "{{assessment_id}}"]
+            },
+            "description": "Get detailed information about a specific assessment."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "System & Model Info",
+      "item": [
+        {
+          "name": "System Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["status"]
+            },
+            "description": "Get system status and component health."
+          },
+          "response": []
+        },
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Simple health check endpoint."
+          },
+          "response": []
+        },
+        {
+          "name": "Model Info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/model/info",
+              "host": ["{{base_url}}"],
+              "path": ["model", "info"]
+            },
+            "description": "Get ML model information."
+          },
+          "response": []
+        },
+        {
+          "name": "List Diseases",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/diseases",
+              "host": ["{{base_url}}"],
+              "path": ["diseases"]
+            },
+            "description": "Get list of all supported diseases."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Predictions",
+      "item": [
+        {
+          "name": "Top Predictions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symptoms\": [\"fever\", \"cough\"],\n  \"age\": 30,\n  \"gender\": \"male\",\n  \"n\": 5\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/predict/top",
+              "host": ["{{base_url}}"],
+              "path": ["predict", "top"]
+            },
+            "description": "Get top N disease predictions."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Rate Limiting Tests",
+      "item": [
+        {
+          "name": "Test Burst Rate Limit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symptoms\": [\"test\"],\n  \"age\": 30,\n  \"gender\": \"male\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/health/analyze",
+              "host": ["{{base_url}}"],
+              "path": ["health", "analyze"]
+            },
+            "description": "Run this request 15 times rapidly to test burst rate limiting (10/min limit). Should get 429 error after 10 requests."
+          },
+          "response": []
+        },
+        {
+          "name": "Test Anonymous Rate Limit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symptoms\": [\"test\"],\n  \"age\": 30,\n  \"gender\": \"male\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/assess",
+              "host": ["{{base_url}}"],
+              "path": ["assess"]
+            },
+            "description": "Run this request 10 times to test anonymous rate limiting (5/hour limit). Should get 429 error after 5 requests."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

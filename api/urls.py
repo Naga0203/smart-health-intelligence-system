@@ -12,7 +12,11 @@ from .views import (
     SystemStatusView,
     ModelInfoView,
     DiseasesListView,
-    health_check
+    health_check,
+    UserProfileAPIView,
+    UserStatisticsAPIView,
+    AssessmentHistoryAPIView,
+    AssessmentDetailAPIView
 )
 
 app_name = 'api'
@@ -36,4 +40,12 @@ urlpatterns = [
     
     # Diseases list
     path('diseases/', DiseasesListView.as_view(), name='diseases-list'),
+    
+    # User profile endpoints
+    path('user/profile/', UserProfileAPIView.as_view(), name='user-profile'),
+    path('user/statistics/', UserStatisticsAPIView.as_view(), name='user-statistics'),
+    
+    # Assessment history endpoints
+    path('user/assessments/', AssessmentHistoryAPIView.as_view(), name='assessment-history'),
+    path('user/assessments/<str:assessment_id>/', AssessmentDetailAPIView.as_view(), name='assessment-detail'),
 ]

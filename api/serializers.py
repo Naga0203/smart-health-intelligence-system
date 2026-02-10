@@ -114,3 +114,115 @@ class DiseaseInfoSerializer(serializers.Serializer):
     disease = serializers.CharField()
     probability = serializers.FloatField()
     rank = serializers.IntegerField()
+
+
+class UserProfileSerializer(serializers.Serializer):
+    """Serializer for user profile data."""
+    
+    uid = serializers.CharField(read_only=True)
+    email = serializers.EmailField(read_only=True)
+    display_name = serializers.CharField(max_length=200, required=False)
+    photo_url = serializers.URLField(required=False, allow_blank=True)
+    email_verified = serializers.BooleanField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+    last_login = serializers.DateTimeField(read_only=True)
+    
+    # Additional profile fields
+    phone_number = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    date_of_birth = serializers.DateField(required=False, allow_null=True)
+    gender = serializers.ChoiceField(
+        choices=['male', 'female', 'other', 'prefer_not_to_say'],
+        required=False,
+        allow_blank=True
+    )
+    address = serializers.DictField(required=False)
+    emergency_contact = serializers.DictField(required=False)
+    medical_history = serializers.ListField(
+        child=serializers.CharField(),
+        required=False
+    )
+    allergies = serializers.ListField(
+        child=serializers.CharField(),
+        required=False
+    )
+    current_medications = serializers.ListField(
+        child=serializers.CharField(),
+        required=False
+    )
+
+
+class UserProfileUpdateSerializer(serializers.Serializer):
+    """Serializer for updating user profile."""
+    
+    display_name = serializers.CharField(max_length=200, required=False)
+    phone_number = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    date_of_birth = serializers.DateField(required=False, allow_null=True)
+    gender = serializers.ChoiceField(
+        choices=['male', 'female', 'other', 'prefer_not_to_say'],
+        required=False
+    )
+    address = serializers.DictField(required=False)
+    emergency_contact = serializers.DictField(required=False)
+    medical_history = serializers.ListField(
+        child=serializers.CharField(),
+        required=False
+    )
+    allergies = serializers.ListField(
+        child=serializers.CharField(),
+        required=False
+    )
+    current_medications = serializers.ListField(
+        child=serializers.CharField(),
+        required=False
+    )
+
+
+class UserStatisticsSerializer(serializers.Serializer):
+    """Serializer for user statistics."""
+    
+    total_assessments = serializers.IntegerField()
+    assessments_by_confidence = serializers.DictField()
+    most_common_diseases = serializers.ListField()
+    last_assessment_date = serializers.DateTimeField(allow_null=True)
+    account_age_days = serializers.IntegerField()
+
+
+class AssessmentHistoryItemSerializer(serializers.Serializer):
+    """Serializer for assessment history item."""
+    
+    id = serializers.CharField()
+    created_at = serializers.DateTimeField()
+    disease = serializers.CharField()
+    probability = serializers.FloatField()
+    confidence = serializers.CharField()
+    symptoms = serializers.ListField(child=serializers.CharField())
+    status = serializers.CharField()
+
+
+class AssessmentHistorySerializer(serializers.Serializer):
+    """Serializer for paginated assessment history."""
+    
+    total = serializers.IntegerField()
+    page = serializers.IntegerField()
+    page_size = serializers.IntegerField()
+    assessments = AssessmentHistoryItemSerializer(many=True)
+
+
+class AssessmentDetailSerializer(serializers.Serializer):
+    """Serializer for detailed assessment information."""
+    
+    id = serializers.CharField()
+    user_id = serializers.CharField()
+    created_at = serializers.DateTimeField()
+    symptoms = serializers.ListField(child=serializers.CharField())
+    age = serializers.IntegerField()
+    gender = serializers.CharField()
+    disease = serializers.CharField()
+    probability = serializers.FloatField()
+    confidence = serializers.CharField()
+    extraction_data = serializers.DictField()
+    prediction_metadata = serializers.DictField()
+    explanation = serializers.DictField()
+    recommendations = serializers.DictField()
+    status = serializers.CharField()

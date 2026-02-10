@@ -1,6 +1,11 @@
 # Environment variables
 .env
 
+# Firebase credentials (IMPORTANT: Never commit!)
+firebase-credentials.json
+config/firebase-credentials.json
+*-credentials.json
+
 # Python
 __pycache__/
 *.py[cod]
@@ -44,6 +49,7 @@ venv.bak/
 # IDE
 .vscode/
 .idea/
+.kiro/
 *.swp
 *.swo
 *~
