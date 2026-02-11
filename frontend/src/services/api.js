@@ -14,7 +14,24 @@ class APIService {
       },
     });
 
+    this.isRefreshing = false;
+    this.failedQueue = [];
     this.setupInterceptors();
+  }
+
+  /**
+   * Process queued requests after token refresh
+   */
+  processQueue(error, token = null) {
+    this.failedQueue.forEach((prom) => {
+      if (error) {
+        prom.reject(error);
+      } else {
+        prom.resolve(token);
+      }
+    });
+
+    this.failedQueue = [];
   }
 
   setupInterceptors() {
@@ -34,10 +51,105 @@ class APIService {
     this.client.interceptors.response.use(
       (response) => response,
       async (error) => {
-        if (error.response?.status === 401) {
-          // Token expired - handled by auth store
-          localStorage.removeItem('firebase_token');
-          window.location.href = '/login';
+        const originalRequest = error.config;
+
+        // Handle 401 Unauthorized - Token expired
+        if (error.response?.status === 401 && !originalRequest._retry) {
+          if (this.isRefreshing) {
+            // Queue the request while token is being refreshed
+            return new Promise((resolve, reject) => {
+              this.failedQueue.push({ resolve, reject });
+            })
+              .then((token) => {
+                originalRequest.headers.Authorization = `Bearer ${token}`;
+                return this.client(originalRequest);
+              })
+              .catch((err) => {
+                return Promise.reject(err);
+              });
+          }
+
+          originalRequest._retry = true;
+          this.isRefreshing = true;
+
+          try {
+            // Attempt to refresh token using auth store
+            const { useAuthStore } = await import('@/stores/authStore');
+            await useAuthStore.getState().refreshToken();
+            
+            const newToken = localStorage.getItem('firebase_token');
+            
+            if (newToken) {
+              this.processQueue(null, newToken);
+              originalRequest.headers.Authorization = `Bearer ${newToken}`;
+              this.isRefreshing = false;
+              return this.client(originalRequest);
+            } else {
+              throw new Error('Token refresh failed');
+            }
+          } catch (refreshError) {
+            this.processQueue(refreshError, null);
+            this.isRefreshing = false;
+            
+            // Clear auth and redirect to login
+            const { useAuthStore } = await import('@/stores/authStore');
+            useAuthStore.getState().logout();
+            
+            if (typeof window !== 'undefined') {
+              window.location.href = '/login';
+            }
+            
+            return Promise.reject(refreshError);
+          }
+        }
+
+        // Handle 429 Rate Limit
+        if (error.response?.status === 429) {
+          const { useNotificationStore } = await import('@/stores/notificationStore');
+          const waitSeconds = error.response.data?.wait_seconds;
+          const message = waitSeconds
+            ? `Rate limit exceeded. Please wait ${waitSeconds} seconds before trying again.`
+            : 'Rate limit exceeded. Please try again later.';
+          
+          useNotificationStore.getState().addNotification({
+            type: 'warning',
+            message,
+            dismissible: true,
+          });
+        }
+
+        // Handle 400 Bad Request
+        if (error.response?.status === 400) {
+          const { useNotificationStore } = await import('@/stores/notificationStore');
+          const message = error.response.data?.message || 'Invalid request. Please check your input.';
+          
+          useNotificationStore.getState().addNotification({
+            type: 'error',
+            message,
+            dismissible: true,
+          });
+        }
+
+        // Handle 500 Server Error
+        if (error.response?.status === 500) {
+          const { useNotificationStore } = await import('@/stores/notificationStore');
+          
+          useNotificationStore.getState().addNotification({
+            type: 'error',
+            message: 'Server error. Please try again later.',
+            dismissible: true,
+          });
+        }
+
+        // Handle Network Errors
+        if (!error.response) {
+          const { useNotificationStore } = await import('@/stores/notificationStore');
+          
+          useNotificationStore.getState().addNotification({
+            type: 'error',
+            message: 'Network error. Please check your connection.',
+            dismissible: true,
+          });
         }
 
         return Promise.reject(error);
