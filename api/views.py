@@ -15,7 +15,7 @@ from rest_framework.exceptions import (
     NotFound,
     Throttled
 )
-from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
 from drf_spectacular.types import OpenApiTypes
 from datetime import datetime
 import logging
@@ -295,9 +295,171 @@ class HealthAnalysisAPI(APIView):
             return self._format_low_confidence_response(result_data)
     
     @extend_schema(
+        tags=['Health Analysis'],
+        summary='Perform authenticated health analysis',
+        description='''
+        Perform complete health analysis with Firebase authentication.
+        
+        This is the primary endpoint for authenticated health assessments. It processes user symptoms
+        through a multi-agent pipeline including validation, data extraction, ML prediction, 
+        AI explanation, and ethical recommendation gating.
+        
+        **Authentication Required**: Firebase ID token in Authorization header
+        
+        **Rate Limits**:
+        - 10 requests per minute (burst protection)
+        - 100 requests per hour (sustained usage)
+        - 200 requests per day (daily limit)
+        - 200 requests per hour per IP
+        
+        **Confidence-Based Responses**:
+        - LOW confidence: Limited response with suggestion to provide more information
+        - MEDIUM confidence: Cautious guidance with treatment information
+        - HIGH confidence: Full information with comprehensive details
+        ''',
         request=HealthAssessmentInputSerializer,
-        responses={200: HealthAssessmentOutputSerializer},
-        description="Perform authenticated health analysis with complete pipeline"
+        responses={
+            200: OpenApiExample(
+                'High Confidence Response',
+                value={
+                    "status": "success",
+                    "confidence": "HIGH",
+                    "message": "Assessment completed with high confidence",
+                    "user_id": "firebase_user_uid",
+                    "assessment_id": "assessment_doc_id_123",
+                    "prediction": {
+                        "disease": "Diabetes",
+                        "probability": 0.78,
+                        "probability_percent": 78.0,
+                        "confidence": "HIGH",
+                        "model_version": "v1.0"
+                    },
+                    "extraction": {
+                        "confidence": 0.85,
+                        "method": "gemini_ai_extraction",
+                        "extracted_features": ["glucose", "bmi", "age"]
+                    },
+                    "explanation": {
+                        "text": "Based on the symptoms provided including increased thirst, frequent urination, and fatigue, combined with your age and other factors, there is a high probability of diabetes risk. These symptoms are classic indicators of elevated blood glucose levels.",
+                        "generated_by": "gemini",
+                        "confidence": "HIGH"
+                    },
+                    "recommendations": {
+                        "items": [
+                            "Consult an endocrinologist or primary care physician",
+                            "Get blood glucose testing (fasting and HbA1c)",
+                            "Monitor symptoms and keep a health diary",
+                            "Consider lifestyle modifications"
+                        ],
+                        "urgency": "medium",
+                        "confidence": "HIGH"
+                    },
+                    "treatment_info": {
+                        "allopathy": {
+                            "approach": "Blood sugar monitoring and medication management",
+                            "focus": "Insulin regulation and glucose control",
+                            "disclaimer": "Requires medical supervision"
+                        },
+                        "ayurveda": {
+                            "approach": "Diet regulation and lifestyle balance",
+                            "focus": "Holistic body constitution and natural remedies",
+                            "disclaimer": "Consult qualified Ayurvedic practitioner"
+                        },
+                        "lifestyle": {
+                            "approach": "Diet, exercise, and stress management",
+                            "focus": "Preventive care and healthy habits",
+                            "disclaimer": "General wellness information only"
+                        }
+                    },
+                    "risk_factors": [
+                        "Age over 45",
+                        "Family history of diabetes",
+                        "Sedentary lifestyle"
+                    ],
+                    "disclaimer": "This is not a medical diagnosis. Treatment information is educational only. Please consult healthcare professionals for personalized medical advice.",
+                    "metadata": {
+                        "processing_time_seconds": 2.5,
+                        "timestamp": "2026-02-10T12:00:00Z",
+                        "storage_ids": {
+                            "assessment": "assessment_doc_id_123",
+                            "prediction": "prediction_doc_id_456",
+                            "explanation": "explanation_doc_id_789"
+                        },
+                        "pipeline_version": "v1.0"
+                    }
+                },
+                response_only=True
+            ),
+            400: OpenApiExample(
+                'Validation Error',
+                value={
+                    "error": "validation_error",
+                    "message": "Invalid input data",
+                    "details": {
+                        "age": ["This field is required."],
+                        "symptoms": ["This field is required."]
+                    },
+                    "status_code": 400
+                },
+                response_only=True
+            ),
+            401: OpenApiExample(
+                'Authentication Failed',
+                value={
+                    "error": "authentication_error",
+                    "message": "Authentication failed",
+                    "details": "Invalid or expired Firebase ID token",
+                    "status_code": 401
+                },
+                response_only=True
+            ),
+            429: OpenApiExample(
+                'Rate Limit Exceeded',
+                value={
+                    "error": "rate_limit_exceeded",
+                    "message": "Too many requests",
+                    "details": "Rate limit exceeded. Please try again in 60 seconds.",
+                    "wait_seconds": 60,
+                    "status_code": 429
+                },
+                response_only=True
+            ),
+            500: OpenApiExample(
+                'Internal Server Error',
+                value={
+                    "error": "internal_server_error",
+                    "message": "An unexpected error occurred",
+                    "details": "Error processing assessment",
+                    "status_code": 500
+                },
+                response_only=True
+            )
+        },
+        examples=[
+            OpenApiExample(
+                'Basic Health Assessment',
+                value={
+                    "symptoms": ["increased thirst", "frequent urination", "fatigue"],
+                    "age": 45,
+                    "gender": "male",
+                    "additional_info": {
+                        "weight": 85,
+                        "height": 175,
+                        "family_history": ["diabetes"]
+                    }
+                },
+                request_only=True
+            ),
+            OpenApiExample(
+                'Minimal Assessment',
+                value={
+                    "symptoms": ["fever", "cough"],
+                    "age": 30,
+                    "gender": "female"
+                },
+                request_only=True
+            )
+        ]
     )
     def post(self, request):
         """
@@ -465,9 +627,73 @@ class HealthAssessmentView(APIView):
     ]
     
     @extend_schema(
+        tags=['Health Analysis'],
+        summary='Perform health assessment (unauthenticated)',
+        description='''
+        Perform health assessment based on symptoms without authentication.
+        
+        This endpoint allows anonymous users to get health assessments with limited rate limits.
+        For better rate limits and history tracking, use the authenticated endpoint.
+        
+        **No Authentication Required**
+        
+        **Rate Limits**:
+        - Anonymous users: 5 requests per hour
+        - IP-based limit: 200 requests per hour
+        ''',
         request=HealthAssessmentInputSerializer,
-        responses={200: HealthAssessmentOutputSerializer},
-        description="Perform complete health assessment based on symptoms"
+        responses={
+            200: OpenApiExample(
+                'Assessment Result',
+                value={
+                    "user_id": "anonymous_or_provided_id",
+                    "assessment_id": "assessment_doc_id_123",
+                    "prediction": {
+                        "disease": "Common Cold",
+                        "probability": 0.72,
+                        "probability_percent": 72.0,
+                        "confidence": "MEDIUM"
+                    },
+                    "explanation": {
+                        "text": "Based on your symptoms...",
+                        "generated_by": "gemini",
+                        "confidence": "MEDIUM"
+                    },
+                    "recommendations": {
+                        "items": ["Rest and hydration", "Monitor symptoms"],
+                        "urgency": "low",
+                        "confidence": "MEDIUM"
+                    },
+                    "metadata": {
+                        "processing_time_seconds": 2.1,
+                        "timestamp": "2026-02-10T12:00:00Z"
+                    }
+                },
+                response_only=True
+            ),
+            429: OpenApiExample(
+                'Rate Limit Exceeded',
+                value={
+                    "error": "rate_limit_exceeded",
+                    "message": "Too many requests",
+                    "details": "Rate limit exceeded. Please try again in 3600 seconds.",
+                    "wait_seconds": 3600,
+                    "status_code": 429
+                },
+                response_only=True
+            )
+        },
+        examples=[
+            OpenApiExample(
+                'Anonymous Assessment',
+                value={
+                    "symptoms": ["fever", "cough", "sore throat"],
+                    "age": 28,
+                    "gender": "female"
+                },
+                request_only=True
+            )
+        ]
     )
     def post(self, request):
         """
@@ -557,9 +783,41 @@ class TopPredictionsView(APIView):
     permission_classes = []  # Allow any user
     
     @extend_schema(
+        tags=['Predictions'],
+        summary='Get top N disease predictions',
+        description='''
+        Get top N disease predictions ranked by probability.
+        
+        Returns multiple possible diseases based on symptoms, ranked by prediction probability.
+        
+        **No Authentication Required**
+        ''',
         request=TopPredictionsInputSerializer,
-        responses={200: DiseaseInfoSerializer(many=True)},
-        description="Get top N disease predictions"
+        responses={
+            200: OpenApiExample(
+                'Top Predictions',
+                value=[
+                    {"disease": "Influenza", "probability": 0.85, "rank": 1},
+                    {"disease": "Common Cold", "probability": 0.72, "rank": 2},
+                    {"disease": "Bronchitis", "probability": 0.68, "rank": 3},
+                    {"disease": "Pneumonia", "probability": 0.55, "rank": 4},
+                    {"disease": "Allergic Rhinitis", "probability": 0.48, "rank": 5}
+                ],
+                response_only=True
+            )
+        },
+        examples=[
+            OpenApiExample(
+                'Get Top 5 Predictions',
+                value={
+                    "symptoms": ["fever", "cough", "headache"],
+                    "age": 35,
+                    "gender": "male",
+                    "n": 5
+                },
+                request_only=True
+            )
+        ]
     )
     def post(self, request):
         """
@@ -624,8 +882,42 @@ class SystemStatusView(APIView):
     permission_classes = []  # Allow any user
     
     @extend_schema(
-        responses={200: SystemStatusSerializer},
-        description="Get system status and component health"
+        tags=['System'],
+        summary='Get system status',
+        description='''
+        Get system status and component health check.
+        
+        Returns operational status of all system components including orchestrator,
+        predictor, database, and external services.
+        
+        **No Authentication Required**
+        ''',
+        responses={
+            200: OpenApiExample(
+                'System Operational',
+                value={
+                    "status": "operational",
+                    "version": "1.0",
+                    "components": {
+                        "orchestrator": {"status": "healthy", "version": "1.0"},
+                        "predictor": {"status": "healthy", "models_loaded": 3},
+                        "database": {"status": "connected", "type": "firebase"},
+                        "gemini_ai": {"status": "available"}
+                    },
+                    "timestamp": "2026-02-10T12:00:00Z"
+                },
+                response_only=True
+            ),
+            503: OpenApiExample(
+                'Service Unavailable',
+                value={
+                    "status": "error",
+                    "error": "Database connection failed",
+                    "timestamp": "2026-02-10T12:00:00Z"
+                },
+                response_only=True
+            )
+        }
     )
     def get(self, request):
         """
@@ -678,8 +970,38 @@ class ModelInfoView(APIView):
     permission_classes = []  # Allow any user
     
     @extend_schema(
-        responses={200: ModelInfoSerializer},
-        description="Get model information"
+        tags=['System'],
+        summary='Get model information',
+        description='''
+        Get information about the loaded ML model.
+        
+        Returns details about the disease prediction model including type, features, and device.
+        
+        **No Authentication Required**
+        ''',
+        responses={
+            200: OpenApiExample(
+                'Model Info',
+                value={
+                    "model_loaded": True,
+                    "model_type": "pytorch",
+                    "num_features": 132,
+                    "num_diseases": 715,
+                    "device": "cuda"
+                },
+                response_only=True
+            ),
+            503: OpenApiExample(
+                'Model Not Available',
+                value={
+                    "error": "service_unavailable",
+                    "message": "Service temporarily unavailable",
+                    "details": "Failed to get model info: Model not loaded",
+                    "status_code": 503
+                },
+                response_only=True
+            )
+        }
     )
     def get(self, request):
         """
@@ -723,8 +1045,36 @@ class DiseasesListView(APIView):
     permission_classes = []  # Allow any user
     
     @extend_schema(
-        responses={200: OpenApiTypes.OBJECT},
-        description="Get list of all supported diseases"
+        tags=['System'],
+        summary='Get supported diseases list',
+        description='''
+        Get list of all diseases supported by the prediction model.
+        
+        Returns the complete list of diseases that the system can predict.
+        
+        **No Authentication Required**
+        ''',
+        responses={
+            200: OpenApiExample(
+                'Diseases List',
+                value={
+                    "total": 715,
+                    "diseases": [
+                        "Fungal infection",
+                        "Allergy",
+                        "GERD",
+                        "Chronic cholestasis",
+                        "Drug Reaction",
+                        "Peptic ulcer disease",
+                        "AIDS",
+                        "Diabetes",
+                        "Gastroenteritis",
+                        "Bronchial Asthma"
+                    ]
+                },
+                response_only=True
+            )
+        }
     )
     def get(self, request):
         """
@@ -801,8 +1151,60 @@ class UserProfileAPIView(APIView):
     ]
     
     @extend_schema(
-        responses={200: UserProfileSerializer},
-        description="Get authenticated user's profile"
+        tags=['User Profile'],
+        summary='Get user profile',
+        description='''
+        Retrieve the authenticated user's profile from Firebase Firestore.
+        
+        If the user profile doesn't exist, it will be automatically created with default values
+        from the Firebase Authentication data.
+        
+        **Authentication Required**: Firebase ID token
+        ''',
+        responses={
+            200: OpenApiExample(
+                'User Profile',
+                value={
+                    "uid": "firebase_user_uid_123",
+                    "email": "user@example.com",
+                    "display_name": "John Doe",
+                    "photo_url": "https://example.com/photo.jpg",
+                    "email_verified": True,
+                    "created_at": "2026-01-01T00:00:00Z",
+                    "updated_at": "2026-02-10T00:00:00Z",
+                    "last_login": "2026-02-10T12:00:00Z",
+                    "phone_number": "+1234567890",
+                    "date_of_birth": "1990-01-01",
+                    "gender": "male",
+                    "address": {
+                        "street": "123 Main St",
+                        "city": "New York",
+                        "state": "NY",
+                        "zip": "10001",
+                        "country": "USA"
+                    },
+                    "emergency_contact": {
+                        "name": "Jane Doe",
+                        "relationship": "spouse",
+                        "phone": "+1234567891"
+                    },
+                    "medical_history": ["diabetes", "hypertension"],
+                    "allergies": ["penicillin"],
+                    "current_medications": ["metformin", "lisinopril"]
+                },
+                response_only=True
+            ),
+            401: OpenApiExample(
+                'Authentication Failed',
+                value={
+                    "error": "authentication_error",
+                    "message": "Authentication failed",
+                    "details": "Invalid or expired Firebase ID token",
+                    "status_code": 401
+                },
+                response_only=True
+            )
+        }
     )
     def get(self, request):
         """
@@ -892,9 +1294,64 @@ class UserProfileAPIView(APIView):
             return APIErrorHandler.handle_internal_error(e, logger)
     
     @extend_schema(
+        tags=['User Profile'],
+        summary='Update user profile',
+        description='''
+        Update the authenticated user's profile in Firebase Firestore.
+        
+        All fields are optional. Only provided fields will be updated.
+        
+        **Authentication Required**: Firebase ID token
+        ''',
         request=UserProfileUpdateSerializer,
-        responses={200: UserProfileSerializer},
-        description="Update authenticated user's profile"
+        responses={
+            200: OpenApiExample(
+                'Updated Profile',
+                value={
+                    "uid": "firebase_user_uid_123",
+                    "email": "user@example.com",
+                    "display_name": "John Doe Updated",
+                    "phone_number": "+1234567890",
+                    "date_of_birth": "1990-01-01",
+                    "gender": "male",
+                    "updated_at": "2026-02-10T12:30:00Z"
+                },
+                response_only=True
+            ),
+            400: OpenApiExample(
+                'Validation Error',
+                value={
+                    "error": "validation_error",
+                    "message": "Invalid input data",
+                    "details": {
+                        "date_of_birth": ["Date has wrong format. Use YYYY-MM-DD."]
+                    },
+                    "status_code": 400
+                },
+                response_only=True
+            )
+        },
+        examples=[
+            OpenApiExample(
+                'Update Basic Info',
+                value={
+                    "display_name": "John Doe",
+                    "phone_number": "+1234567890",
+                    "date_of_birth": "1990-01-01",
+                    "gender": "male"
+                },
+                request_only=True
+            ),
+            OpenApiExample(
+                'Update Medical Info',
+                value={
+                    "medical_history": ["diabetes", "hypertension"],
+                    "allergies": ["penicillin", "sulfa drugs"],
+                    "current_medications": ["metformin", "lisinopril"]
+                },
+                request_only=True
+            )
+        ]
     )
     def put(self, request):
         """
@@ -993,8 +1450,37 @@ class UserStatisticsAPIView(APIView):
     throttle_classes = [HealthAnalysisRateThrottle]
     
     @extend_schema(
-        responses={200: UserStatisticsSerializer},
-        description="Get user statistics"
+        tags=['User Profile'],
+        summary='Get user statistics',
+        description='''
+        Retrieve statistics about the user's health assessments.
+        
+        Provides aggregate data including total assessments, confidence distribution,
+        most common diseases, and account information.
+        
+        **Authentication Required**: Firebase ID token
+        ''',
+        responses={
+            200: OpenApiExample(
+                'User Statistics',
+                value={
+                    "total_assessments": 25,
+                    "assessments_by_confidence": {
+                        "LOW": 5,
+                        "MEDIUM": 10,
+                        "HIGH": 10
+                    },
+                    "most_common_diseases": [
+                        {"disease": "Diabetes", "count": 8},
+                        {"disease": "Hypertension", "count": 5},
+                        {"disease": "Common Cold", "count": 3}
+                    ],
+                    "last_assessment_date": "2026-02-10T12:00:00Z",
+                    "account_age_days": 45
+                },
+                response_only=True
+            )
+        }
     )
     def get(self, request):
         """
@@ -1103,14 +1589,58 @@ class AssessmentHistoryAPIView(APIView):
     throttle_classes = [HealthAnalysisRateThrottle]
     
     @extend_schema(
+        tags=['Assessment History'],
+        summary='Get assessment history',
+        description='''
+        Retrieve paginated assessment history for the authenticated user.
+        
+        Supports pagination, sorting, and filtering of past health assessments.
+        
+        **Authentication Required**: Firebase ID token
+        
+        **Query Parameters**:
+        - `page`: Page number (default: 1)
+        - `page_size`: Items per page (default: 10, max: 50)
+        - `sort`: Sort field - created_at, confidence, disease (default: created_at)
+        - `order`: Sort order - asc, desc (default: desc)
+        ''',
         parameters=[
             OpenApiParameter('page', OpenApiTypes.INT, description='Page number (default: 1)'),
             OpenApiParameter('page_size', OpenApiTypes.INT, description='Items per page (default: 10, max: 50)'),
             OpenApiParameter('sort', OpenApiTypes.STR, description='Sort by: created_at, confidence, disease (default: created_at)'),
             OpenApiParameter('order', OpenApiTypes.STR, description='Order: asc, desc (default: desc)'),
         ],
-        responses={200: AssessmentHistorySerializer},
-        description="Get user's assessment history with pagination"
+        responses={
+            200: OpenApiExample(
+                'Assessment History',
+                value={
+                    "total": 25,
+                    "page": 1,
+                    "page_size": 10,
+                    "assessments": [
+                        {
+                            "id": "assessment_id_1",
+                            "created_at": "2026-02-10T12:00:00Z",
+                            "disease": "Diabetes",
+                            "probability": 0.78,
+                            "confidence": "HIGH",
+                            "symptoms": ["increased thirst", "frequent urination", "fatigue"],
+                            "status": "completed"
+                        },
+                        {
+                            "id": "assessment_id_2",
+                            "created_at": "2026-02-09T10:30:00Z",
+                            "disease": "Hypertension",
+                            "probability": 0.65,
+                            "confidence": "MEDIUM",
+                            "symptoms": ["headache", "dizziness"],
+                            "status": "completed"
+                        }
+                    ]
+                },
+                response_only=True
+            )
+        }
     )
     def get(self, request):
         """
@@ -1219,8 +1749,74 @@ class AssessmentDetailAPIView(APIView):
     throttle_classes = [HealthAnalysisRateThrottle]
     
     @extend_schema(
-        responses={200: AssessmentDetailSerializer},
-        description="Get detailed assessment information"
+        tags=['Assessment History'],
+        summary='Get assessment details',
+        description='''
+        Retrieve detailed information about a specific assessment.
+        
+        Returns complete assessment data including symptoms, prediction, explanation,
+        recommendations, and treatment information.
+        
+        **Authentication Required**: Firebase ID token
+        
+        **Authorization**: Users can only access their own assessments
+        ''',
+        responses={
+            200: OpenApiExample(
+                'Assessment Details',
+                value={
+                    "id": "assessment_id_123",
+                    "user_id": "firebase_user_uid",
+                    "created_at": "2026-02-10T12:00:00Z",
+                    "symptoms": ["increased thirst", "frequent urination", "fatigue"],
+                    "age": 45,
+                    "gender": "male",
+                    "disease": "Diabetes",
+                    "probability": 0.78,
+                    "confidence": "HIGH",
+                    "extraction_data": {
+                        "confidence": 0.85,
+                        "method": "gemini_ai_extraction"
+                    },
+                    "prediction_metadata": {
+                        "model_version": "v1.0",
+                        "processing_time": 1.2
+                    },
+                    "explanation": {
+                        "text": "Based on the symptoms provided...",
+                        "generated_by": "gemini",
+                        "confidence": "HIGH"
+                    },
+                    "recommendations": {
+                        "items": ["Consult healthcare professional", "Get blood glucose testing"],
+                        "urgency": "medium",
+                        "confidence": "HIGH"
+                    },
+                    "status": "completed"
+                },
+                response_only=True
+            ),
+            404: OpenApiExample(
+                'Assessment Not Found',
+                value={
+                    "error": "not_found",
+                    "message": "Resource not found",
+                    "details": "Assessment assessment_id_123 not found",
+                    "status_code": 404
+                },
+                response_only=True
+            ),
+            403: OpenApiExample(
+                'Permission Denied',
+                value={
+                    "error": "permission_error",
+                    "message": "Permission denied",
+                    "details": "You don't have permission to access this assessment",
+                    "status_code": 403
+                },
+                response_only=True
+            )
+        }
     )
     def get(self, request, assessment_id):
         """

@@ -1,0 +1,661 @@
+openapi: 3.0.3
+info:
+  title: AI Health Intelligence API
+  version: 1.0.0
+  description: "\n    A decision-support platform for health risk assessment using\
+    \ AI agents and machine learning.\n    \n    ## Overview\n    \n    The AI Health\
+    \ Intelligence System provides health risk assessments based on symptoms and user\
+    \ information.\n    The system uses a multi-agent architecture with confidence-aware\
+    \ responses and ethical safeguards.\n    \n    **Important**: This system provides\
+    \ decision support only, NOT medical diagnosis. Always consult \n    healthcare\
+    \ professionals for medical advice.\n    \n    ## Authentication\n    \n    Most\
+    \ endpoints require Firebase Authentication. Include your Firebase ID token in\
+    \ the Authorization header:\n    \n    ```\n    Authorization: Bearer <your_firebase_id_token>\n\
+    \    ```\n    \n    ## Rate Limiting\n    \n    - **Authenticated users**: 100\
+    \ requests/hour, 200 requests/day\n    - **Anonymous users**: 5 requests/hour\n\
+    \    - **IP-based limit**: 200 requests/hour\n    \n    ## Confidence Levels\n\
+    \    \n    The system provides three confidence levels for predictions:\n    \n\
+    \    - **LOW** (< 55%): Limited response, encourages more information or professional\
+    \ consultation\n    - **MEDIUM** (55-75%): Cautious guidance with treatment information\
+    \ and disclaimers\n    - **HIGH** (≥ 75%): Full information with comprehensive\
+    \ treatment details\n    \n    ## Response Structure\n    \n    All responses\
+    \ include:\n    - Prediction with confidence level\n    - Explanation generated\
+    \ by AI\n    - Recommendations based on confidence\n    - Treatment information\
+    \ (MEDIUM/HIGH confidence only)\n    - Medical disclaimers\n    \n    ## Error\
+    \ Handling\n    \n    Standard HTTP status codes are used:\n    - 200: Success\n\
+    \    - 400: Invalid input\n    - 401: Authentication failed\n    - 403: Permission\
+    \ denied\n    - 404: Resource not found\n    - 429: Rate limit exceeded\n    -\
+    \ 500: Internal server error\n    - 503: Service unavailable\n    "
+  contact:
+    name: AI Health Intelligence Support
+    email: support@healthai.example.com
+  license:
+    name: Proprietary
+paths:
+  /api/assess/:
+    post:
+      operationId: assess_create
+      description: "\n        Perform health assessment based on symptoms without\
+        \ authentication.\n        \n        This endpoint allows anonymous users\
+        \ to get health assessments with limited rate limits.\n        For better\
+        \ rate limits and history tracking, use the authenticated endpoint.\n    \
+        \    \n        **No Authentication Required**\n        \n        **Rate Limits**:\n\
+        \        - Anonymous users: 5 requests per hour\n        - IP-based limit:\
+        \ 200 requests per hour\n        "
+      summary: Perform health assessment (unauthenticated)
+      tags:
+      - Health Analysis
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HealthAssessmentInputRequest'
+            examples:
+              AnonymousAssessment:
+                value:
+                  symptoms:
+                  - fever
+                  - cough
+                  - sore throat
+                  age: 28
+                  gender: female
+                summary: Anonymous Assessment
+        required: true
+      security:
+      - FirebaseAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+        '429':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+  /api/diseases/:
+    get:
+      operationId: diseases_retrieve
+      description: "\n        Get list of all diseases supported by the prediction\
+        \ model.\n        \n        Returns the complete list of diseases that the\
+        \ system can predict.\n        \n        **No Authentication Required**\n\
+        \        "
+      summary: Get supported diseases list
+      tags:
+      - System
+      security:
+      - FirebaseAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+  /api/health/:
+    get:
+      operationId: health_retrieve
+      description: |-
+        Simple health check endpoint.
+
+        GET /api/health
+
+        Response:
+        {
+            "status": "healthy",
+            "timestamp": "2026-02-09T..."
+        }
+      tags:
+      - health
+      security:
+      - FirebaseAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/health/analyze/:
+    post:
+      operationId: health_analyze_create
+      description: "\n        Perform complete health analysis with Firebase authentication.\n\
+        \        \n        This is the primary endpoint for authenticated health assessments.\
+        \ It processes user symptoms\n        through a multi-agent pipeline including\
+        \ validation, data extraction, ML prediction, \n        AI explanation, and\
+        \ ethical recommendation gating.\n        \n        **Authentication Required**:\
+        \ Firebase ID token in Authorization header\n        \n        **Rate Limits**:\n\
+        \        - 10 requests per minute (burst protection)\n        - 100 requests\
+        \ per hour (sustained usage)\n        - 200 requests per day (daily limit)\n\
+        \        - 200 requests per hour per IP\n        \n        **Confidence-Based\
+        \ Responses**:\n        - LOW confidence: Limited response with suggestion\
+        \ to provide more information\n        - MEDIUM confidence: Cautious guidance\
+        \ with treatment information\n        - HIGH confidence: Full information\
+        \ with comprehensive details\n        "
+      summary: Perform authenticated health analysis
+      tags:
+      - Health Analysis
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HealthAssessmentInputRequest'
+            examples:
+              BasicHealthAssessment:
+                value:
+                  symptoms:
+                  - increased thirst
+                  - frequent urination
+                  - fatigue
+                  age: 45
+                  gender: male
+                  additional_info:
+                    weight: 85
+                    height: 175
+                    family_history:
+                    - diabetes
+                summary: Basic Health Assessment
+              MinimalAssessment:
+                value:
+                  symptoms:
+                  - fever
+                  - cough
+                  age: 30
+                  gender: female
+                summary: Minimal Assessment
+        required: true
+      security:
+      - FirebaseAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+        '429':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+  /api/model/info/:
+    get:
+      operationId: model_info_retrieve
+      description: "\n        Get information about the loaded ML model.\n       \
+        \ \n        Returns details about the disease prediction model including type,\
+        \ features, and device.\n        \n        **No Authentication Required**\n\
+        \        "
+      summary: Get model information
+      tags:
+      - System
+      security:
+      - FirebaseAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+        '503':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+  /api/predict/top/:
+    post:
+      operationId: predict_top_create
+      description: "\n        Get top N disease predictions ranked by probability.\n\
+        \        \n        Returns multiple possible diseases based on symptoms, ranked\
+        \ by prediction probability.\n        \n        **No Authentication Required**\n\
+        \        "
+      summary: Get top N disease predictions
+      tags:
+      - Predictions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TopPredictionsInputRequest'
+            examples:
+              GetTop5Predictions:
+                value:
+                  symptoms:
+                  - fever
+                  - cough
+                  - headache
+                  age: 35
+                  gender: male
+                  n: 5
+                summary: Get Top 5 Predictions
+        required: true
+      security:
+      - FirebaseAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+  /api/status/:
+    get:
+      operationId: status_retrieve
+      description: "\n        Get system status and component health check.\n    \
+        \    \n        Returns operational status of all system components including\
+        \ orchestrator,\n        predictor, database, and external services.\n   \
+        \     \n        **No Authentication Required**\n        "
+      summary: Get system status
+      tags:
+      - System
+      security:
+      - FirebaseAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+        '503':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+  /api/user/assessments/:
+    get:
+      operationId: user_assessments_retrieve
+      description: "\n        Retrieve paginated assessment history for the authenticated\
+        \ user.\n        \n        Supports pagination, sorting, and filtering of\
+        \ past health assessments.\n        \n        **Authentication Required**:\
+        \ Firebase ID token\n        \n        **Query Parameters**:\n        - `page`:\
+        \ Page number (default: 1)\n        - `page_size`: Items per page (default:\
+        \ 10, max: 50)\n        - `sort`: Sort field - created_at, confidence, disease\
+        \ (default: created_at)\n        - `order`: Sort order - asc, desc (default:\
+        \ desc)\n        "
+      summary: Get assessment history
+      parameters:
+      - in: query
+        name: order
+        schema:
+          type: string
+        description: 'Order: asc, desc (default: desc)'
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: 'Page number (default: 1)'
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: 'Items per page (default: 10, max: 50)'
+      - in: query
+        name: sort
+        schema:
+          type: string
+        description: 'Sort by: created_at, confidence, disease (default: created_at)'
+      tags:
+      - Assessment History
+      security:
+      - FirebaseAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+  /api/user/assessments/{assessment_id}/:
+    get:
+      operationId: user_assessments_retrieve_2
+      description: "\n        Retrieve detailed information about a specific assessment.\n\
+        \        \n        Returns complete assessment data including symptoms, prediction,\
+        \ explanation,\n        recommendations, and treatment information.\n    \
+        \    \n        **Authentication Required**: Firebase ID token\n        \n\
+        \        **Authorization**: Users can only access their own assessments\n\
+        \        "
+      summary: Get assessment details
+      parameters:
+      - in: path
+        name: assessment_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Assessment History
+      security:
+      - FirebaseAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+  /api/user/profile/:
+    get:
+      operationId: user_profile_retrieve
+      description: "\n        Retrieve the authenticated user's profile from Firebase\
+        \ Firestore.\n        \n        If the user profile doesn't exist, it will\
+        \ be automatically created with default values\n        from the Firebase\
+        \ Authentication data.\n        \n        **Authentication Required**: Firebase\
+        \ ID token\n        "
+      summary: Get user profile
+      tags:
+      - User Profile
+      security:
+      - FirebaseAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+    put:
+      operationId: user_profile_update
+      description: "\n        Update the authenticated user's profile in Firebase\
+        \ Firestore.\n        \n        All fields are optional. Only provided fields\
+        \ will be updated.\n        \n        **Authentication Required**: Firebase\
+        \ ID token\n        "
+      summary: Update user profile
+      tags:
+      - User Profile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserProfileUpdateRequest'
+            examples:
+              UpdateBasicInfo:
+                value:
+                  display_name: John Doe
+                  phone_number: '+1234567890'
+                  date_of_birth: '1990-01-01'
+                  gender: male
+                summary: Update Basic Info
+              UpdateMedicalInfo:
+                value:
+                  medical_history:
+                  - diabetes
+                  - hypertension
+                  allergies:
+                  - penicillin
+                  - sulfa drugs
+                  current_medications:
+                  - metformin
+                  - lisinopril
+                summary: Update Medical Info
+      security:
+      - FirebaseAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+  /api/user/statistics/:
+    get:
+      operationId: user_statistics_retrieve
+      description: "\n        Retrieve statistics about the user's health assessments.\n\
+        \        \n        Provides aggregate data including total assessments, confidence\
+        \ distribution,\n        most common diseases, and account information.\n\
+        \        \n        **Authentication Required**: Firebase ID token\n      \
+        \  "
+      summary: Get user statistics
+      tags:
+      - User Profile
+      security:
+      - FirebaseAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+components:
+  schemas:
+    HealthAssessmentInputRequest:
+      type: object
+      description: Serializer for health assessment input.
+      properties:
+        symptoms:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 200
+          description: List of symptoms (e.g., ['fever', 'cough', 'headache'])
+        age:
+          type: integer
+          maximum: 120
+          minimum: 1
+          description: Patient age in years
+        gender:
+          enum:
+          - male
+          - female
+          - other
+          type: string
+          x-spec-enum-id: 881bebd2c4a47513
+          description: |-
+            Patient gender
+
+            * `male` - male
+            * `female` - female
+            * `other` - other
+        user_id:
+          type: string
+          description: Optional user ID for tracking
+          maxLength: 100
+        additional_info:
+          type: object
+          additionalProperties: {}
+          description: 'Optional additional health information (e.g., {''weight'':
+            70, ''height'': 175})'
+      required:
+      - age
+      - gender
+      - symptoms
+    TopPredictionsInputRequest:
+      type: object
+      description: Serializer for top-N predictions input.
+      properties:
+        symptoms:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 200
+        age:
+          type: integer
+          maximum: 120
+          minimum: 1
+        gender:
+          enum:
+          - male
+          - female
+          - other
+          type: string
+          description: |-
+            * `male` - male
+            * `female` - female
+            * `other` - other
+          x-spec-enum-id: 881bebd2c4a47513
+        n:
+          type: integer
+          maximum: 20
+          minimum: 1
+          default: 5
+          description: Number of top predictions to return
+      required:
+      - age
+      - gender
+      - symptoms
+    UserProfileUpdateRequest:
+      type: object
+      description: Serializer for updating user profile.
+      properties:
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        phone_number:
+          type: string
+          maxLength: 20
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        gender:
+          enum:
+          - male
+          - female
+          - other
+          - prefer_not_to_say
+          type: string
+          description: |-
+            * `male` - male
+            * `female` - female
+            * `other` - other
+            * `prefer_not_to_say` - prefer_not_to_say
+          x-spec-enum-id: 6213c2a5ec6c590d
+        address:
+          type: object
+          additionalProperties: {}
+        emergency_contact:
+          type: object
+          additionalProperties: {}
+        medical_history:
+          type: array
+          items:
+            type: string
+            minLength: 1
+        allergies:
+          type: array
+          items:
+            type: string
+            minLength: 1
+        current_medications:
+          type: array
+          items:
+            type: string
+            minLength: 1
+  securitySchemes:
+    FirebaseAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Firebase ID token obtained from Firebase Authentication
+servers:
+- url: http://localhost:8000
+  description: Development server
+- url: https://api.healthai.example.com
+  description: Production server
+tags:
+- name: Health Analysis
+  description: Primary health assessment endpoints
+- name: User Profile
+  description: User profile management
+- name: Assessment History
+  description: Assessment history and details
+- name: System
+  description: System status and information
+- name: Predictions
+  description: Disease prediction endpoints

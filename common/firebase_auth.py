@@ -60,21 +60,47 @@ class FirebaseAuthentication(authentication.BaseAuthentication):
         
         Returns:
             Tuple of (user, token) if authenticated, None otherwise
+        
+        Raises:
+            AuthenticationFailed: When authentication fails with specific error messages
         """
         auth_header = request.META.get('HTTP_AUTHORIZATION', '')
         
-        if not auth_header.startswith('Bearer '):
+        # Check if Authorization header is present
+        if not auth_header:
             return None
         
+        # Validate Bearer token format
+        if not auth_header.startswith('Bearer '):
+            logger.warning("Invalid authorization header format - missing 'Bearer' prefix")
+            raise exceptions.AuthenticationFailed(
+                'Invalid authorization header format. Expected: "Bearer <token>"'
+            )
+        
         # Extract token
-        id_token = auth_header.split('Bearer ')[1]
+        try:
+            id_token = auth_header.split('Bearer ')[1].strip()
+        except IndexError:
+            logger.warning("Invalid authorization header - no token provided after 'Bearer'")
+            raise exceptions.AuthenticationFailed(
+                'Invalid authorization header. Token missing after "Bearer"'
+            )
+        
+        # Validate token is not empty
+        if not id_token:
+            logger.warning("Empty authentication token provided")
+            raise exceptions.AuthenticationFailed('Authentication token is empty')
         
         try:
             # Verify token with Firebase
             decoded_token = auth.verify_id_token(id_token)
             
             # Extract user info
-            uid = decoded_token['uid']
+            uid = decoded_token.get('uid')
+            if not uid:
+                logger.error("Firebase token missing UID")
+                raise exceptions.AuthenticationFailed('Invalid token: missing user ID')
+            
             email = decoded_token.get('email', '')
             display_name = decoded_token.get('name', '')
             photo_url = decoded_token.get('picture', '')
@@ -93,17 +119,53 @@ class FirebaseAuthentication(authentication.BaseAuthentication):
             
             return (user, decoded_token)
             
-        except auth.InvalidIdTokenError:
-            logger.warning("Invalid Firebase ID token")
-            raise exceptions.AuthenticationFailed('Invalid authentication token')
+        except auth.InvalidIdTokenError as e:
+            logger.warning(f"Invalid Firebase ID token: {str(e)}")
+            raise exceptions.AuthenticationFailed(
+                'Invalid authentication token. Please sign in again.'
+            )
         
-        except auth.ExpiredIdTokenError:
-            logger.warning("Expired Firebase ID token")
-            raise exceptions.AuthenticationFailed('Authentication token has expired')
+        except auth.ExpiredIdTokenError as e:
+            logger.warning(f"Expired Firebase ID token: {str(e)}")
+            raise exceptions.AuthenticationFailed(
+                'Authentication token has expired. Please sign in again.'
+            )
+        
+        except auth.RevokedIdTokenError as e:
+            logger.warning(f"Revoked Firebase ID token: {str(e)}")
+            raise exceptions.AuthenticationFailed(
+                'Authentication token has been revoked. Please sign in again.'
+            )
+        
+        except auth.CertificateFetchError as e:
+            logger.error(f"Firebase certificate fetch error: {str(e)}")
+            raise exceptions.AuthenticationFailed(
+                'Authentication service temporarily unavailable. Please try again later.'
+            )
+        
+        except auth.UserDisabledError as e:
+            logger.warning(f"Disabled user attempted authentication: {str(e)}")
+            raise exceptions.AuthenticationFailed(
+                'User account has been disabled. Please contact support.'
+            )
+        
+        except ValueError as e:
+            logger.warning(f"Invalid token format: {str(e)}")
+            raise exceptions.AuthenticationFailed(
+                'Invalid token format. Please sign in again.'
+            )
+        
+        except KeyError as e:
+            logger.error(f"Missing required field in token: {str(e)}")
+            raise exceptions.AuthenticationFailed(
+                'Invalid token structure. Please sign in again.'
+            )
         
         except Exception as e:
-            logger.error(f"Authentication error: {e}")
-            raise exceptions.AuthenticationFailed('Authentication failed')
+            logger.error(f"Unexpected authentication error: {str(e)}", exc_info=True)
+            raise exceptions.AuthenticationFailed(
+                'Authentication failed. Please try again or contact support.'
+            )
     
     def authenticate_header(self, request):
         """Return authentication header for 401 responses."""

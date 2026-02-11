@@ -17,8 +17,12 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
+from api.landing import landing_page
 
 urlpatterns = [
+    # Landing page
+    path('', landing_page, name='landing'),
+    
     # Admin
     path('admin/', admin.site.urls),
     
