@@ -10,7 +10,6 @@ import {
   GoogleAuthProvider,
   signOut,
   onAuthStateChanged,
-  User as FirebaseUser,
   createUserWithEmailAndPassword,
 } from 'firebase/auth';
 
@@ -38,14 +37,14 @@ export class FirebaseService {
   /**
    * Sign in with email and password
    */
-  async loginWithEmail(email: string, password: string) {
+  async loginWithEmail(email, password) {
     return signInWithEmailAndPassword(auth, email, password);
   }
 
   /**
    * Create new user with email and password
    */
-  async registerWithEmail(email: string, password: string) {
+  async registerWithEmail(email, password) {
     return createUserWithEmailAndPassword(auth, email, password);
   }
 
@@ -66,7 +65,7 @@ export class FirebaseService {
   /**
    * Get Firebase ID token for API authentication
    */
-  async getIdToken(forceRefresh: boolean = false): Promise<string | null> {
+  async getIdToken(forceRefresh = false) {
     const user = auth.currentUser;
     if (!user) return null;
     return user.getIdToken(forceRefresh);
@@ -75,14 +74,14 @@ export class FirebaseService {
   /**
    * Listen to authentication state changes
    */
-  onAuthStateChange(callback: (user: FirebaseUser | null) => void) {
+  onAuthStateChange(callback) {
     return onAuthStateChanged(auth, callback);
   }
 
   /**
    * Get current user
    */
-  getCurrentUser(): FirebaseUser | null {
+  getCurrentUser() {
     return auth.currentUser;
   }
 }

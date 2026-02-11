@@ -4,27 +4,10 @@
 
 import { create } from 'zustand';
 import { apiService } from '@/services/api';
-import type { SystemStatus, ModelInfo, DiseasesResponse } from '@/types';
 
-interface SystemState {
-  status: SystemStatus | null;
-  modelInfo: ModelInfo | null;
-  diseases: DiseasesResponse | null;
-  loading: boolean;
-  error: string | null;
-  
-  // Actions
-  fetchSystemStatus: () => Promise<void>;
-  fetchModelInfo: () => Promise<void>;
-  fetchDiseases: () => Promise<void>;
-  startStatusPolling: () => void;
-  stopStatusPolling: () => void;
-  clearError: () => void;
-}
+let pollingInterval = null;
 
-let pollingInterval: NodeJS.Timeout | null = null;
-
-export const useSystemStore = create<SystemState>((set, get) => ({
+export const useSystemStore = create((set, get) => ({
   status: null,
   modelInfo: null,
   diseases: null,
@@ -37,7 +20,7 @@ export const useSystemStore = create<SystemState>((set, get) => ({
     try {
       const status = await apiService.getSystemStatus();
       set({ status, loading: false, error: null });
-    } catch (error: any) {
+    } catch (error) {
       set({ 
         loading: false, 
         error: error.response?.data?.message || 'Failed to fetch system status' 
@@ -51,7 +34,7 @@ export const useSystemStore = create<SystemState>((set, get) => ({
     try {
       const modelInfo = await apiService.getModelInfo();
       set({ modelInfo, loading: false, error: null });
-    } catch (error: any) {
+    } catch (error) {
       set({ 
         loading: false, 
         error: error.response?.data?.message || 'Failed to fetch model info' 
@@ -65,7 +48,7 @@ export const useSystemStore = create<SystemState>((set, get) => ({
     try {
       const diseases = await apiService.getDiseases();
       set({ diseases, loading: false, error: null });
-    } catch (error: any) {
+    } catch (error) {
       set({ 
         loading: false, 
         error: error.response?.data?.message || 'Failed to fetch diseases' 

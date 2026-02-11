@@ -3,23 +3,13 @@
 // ============================================================================
 
 import { create } from 'zustand';
-import type { Notification } from '@/types';
 
-interface NotificationState {
-  notifications: Notification[];
-  
-  // Actions
-  addNotification: (notification: Omit<Notification, 'id' | 'timestamp'>) => void;
-  removeNotification: (id: string) => void;
-  clearAll: () => void;
-}
-
-export const useNotificationStore = create<NotificationState>((set) => ({
+export const useNotificationStore = create((set) => ({
   notifications: [],
 
   // Add notification
   addNotification: (notification) => {
-    const newNotification: Notification = {
+    const newNotification = {
       ...notification,
       id: `${Date.now()}-${Math.random()}`,
       timestamp: new Date().toISOString(),

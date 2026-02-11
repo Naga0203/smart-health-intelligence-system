@@ -5,26 +5,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { firebaseService } from '@/services/firebase';
-import type { User } from '@/types';
 
-interface AuthState {
-  user: User | null;
-  token: string | null;
-  loading: boolean;
-  error: string | null;
-  
-  // Actions
-  login: (email: string, password: string) => Promise<void>;
-  loginWithGoogle: () => Promise<void>;
-  logout: () => Promise<void>;
-  refreshToken: () => Promise<void>;
-  setUser: (user: User | null) => void;
-  setToken: (token: string | null) => void;
-  clearError: () => void;
-  initialize: () => void;
-}
-
-export const useAuthStore = create<AuthState>()(
+export const useAuthStore = create(
   persist(
     (set, get) => ({
       user: null,
@@ -37,7 +19,7 @@ export const useAuthStore = create<AuthState>()(
         firebaseService.onAuthStateChange(async (firebaseUser) => {
           if (firebaseUser) {
             const token = await firebaseUser.getIdToken();
-            const user: User = {
+            const user = {
               uid: firebaseUser.uid,
               email: firebaseUser.email || '',
               displayName: firebaseUser.displayName,
@@ -54,13 +36,13 @@ export const useAuthStore = create<AuthState>()(
       },
 
       // Login with email and password
-      login: async (email: string, password: string) => {
+      login: async (email, password) => {
         set({ loading: true, error: null });
         try {
           const userCredential = await firebaseService.loginWithEmail(email, password);
           const token = await userCredential.user.getIdToken();
           
-          const user: User = {
+          const user = {
             uid: userCredential.user.uid,
             email: userCredential.user.email || '',
             displayName: userCredential.user.displayName,
@@ -69,7 +51,7 @@ export const useAuthStore = create<AuthState>()(
 
           set({ user, token, loading: false, error: null });
           localStorage.setItem('firebase_token', token);
-        } catch (error: any) {
+        } catch (error) {
           set({ 
             loading: false, 
             error: error.message || 'Login failed' 
@@ -85,7 +67,7 @@ export const useAuthStore = create<AuthState>()(
           const userCredential = await firebaseService.loginWithGoogle();
           const token = await userCredential.user.getIdToken();
           
-          const user: User = {
+          const user = {
             uid: userCredential.user.uid,
             email: userCredential.user.email || '',
             displayName: userCredential.user.displayName,
@@ -94,7 +76,7 @@ export const useAuthStore = create<AuthState>()(
 
           set({ user, token, loading: false, error: null });
           localStorage.setItem('firebase_token', token);
-        } catch (error: any) {
+        } catch (error) {
           set({ 
             loading: false, 
             error: error.message || 'Google login failed' 
@@ -110,7 +92,7 @@ export const useAuthStore = create<AuthState>()(
           await firebaseService.logout();
           set({ user: null, token: null, loading: false, error: null });
           localStorage.removeItem('firebase_token');
-        } catch (error: any) {
+        } catch (error) {
           set({ 
             loading: false, 
             error: error.message || 'Logout failed' 
@@ -127,7 +109,7 @@ export const useAuthStore = create<AuthState>()(
             set({ token });
             localStorage.setItem('firebase_token', token);
           }
-        } catch (error: any) {
+        } catch (error) {
           console.error('Token refresh failed:', error);
           set({ user: null, token: null });
           localStorage.removeItem('firebase_token');
@@ -135,12 +117,12 @@ export const useAuthStore = create<AuthState>()(
       },
 
       // Set user
-      setUser: (user: User | null) => {
+      setUser: (user) => {
         set({ user });
       },
 
       // Set token
-      setToken: (token: string | null) => {
+      setToken: (token) => {
         set({ token });
         if (token) {
           localStorage.setItem('firebase_token', token);

@@ -4,22 +4,8 @@
 
 import { create } from 'zustand';
 import { apiService } from '@/services/api';
-import type { UserProfile, UserStatistics } from '@/types';
 
-interface UserState {
-  profile: UserProfile | null;
-  statistics: UserStatistics | null;
-  loading: boolean;
-  error: string | null;
-  
-  // Actions
-  fetchProfile: () => Promise<void>;
-  updateProfile: (data: Partial<UserProfile>) => Promise<void>;
-  fetchStatistics: () => Promise<void>;
-  clearError: () => void;
-}
-
-export const useUserStore = create<UserState>((set) => ({
+export const useUserStore = create((set) => ({
   profile: null,
   statistics: null,
   loading: false,
@@ -31,7 +17,7 @@ export const useUserStore = create<UserState>((set) => ({
     try {
       const profile = await apiService.getUserProfile();
       set({ profile, loading: false, error: null });
-    } catch (error: any) {
+    } catch (error) {
       set({ 
         loading: false, 
         error: error.response?.data?.message || 'Failed to fetch profile' 
@@ -41,12 +27,12 @@ export const useUserStore = create<UserState>((set) => ({
   },
 
   // Update user profile
-  updateProfile: async (data: Partial<UserProfile>) => {
+  updateProfile: async (data) => {
     set({ loading: true, error: null });
     try {
       const profile = await apiService.updateUserProfile(data);
       set({ profile, loading: false, error: null });
-    } catch (error: any) {
+    } catch (error) {
       set({ 
         loading: false, 
         error: error.response?.data?.message || 'Failed to update profile' 
@@ -61,7 +47,7 @@ export const useUserStore = create<UserState>((set) => ({
     try {
       const statistics = await apiService.getUserStatistics();
       set({ statistics, loading: false, error: null });
-    } catch (error: any) {
+    } catch (error) {
       set({ 
         loading: false, 
         error: error.response?.data?.message || 'Failed to fetch statistics' 

@@ -4,34 +4,15 @@
 
 import { create } from 'zustand';
 import { apiService } from '@/services/api';
-import type { 
-  AssessmentRequest, 
-  RiskAssessment, 
-  AssessmentHistory 
-} from '@/types';
 
-interface AssessmentState {
-  currentAssessment: RiskAssessment | null;
-  assessmentHistory: AssessmentHistory | null;
-  loading: boolean;
-  error: string | null;
-  
-  // Actions
-  submitAssessment: (data: AssessmentRequest, isAuthenticated: boolean) => Promise<RiskAssessment>;
-  fetchAssessmentHistory: (page?: number, pageSize?: number) => Promise<void>;
-  fetchAssessmentDetail: (id: string) => Promise<void>;
-  clearCurrentAssessment: () => void;
-  clearError: () => void;
-}
-
-export const useAssessmentStore = create<AssessmentState>((set) => ({
+export const useAssessmentStore = create((set) => ({
   currentAssessment: null,
   assessmentHistory: null,
   loading: false,
   error: null,
 
   // Submit assessment
-  submitAssessment: async (data: AssessmentRequest, isAuthenticated: boolean) => {
+  submitAssessment: async (data, isAuthenticated) => {
     set({ loading: true, error: null });
     try {
       const assessment = isAuthenticated 
@@ -40,7 +21,7 @@ export const useAssessmentStore = create<AssessmentState>((set) => ({
       
       set({ currentAssessment: assessment, loading: false, error: null });
       return assessment;
-    } catch (error: any) {
+    } catch (error) {
       const errorMessage = error.response?.data?.message || 'Assessment failed';
       set({ loading: false, error: errorMessage });
       throw error;
@@ -53,7 +34,7 @@ export const useAssessmentStore = create<AssessmentState>((set) => ({
     try {
       const history = await apiService.getAssessmentHistory(page, pageSize);
       set({ assessmentHistory: history, loading: false, error: null });
-    } catch (error: any) {
+    } catch (error) {
       set({ 
         loading: false, 
         error: error.response?.data?.message || 'Failed to fetch history' 
@@ -63,12 +44,12 @@ export const useAssessmentStore = create<AssessmentState>((set) => ({
   },
 
   // Fetch assessment detail
-  fetchAssessmentDetail: async (id: string) => {
+  fetchAssessmentDetail: async (id) => {
     set({ loading: true, error: null });
     try {
       const assessment = await apiService.getAssessmentDetail(id);
       set({ currentAssessment: assessment, loading: false, error: null });
-    } catch (error: any) {
+    } catch (error) {
       set({ 
         loading: false, 
         error: error.response?.data?.message || 'Failed to fetch assessment' 

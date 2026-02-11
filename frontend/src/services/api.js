@@ -2,23 +2,9 @@
 // API Service - Backend Integration
 // ============================================================================
 
-import axios, { AxiosInstance, AxiosError } from 'axios';
-import type {
-  AssessmentRequest,
-  RiskAssessment,
-  UserProfile,
-  UserStatistics,
-  AssessmentHistory,
-  SystemStatus,
-  ModelInfo,
-  DiseasesResponse,
-  Prediction,
-  APIError,
-} from '@/types';
+import axios from 'axios';
 
 class APIService {
-  private client: AxiosInstance;
-
   constructor() {
     this.client = axios.create({
       baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
@@ -31,7 +17,7 @@ class APIService {
     this.setupInterceptors();
   }
 
-  private setupInterceptors() {
+  setupInterceptors() {
     // Request interceptor - add auth token
     this.client.interceptors.request.use(
       (config) => {
@@ -47,7 +33,7 @@ class APIService {
     // Response interceptor - handle errors
     this.client.interceptors.response.use(
       (response) => response,
-      async (error: AxiosError<APIError>) => {
+      async (error) => {
         if (error.response?.status === 401) {
           // Token expired - handled by auth store
           localStorage.removeItem('firebase_token');
@@ -66,7 +52,7 @@ class APIService {
   /**
    * POST /api/health/analyze/ - Authenticated health analysis
    */
-  async analyzeHealth(data: AssessmentRequest): Promise<RiskAssessment> {
+  async analyzeHealth(data) {
     const response = await this.client.post('/api/health/analyze/', data);
     return response.data;
   }
@@ -74,7 +60,7 @@ class APIService {
   /**
    * POST /api/assess/ - Anonymous health assessment
    */
-  async assessAnonymous(data: AssessmentRequest): Promise<RiskAssessment> {
+  async assessAnonymous(data) {
     const response = await this.client.post('/api/assess/', data);
     return response.data;
   }
@@ -86,7 +72,7 @@ class APIService {
   /**
    * GET /api/user/profile/ - Get user profile
    */
-  async getUserProfile(): Promise<UserProfile> {
+  async getUserProfile() {
     const response = await this.client.get('/api/user/profile/');
     return response.data;
   }
@@ -94,7 +80,7 @@ class APIService {
   /**
    * PUT /api/user/profile/ - Update user profile
    */
-  async updateUserProfile(data: Partial<UserProfile>): Promise<UserProfile> {
+  async updateUserProfile(data) {
     const response = await this.client.put('/api/user/profile/', data);
     return response.data;
   }
@@ -102,7 +88,7 @@ class APIService {
   /**
    * GET /api/user/statistics/ - Get user statistics
    */
-  async getUserStatistics(): Promise<UserStatistics> {
+  async getUserStatistics() {
     const response = await this.client.get('/api/user/statistics/');
     return response.data;
   }
@@ -114,10 +100,7 @@ class APIService {
   /**
    * GET /api/user/assessments/ - Get assessment history
    */
-  async getAssessmentHistory(
-    page: number = 1,
-    pageSize: number = 10
-  ): Promise<AssessmentHistory> {
+  async getAssessmentHistory(page = 1, pageSize = 10) {
     const response = await this.client.get('/api/user/assessments/', {
       params: { page, page_size: pageSize },
     });
@@ -127,7 +110,7 @@ class APIService {
   /**
    * GET /api/user/assessments/{id}/ - Get assessment detail
    */
-  async getAssessmentDetail(id: string): Promise<RiskAssessment> {
+  async getAssessmentDetail(id) {
     const response = await this.client.get(`/api/user/assessments/${id}/`);
     return response.data;
   }
@@ -139,12 +122,7 @@ class APIService {
   /**
    * POST /api/predict/top/ - Get top N predictions
    */
-  async getTopPredictions(
-    symptoms: string[],
-    age: number,
-    gender: string,
-    n: number = 5
-  ): Promise<Prediction[]> {
+  async getTopPredictions(symptoms, age, gender, n = 5) {
     const response = await this.client.post('/api/predict/top/', {
       symptoms,
       age,
@@ -161,7 +139,7 @@ class APIService {
   /**
    * GET /api/status/ - Get system status
    */
-  async getSystemStatus(): Promise<SystemStatus> {
+  async getSystemStatus() {
     const response = await this.client.get('/api/status/');
     return response.data;
   }
@@ -169,7 +147,7 @@ class APIService {
   /**
    * GET /api/health/ - Health check
    */
-  async getHealthCheck(): Promise<{ status: string; timestamp: string }> {
+  async getHealthCheck() {
     const response = await this.client.get('/api/health/');
     return response.data;
   }
@@ -177,7 +155,7 @@ class APIService {
   /**
    * GET /api/model/info/ - Get model information
    */
-  async getModelInfo(): Promise<ModelInfo> {
+  async getModelInfo() {
     const response = await this.client.get('/api/model/info/');
     return response.data;
   }
@@ -185,7 +163,7 @@ class APIService {
   /**
    * GET /api/diseases/ - Get supported diseases
    */
-  async getDiseases(): Promise<DiseasesResponse> {
+  async getDiseases() {
     const response = await this.client.get('/api/diseases/');
     return response.data;
   }
