@@ -1,12 +1,21 @@
-# Environment variables
+# Environment variables (IMPORTANT: Never commit actual .env files!)
 .env
+.env.local
+.env.example
+.env.*.local
 backend/.env
 frontend/.env
+**/.env
+# Keep .env.example files (these should be committed as templates)
+!.env.example
+!backend/.env.example
+!frontend/.env.example
 
 # Firebase credentials (IMPORTANT: Never commit!)
 firebase-credentials.json
 config/firebase-credentials.json
 *-credentials.json
+**/*-credentials.json
 
 # Python
 __pycache__/
@@ -50,13 +59,18 @@ ENV/
 env.bak/
 venv.bak/
 
-# IDE
+# IDE and Kiro
 .vscode/
 .idea/
-.kiro/
 *.swp
 *.swo
 *~
+
+# Kiro directory (AI assistant workspace files)
+# Note: Spec files in .kiro/specs/ may be committed if desired
+.kiro/
+# Uncomment the line below if you want to track spec files
+# !.kiro/specs/
 
 # OS
 .DS_Store
