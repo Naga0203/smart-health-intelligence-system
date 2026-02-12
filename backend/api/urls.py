@@ -18,6 +18,12 @@ from .views import (
     AssessmentHistoryAPIView,
     AssessmentDetailAPIView
 )
+from .new_views import (
+    MedicalHistoryAPIView,
+    AssessmentExportAPIView,
+    ReportUploadAPIView,
+    ReportParseAPIView
+)
 
 app_name = 'api'
 
@@ -47,5 +53,17 @@ urlpatterns = [
     
     # Assessment history endpoints
     path('user/assessments/', AssessmentHistoryAPIView.as_view(), name='assessment-history'),
+    # Assessment detail
     path('user/assessments/<str:assessment_id>/', AssessmentDetailAPIView.as_view(), name='assessment-detail'),
+    
+    # Medical History endpoints
+    path('user/medical-history/', MedicalHistoryAPIView.as_view(), name='medical-history'),
+    
+    # Assessment Export endpoints
+    path('user/assessments/<str:assessment_id>/export/', AssessmentExportAPIView.as_view(), name='assessment-export'),
+    
+    # Report Upload and Parsing endpoints
+    path('reports/upload/', ReportUploadAPIView.as_view(), name='report-upload'),
+    path('reports/parse/', ReportParseAPIView.as_view(), name='report-parse'),
 ]
+

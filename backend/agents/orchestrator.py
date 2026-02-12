@@ -21,6 +21,8 @@ from agents.data_extraction import DataExtractionAgent
 from agents.validation import LangChainValidationAgent
 from agents.explanation import LangChainExplanationAgent
 from agents.recommendation import RecommendationAgent
+from agents.lifestyle import LifestyleModificationAgent
+from agents.reflection import ReflectionAgent
 from prediction.predictor import DiseasePredictor
 from common.firebase_db import get_firebase_db
 
@@ -58,11 +60,13 @@ class OrchestratorAgent(BaseHealthAgent):
         self.prediction_engine = DiseasePredictor()
         self.explanation_agent = LangChainExplanationAgent()
         self.recommendation_agent = RecommendationAgent()
+        self.lifestyle_agent = LifestyleModificationAgent()
+        self.reflection_agent = ReflectionAgent()
         
         # Initialize Firebase database
         self.db = get_firebase_db()
         
-        logger.info("OrchestratorAgent initialized with complete pipeline")
+        logger.info("OrchestratorAgent initialized with complete pipeline including reflection agent")
     
     def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -184,8 +188,58 @@ class OrchestratorAgent(BaseHealthAgent):
             user_context={"age": sanitized_input["age"], "gender": sanitized_input["gender"]}
         )
         
-        # Step 7: Store in MongoDB
-        self.log_agent_action("step_7_database_storage")
+        # Step 7: Generate Lifestyle Modifications
+        self.log_agent_action("step_7_lifestyle_modifications")
+        
+        lifestyle_input = {
+            "disease": disease,
+            "confidence": confidence,
+            "symptoms": sanitized_input["symptoms"],
+            "user_context": {"age": sanitized_input["age"], "gender": sanitized_input["gender"]}
+        }
+        
+        lifestyle_result = self.lifestyle_agent.process(lifestyle_input)
+        lifestyle_recommendations = lifestyle_result["data"] if lifestyle_result["success"] else {}
+        
+        # Step 8: Cross-Verification (Hidden Quality Check)
+        self.log_agent_action("step_8_cross_verification")
+        
+        # Build complete assessment for verification
+        complete_assessment = {
+            "prediction": {
+                "disease": disease,
+                "probability": probability,
+                "confidence": confidence
+            },
+            "explanation": explanation_data,
+            "recommendations": recommendations,
+            "lifestyle_recommendations": lifestyle_recommendations,
+            "symptoms": sanitized_input["symptoms"]
+        }
+        
+        # Run reflection agent verification
+        verification_result = self.reflection_agent.verify_assessment(complete_assessment)
+        
+        # Use revised assessment if corrections were made
+        if verification_result["recommended_action"] in ["revise", "escalate"]:
+            revised = verification_result["revised_assessment"]
+            
+            # Extract revised components
+            if "_verification_info" in revised:
+                logger.warning(f"Assessment auto-corrected: {revised['_verification_info']['corrections_applied']}")
+            
+            # Update components with corrections
+            if "prediction" in revised:
+                confidence = revised["prediction"].get("confidence", confidence)
+            if "recommendations" in revised:
+                recommendations = revised["recommendations"]
+        
+        # Log critical issues for escalation
+        if verification_result["severity"] == "critical":
+            logger.critical(f"Critical safety issue detected and corrected: {verification_result['issue_count']} issues")
+        
+        # Step 9: Store in MongoDB
+        self.log_agent_action("step_9_database_storage")
         
         storage_ids = self._store_assessment(
             user_id=user_id,
@@ -196,10 +250,11 @@ class OrchestratorAgent(BaseHealthAgent):
             extraction_data=extraction_result["data"],
             prediction_metadata=prediction_metadata,
             explanation_data=explanation_data,
-            recommendations=recommendations
+            recommendations=recommendations,
+            lifestyle_recommendations=lifestyle_recommendations
         )
         
-        # Step 8: Build Complete Response
+        # Step 10: Build Complete Response
         pipeline_end = datetime.utcnow()
         processing_time = (pipeline_end - pipeline_start).total_seconds()
         
@@ -211,6 +266,7 @@ class OrchestratorAgent(BaseHealthAgent):
             extraction_confidence=extraction_confidence,
             explanation=explanation_data,
             recommendations=recommendations,
+            lifestyle_recommendations=lifestyle_recommendations,
             storage_ids=storage_ids,
             processing_time=processing_time,
             prediction_metadata=prediction_metadata
@@ -278,7 +334,8 @@ class OrchestratorAgent(BaseHealthAgent):
     def _store_assessment(self, user_id: str, sanitized_input: Dict[str, Any],
                          disease: str, probability: float, confidence: str,
                          extraction_data: Dict[str, Any], prediction_metadata: Dict[str, Any],
-                         explanation_data: Dict[str, Any], recommendations: Dict[str, Any]) -> Dict[str, str]:
+                         explanation_data: Dict[str, Any], recommendations: Dict[str, Any],
+                         lifestyle_recommendations: Dict[str, Any] = None) -> Dict[str, str]:
         """
         Store complete assessment in Firebase Firestore.
         
@@ -297,7 +354,8 @@ class OrchestratorAgent(BaseHealthAgent):
                 'extraction_data': extraction_data,
                 'prediction_metadata': prediction_metadata,
                 'explanation': explanation_data,
-                'recommendations': recommendations
+                'recommendations': recommendations,
+                'lifestyle_recommendations': lifestyle_recommendations or  {}
             }
             
             assessment_id = self.db.store_assessment(user_id, assessment_data)
@@ -351,6 +409,7 @@ class OrchestratorAgent(BaseHealthAgent):
     def _build_response(self, user_id: str, disease: str, probability: float,
                        confidence: str, extraction_confidence: float,
                        explanation: Dict[str, Any], recommendations: Dict[str, Any],
+                       lifestyle_recommendations: Dict[str, Any],
                        storage_ids: Dict[str, str], processing_time: float,
                        prediction_metadata: Dict[str, Any]) -> Dict[str, Any]:
         """Build the complete response for the frontend."""
@@ -370,11 +429,12 @@ class OrchestratorAgent(BaseHealthAgent):
             },
             "explanation": explanation,
             "recommendations": recommendations,
+            "lifestyle_recommendations": lifestyle_recommendations,
             "metadata": {
                 "processing_time_seconds": round(processing_time, 2),
                 "timestamp": datetime.utcnow().isoformat(),
                 "storage_ids": storage_ids,
-                "pipeline_version": "v1.0"
+                "pipeline_version": "v1.2"
             }
         }
     

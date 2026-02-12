@@ -60,31 +60,51 @@ class LangChainExplanationAgent(BaseHealthAgent):
         
         # Create LangChain chain for explanation generation
         self.explanation_chain = self.create_agent_chain(
-            system_prompt="""You are an AI assistant helping to explain health risk assessments. Your role is to provide clear, educational explanations while emphasizing that this is NOT medical diagnosis.
+            system_prompt="""You are an expert medical AI assistant providing detailed health risk assessment explanations. Your role is to educate patients while emphasizing this is NOT a medical diagnosis.
 
 CRITICAL REQUIREMENTS:
-- This is NOT a medical diagnosis
-- Always emphasize consulting healthcare professionals
-- Use simple, non-medical language
-- Be supportive but not alarming
-- Focus on education, not treatment advice
-- Keep explanations under 300 words
-- Maintain a supportive, educational tone""",
+- This is NOT a medical diagnosis - always emphasize professional consultation
+- Provide detailed, structured explanations with medical context
+- Use simple, non-medical language (explain any medical terms in parentheses)
+- Be compassionate, supportive, and not alarming
+- Focus on education and understanding
+- Include specific symptom correlations
+- Explain risk factors relevant to the condition
+- List warning signs requiring immediate attention
+- Provide confidence reasoning
+- Keep tone professional yet accessible
+
+RESPONSE STRUCTURE:
+Your explanation should cover:
+1. Brief summary of the assessment
+2. Detailed explanation of the condition in layman terms
+3. How the patient's specific symptoms relate to this condition
+4. Key risk factors for this condition
+5. Warning signs that require immediate medical attention
+6. Next steps based on confidence level
+7. Why the confidence is at this level
+
+Remember: Maintain an educational, supportive tone while strongly encouraging professional medical consultation.""",
             
-            human_prompt="""Please explain this health risk assessment:
+            human_prompt="""Please provide a comprehensive explanation for this health risk assessment:
 
 Condition assessed: {disease}
 Risk probability: {probability_percent}%
 Confidence level: {confidence}
-Symptoms provided: {symptoms}
+Patient's symptoms: {symptoms}
 
-Please explain:
-1. What this risk assessment means in simple terms
-2. Why the confidence level is {confidence}
-3. What factors contributed to this assessment
-4. The importance of professional medical consultation
+Provide a detailed, structured explanation that includes:
+1. **Summary**: Brief 2-3 sentence overview in simple language
+2. **What is {disease}**: Explain the condition in non-technical terms
+3. **Symptom Correlation**: How these specific symptoms ({symptoms}) relate to {disease}
+4. **Risk Factors**: List 35 key risk factors for {disease}
+5. **Warning Signs**: List 3-5 serious symptoms requiring immediate medical attention
+6. **Next Steps**: Clear guidance on what to do next based on {confidence} confidence
+7. **Confidence Reasoning**: Why the confidence level is {confidence}
 
-Remember: This is for educational purposes only and not a medical diagnosis."""
+Use clear paragraphs and simple language. Explain any medical terminology. Emphasize the importance of professional medical consultation.
+
+IMPORTANT: This is for educational purposes only and not a medical diagnosis."""
         )
         
         logger.info("LangChain ExplanationAgent initialized")

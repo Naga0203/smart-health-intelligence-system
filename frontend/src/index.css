@@ -1,68 +1,149 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+/* ============================================================================
+   Global Styles and CSS Reset - Mobile-First Approach
+   ============================================================================ */
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+/* CSS Reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
+html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+  text-rendering: optimizeLegibility;
+  font-size: 16px; /* Base font size for rem calculations */
 }
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 
+               'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 
+               'Helvetica Neue', sans-serif;
+  line-height: 1.5;
+  color: #1F2937;
+  background-color: #F9FAFB;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+/* Remove default list styles */
+ul, ol {
+  list-style: none;
 }
 
+/* Remove default link styles */
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Remove default button styles */
 button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
+  border: none;
+  background: none;
   font-family: inherit;
-  background-color: #1a1a1a;
   cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
+/* Ensure images are responsive by default */
+img, picture, video, canvas, svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Remove default form element styles */
+input, button, textarea, select {
+  font: inherit;
+}
+
+/* Improve text rendering */
+p, h1, h2, h3, h4, h5, h6 {
+  overflow-wrap: break-word;
+}
+
+/* Root element */
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Focus visible styles for accessibility */
+:focus-visible {
+  outline: 2px solid #4A90E2;
+  outline-offset: 2px;
+}
+
+/* Ensure proper focus for keyboard navigation */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid #4A90E2;
+  outline-offset: 2px;
+}
+
+/* Responsive text scaling support */
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
   }
 }
+
+@media (min-width: 1024px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+/* Support for 200% zoom (text scaling) */
+@media (min-width: 320px) and (max-width: 767px) {
+  body {
+    font-size: 1rem;
+  }
+}
+
+/* Ensure proper spacing for touch targets on mobile */
+@media (max-width: 767px) {
+  button, a, input[type="button"], input[type="submit"] {
+    min-height: 44px; /* Minimum touch target size */
+    min-width: 44px;
+  }
+}
+
+/* Print styles */
+@media print {
+  body {
+    background-color: white;
+  }
+  
+  /* Hide non-essential elements when printing */
+  nav, aside, .no-print {
+    display: none;
+  }
+}
+
+/* Reduced motion support for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  body {
+    color: #000000;
+    background-color: #FFFFFF;
+  }
+}
+
