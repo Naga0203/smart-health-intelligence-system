@@ -5,7 +5,18 @@
 import { create } from 'zustand';
 import { apiService } from '@/services/api';
 
-export const useUserStore = create((set) => ({
+interface UserStore {
+  profile: any;
+  statistics: any;
+  loading: boolean;
+  error: string | null;
+  fetchProfile: () => Promise<void>;
+  updateProfile: (data: any) => Promise<void>;
+  fetchStatistics: () => Promise<void>;
+  clearError: () => void;
+}
+
+export const useUserStore = create<UserStore>((set) => ({
   profile: null,
   statistics: null,
   loading: false,
@@ -17,7 +28,7 @@ export const useUserStore = create((set) => ({
     try {
       const profile = await apiService.getUserProfile();
       set({ profile, loading: false, error: null });
-    } catch (error) {
+    } catch (error: any) {
       set({ 
         loading: false, 
         error: error.response?.data?.message || 'Failed to fetch profile' 
@@ -32,7 +43,7 @@ export const useUserStore = create((set) => ({
     try {
       const profile = await apiService.updateUserProfile(data);
       set({ profile, loading: false, error: null });
-    } catch (error) {
+    } catch (error: any) {
       set({ 
         loading: false, 
         error: error.response?.data?.message || 'Failed to update profile' 
@@ -47,7 +58,7 @@ export const useUserStore = create((set) => ({
     try {
       const statistics = await apiService.getUserStatistics();
       set({ statistics, loading: false, error: null });
-    } catch (error) {
+    } catch (error: any) {
       set({ 
         loading: false, 
         error: error.response?.data?.message || 'Failed to fetch statistics' 

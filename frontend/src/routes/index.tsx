@@ -10,6 +10,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { LoginPage } from '@/pages/LoginPage';
 import { RegisterPage } from '@/pages/RegisterPage';
 import DashboardPage from '@/pages/DashboardPage';
+import { ProfilePage } from '@/pages/ProfilePage';
 
 // Placeholder components - will be implemented in later tasks
 const LandingPage = () => (
@@ -49,7 +50,6 @@ const LandingPage = () => (
 const NewAssessmentPage = () => <div>New Assessment Page</div>;
 const AssessmentResultsPage = () => <div>Assessment Results Page</div>;
 const AssessmentHistoryPage = () => <div>Assessment History Page</div>;
-const ProfilePage = () => <div>Profile Page</div>;
 const UploadReportPage = () => <div>Upload Report Page</div>;
 const DiseasesPage = () => <div>Diseases Page</div>;
 
