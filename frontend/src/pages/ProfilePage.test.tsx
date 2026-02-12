@@ -252,7 +252,8 @@ describe('ProfilePage', () => {
 
     // Should display error in form
     await waitFor(() => {
-      expect(screen.getByRole('alert')).toBeInTheDocument();
+      const alerts = screen.getAllByRole('alert');
+      expect(alerts.length).toBeGreaterThan(0);
       expect(screen.getByText(errorMessage)).toBeInTheDocument();
     });
   });

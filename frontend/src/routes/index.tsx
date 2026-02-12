@@ -13,6 +13,7 @@ import DashboardPage from '@/pages/DashboardPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import UploadReportPage from '@/pages/UploadReportPage';
 import AssessmentResultsPage from '@/pages/AssessmentResultsPage';
+import DiseasesPage from '@/pages/DiseasesPage';
 
 // Placeholder components - will be implemented in later tasks
 const LandingPage = () => (
@@ -51,7 +52,6 @@ const LandingPage = () => (
 );
 const NewAssessmentPage = () => <div>New Assessment Page</div>;
 const AssessmentHistoryPage = () => <div>Assessment History Page</div>;
-const DiseasesPage = () => <div>Diseases Page</div>;
 
 export function AppRouter() {
   return (

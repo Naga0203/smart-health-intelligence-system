@@ -19,7 +19,10 @@ describe('Feature: ai-health-frontend, Property 14: Assessment history is chrono
   // Generator for assessment data
   const assessmentArbitrary = fc.record({
     id: fc.uuid(),
-    created_at: fc.date({ min: new Date('2020-01-01'), max: new Date('2025-12-31') }).map(d => d.toISOString()),
+    created_at: fc.date({ min: new Date('2020-01-01'), max: new Date('2025-12-31') }).map(d => {
+      // Ensure valid date before converting to ISO string
+      return d && !isNaN(d.getTime()) ? d.toISOString() : new Date().toISOString();
+    }),
     disease: fc.constantFrom('Diabetes', 'Hypertension', 'Asthma', 'Migraine', 'Arthritis'),
     probability: fc.float({ min: 0, max: 100 }),
     confidence: fc.constantFrom('LOW', 'MEDIUM', 'HIGH') as fc.Arbitrary<'LOW' | 'MEDIUM' | 'HIGH'>,

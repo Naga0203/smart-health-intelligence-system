@@ -165,7 +165,10 @@ describe('NotificationCenter Component', () => {
    */
   describe('Notification Dismissal', () => {
     it('should call removeNotification when dismiss button is clicked', async () => {
-      const user = userEvent.setup({ delay: null });
+      // Don't use fake timers for this test
+      vi.useRealTimers();
+      
+      const user = userEvent.setup();
       const mockNotifications = [
         {
           id: 'test-1',
@@ -191,6 +194,8 @@ describe('NotificationCenter Component', () => {
 
       // Should call removeNotification with correct ID
       expect(mockRemoveNotification).toHaveBeenCalledWith('test-1');
+      
+      vi.useFakeTimers();
     });
 
     it('should display dismiss button for all notifications', () => {
@@ -258,7 +263,10 @@ describe('NotificationCenter Component', () => {
     });
 
     it('should call acknowledgeCriticalError when acknowledge button is clicked', async () => {
-      const user = userEvent.setup({ delay: null });
+      // Don't use fake timers for this test
+      vi.useRealTimers();
+      
+      const user = userEvent.setup();
       const mockCriticalError = {
         title: 'Critical Error',
         message: 'Error message',
@@ -279,6 +287,8 @@ describe('NotificationCenter Component', () => {
 
       // Should call acknowledgeCriticalError
       expect(mockAcknowledgeCriticalError).toHaveBeenCalled();
+      
+      vi.useFakeTimers();
     });
 
     it('should not display critical error modal when criticalError is null', () => {

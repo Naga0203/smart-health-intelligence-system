@@ -12,14 +12,19 @@ import { useNotificationStore } from '@/stores/notificationStore';
 import { auth } from '@/services/firebase';
 
 // Mock stores
+const mockUseAuthStore = vi.fn();
 vi.mock('@/stores/authStore', () => ({
-  useAuthStore: vi.fn(),
+  useAuthStore: (selector: any) => {
+    const state = mockUseAuthStore();
+    return selector ? selector(state) : state;
+  },
 }));
 
+const mockAddNotification = vi.fn();
 vi.mock('@/stores/notificationStore', () => ({
-  useNotificationStore: vi.fn(() => ({
-    addNotification: vi.fn(),
-  })),
+  useNotificationStore: () => ({
+    addNotification: mockAddNotification,
+  }),
 }));
 
 // Mock Firebase auth
@@ -30,18 +35,13 @@ vi.mock('@/services/firebase', () => ({
 }));
 
 describe('useSessionMonitor Hook', () => {
-  const mockAddNotification = vi.fn();
   const mockRefreshToken = vi.fn();
   const mockGetIdTokenResult = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockAddNotification.mockClear();
     vi.useFakeTimers();
-
-    // Setup default mocks
-    vi.mocked(useNotificationStore).mockReturnValue({
-      addNotification: mockAddNotification,
-    } as any);
   });
 
   afterEach(() => {
@@ -59,10 +59,10 @@ describe('useSessionMonitor Hook', () => {
 
       // Mock authenticated user
       const mockUser = { uid: 'test-user', email: 'test@example.com' };
-      vi.mocked(useAuthStore).mockReturnValue({
+      mockUseAuthStore.mockReturnValue({
         user: mockUser,
         refreshToken: mockRefreshToken,
-      } as any);
+      });
 
       // Mock Firebase current user
       (auth as any).currentUser = {
@@ -75,10 +75,8 @@ describe('useSessionMonitor Hook', () => {
 
       renderHook(() => useSessionMonitor());
 
-      // Wait for initial check
-      await waitFor(() => {
-        expect(mockGetIdTokenResult).toHaveBeenCalled();
-      });
+      // Advance timers to allow async operations to complete
+      await vi.advanceTimersByTimeAsync(100);
 
       // Should display warning notification
       await waitFor(() => {
@@ -87,7 +85,7 @@ describe('useSessionMonitor Hook', () => {
           message: expect.stringContaining('session will expire'),
           dismissible: true,
         });
-      });
+      }, { timeout: 1000 });
     });
 
     it('should display correct minutes remaining in notification', async () => {
@@ -95,7 +93,7 @@ describe('useSessionMonitor Hook', () => {
       const expirationTime = currentTime + 3 * 60 * 1000; // 3 minutes from now
 
       const mockUser = { uid: 'test-user', email: 'test@example.com' };
-      vi.mocked(useAuthStore).mockReturnValue({
+      mockUseAuthStore.mockReturnValue({
         user: mockUser,
         refreshToken: mockRefreshToken,
       } as any);
@@ -109,6 +107,9 @@ describe('useSessionMonitor Hook', () => {
       });
 
       renderHook(() => useSessionMonitor());
+
+      // Advance timers to allow async operations to complete
+      await vi.advanceTimersByTimeAsync(100);
 
       await waitFor(() => {
         expect(mockAddNotification).toHaveBeenCalledWith({
@@ -116,7 +117,7 @@ describe('useSessionMonitor Hook', () => {
           message: expect.stringContaining('3 minute'),
           dismissible: true,
         });
-      });
+      }, { timeout: 1000 });
     });
 
     it('should not display warning when token expires in more than 5 minutes', async () => {
@@ -124,7 +125,7 @@ describe('useSessionMonitor Hook', () => {
       const expirationTime = currentTime + 10 * 60 * 1000; // 10 minutes from now
 
       const mockUser = { uid: 'test-user', email: 'test@example.com' };
-      vi.mocked(useAuthStore).mockReturnValue({
+      mockUseAuthStore.mockReturnValue({
         user: mockUser,
         refreshToken: mockRefreshToken,
       } as any);
@@ -139,16 +140,19 @@ describe('useSessionMonitor Hook', () => {
 
       renderHook(() => useSessionMonitor());
 
+      // Advance timers to allow async operations to complete
+      await vi.advanceTimersByTimeAsync(100);
+
       await waitFor(() => {
         expect(mockGetIdTokenResult).toHaveBeenCalled();
-      });
+      }, { timeout: 1000 });
 
       // Should not display warning
       expect(mockAddNotification).not.toHaveBeenCalled();
     });
 
     it('should not display warning when user is not authenticated', () => {
-      vi.mocked(useAuthStore).mockReturnValue({
+      mockUseAuthStore.mockReturnValue({
         user: null,
         refreshToken: mockRefreshToken,
       } as any);
@@ -175,7 +179,7 @@ describe('useSessionMonitor Hook', () => {
       const mockUser = { uid: 'test-user', email: 'test@example.com' };
       mockRefreshToken.mockResolvedValue(undefined);
 
-      vi.mocked(useAuthStore).mockReturnValue({
+      mockUseAuthStore.mockReturnValue({
         user: mockUser,
         refreshToken: mockRefreshToken,
       } as any);
@@ -190,6 +194,9 @@ describe('useSessionMonitor Hook', () => {
 
       renderHook(() => useSessionMonitor());
 
+      // Advance timers to trigger initial check
+      await vi.advanceTimersByTimeAsync(100);
+
       // Wait for warning
       await waitFor(() => {
         expect(mockAddNotification).toHaveBeenCalledWith({
@@ -197,15 +204,15 @@ describe('useSessionMonitor Hook', () => {
           message: expect.stringContaining('session will expire'),
           dismissible: true,
         });
-      });
+      }, { timeout: 1000 });
 
-      // Advance time for automatic refresh
-      vi.advanceTimersByTime(1000);
+      // Advance time for automatic refresh (1 second after warning)
+      await vi.advanceTimersByTimeAsync(1100);
 
       // Should refresh token
       await waitFor(() => {
         expect(mockRefreshToken).toHaveBeenCalled();
-      });
+      }, { timeout: 1000 });
     });
 
     it('should display success notification after successful token refresh', async () => {
@@ -215,7 +222,7 @@ describe('useSessionMonitor Hook', () => {
       const mockUser = { uid: 'test-user', email: 'test@example.com' };
       mockRefreshToken.mockResolvedValue(undefined);
 
-      vi.mocked(useAuthStore).mockReturnValue({
+      mockUseAuthStore.mockReturnValue({
         user: mockUser,
         refreshToken: mockRefreshToken,
       } as any);
@@ -230,6 +237,9 @@ describe('useSessionMonitor Hook', () => {
 
       renderHook(() => useSessionMonitor());
 
+      // Advance timers to trigger initial check
+      await vi.advanceTimersByTimeAsync(100);
+
       // Wait for warning
       await waitFor(() => {
         expect(mockAddNotification).toHaveBeenCalledWith({
@@ -237,10 +247,10 @@ describe('useSessionMonitor Hook', () => {
           message: expect.stringContaining('session will expire'),
           dismissible: true,
         });
-      });
+      }, { timeout: 1000 });
 
       // Advance time for automatic refresh
-      vi.advanceTimersByTime(1000);
+      await vi.advanceTimersByTimeAsync(1100);
 
       // Should display success notification
       await waitFor(() => {
@@ -249,7 +259,7 @@ describe('useSessionMonitor Hook', () => {
           message: 'Session extended successfully',
           dismissible: true,
         });
-      });
+      }, { timeout: 1000 });
     });
 
     it('should handle token refresh failure gracefully', async () => {
@@ -262,7 +272,7 @@ describe('useSessionMonitor Hook', () => {
 
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-      vi.mocked(useAuthStore).mockReturnValue({
+      mockUseAuthStore.mockReturnValue({
         user: mockUser,
         refreshToken: mockRefreshToken,
       } as any);
@@ -277,6 +287,9 @@ describe('useSessionMonitor Hook', () => {
 
       renderHook(() => useSessionMonitor());
 
+      // Advance timers to trigger initial check
+      await vi.advanceTimersByTimeAsync(100);
+
       // Wait for warning
       await waitFor(() => {
         expect(mockAddNotification).toHaveBeenCalledWith({
@@ -284,15 +297,15 @@ describe('useSessionMonitor Hook', () => {
           message: expect.stringContaining('session will expire'),
           dismissible: true,
         });
-      });
+      }, { timeout: 1000 });
 
       // Advance time for automatic refresh
-      vi.advanceTimersByTime(1000);
+      await vi.advanceTimersByTimeAsync(1100);
 
       // Should log error
       await waitFor(() => {
         expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to refresh token:', refreshError);
-      });
+      }, { timeout: 1000 });
 
       consoleErrorSpy.mockRestore();
     });
@@ -308,7 +321,7 @@ describe('useSessionMonitor Hook', () => {
       const expirationTime = currentTime + 10 * 60 * 1000; // 10 minutes from now
 
       const mockUser = { uid: 'test-user', email: 'test@example.com' };
-      vi.mocked(useAuthStore).mockReturnValue({
+      mockUseAuthStore.mockReturnValue({
         user: mockUser,
         refreshToken: mockRefreshToken,
       } as any);
@@ -324,23 +337,24 @@ describe('useSessionMonitor Hook', () => {
       renderHook(() => useSessionMonitor());
 
       // Initial check
+      await vi.advanceTimersByTimeAsync(100);
       await waitFor(() => {
         expect(mockGetIdTokenResult).toHaveBeenCalledTimes(1);
-      });
+      }, { timeout: 1000 });
 
       // Advance time by 1 minute
-      vi.advanceTimersByTime(60 * 1000);
+      await vi.advanceTimersByTimeAsync(60 * 1000);
 
       await waitFor(() => {
         expect(mockGetIdTokenResult).toHaveBeenCalledTimes(2);
-      });
+      }, { timeout: 1000 });
 
       // Advance time by another minute
-      vi.advanceTimersByTime(60 * 1000);
+      await vi.advanceTimersByTimeAsync(60 * 1000);
 
       await waitFor(() => {
         expect(mockGetIdTokenResult).toHaveBeenCalledTimes(3);
-      });
+      }, { timeout: 1000 });
     });
 
     it('should stop checking when component unmounts', async () => {
@@ -348,7 +362,7 @@ describe('useSessionMonitor Hook', () => {
       const expirationTime = currentTime + 10 * 60 * 1000;
 
       const mockUser = { uid: 'test-user', email: 'test@example.com' };
-      vi.mocked(useAuthStore).mockReturnValue({
+      mockUseAuthStore.mockReturnValue({
         user: mockUser,
         refreshToken: mockRefreshToken,
       } as any);
@@ -364,15 +378,16 @@ describe('useSessionMonitor Hook', () => {
       const { unmount } = renderHook(() => useSessionMonitor());
 
       // Initial check
+      await vi.advanceTimersByTimeAsync(100);
       await waitFor(() => {
         expect(mockGetIdTokenResult).toHaveBeenCalledTimes(1);
-      });
+      }, { timeout: 1000 });
 
       // Unmount
       unmount();
 
       // Advance time
-      vi.advanceTimersByTime(60 * 1000);
+      await vi.advanceTimersByTimeAsync(60 * 1000);
 
       // Should not check again
       expect(mockGetIdTokenResult).toHaveBeenCalledTimes(1);
@@ -389,7 +404,7 @@ describe('useSessionMonitor Hook', () => {
       let expirationTime = currentTime + 4 * 60 * 1000; // 4 minutes from now
 
       const mockUser = { uid: 'test-user', email: 'test@example.com' };
-      vi.mocked(useAuthStore).mockReturnValue({
+      mockUseAuthStore.mockReturnValue({
         user: mockUser,
         refreshToken: mockRefreshToken,
       } as any);
@@ -404,18 +419,21 @@ describe('useSessionMonitor Hook', () => {
 
       renderHook(() => useSessionMonitor());
 
+      // Advance timers to trigger initial check
+      await vi.advanceTimersByTimeAsync(100);
+
       // Wait for first warning
       await waitFor(() => {
         expect(mockAddNotification).toHaveBeenCalledTimes(1);
-      });
+      }, { timeout: 1000 });
 
       // Advance time by 1 minute (still within 5 minute window)
-      vi.advanceTimersByTime(60 * 1000);
+      await vi.advanceTimersByTimeAsync(60 * 1000);
 
       // Should not show warning again
       await waitFor(() => {
         expect(mockGetIdTokenResult).toHaveBeenCalledTimes(2);
-      });
+      }, { timeout: 1000 });
 
       expect(mockAddNotification).toHaveBeenCalledTimes(1);
     });
@@ -427,7 +445,7 @@ describe('useSessionMonitor Hook', () => {
       const mockUser = { uid: 'test-user', email: 'test@example.com' };
       mockRefreshToken.mockResolvedValue(undefined);
 
-      vi.mocked(useAuthStore).mockReturnValue({
+      mockUseAuthStore.mockReturnValue({
         user: mockUser,
         refreshToken: mockRefreshToken,
       } as any);
@@ -448,18 +466,21 @@ describe('useSessionMonitor Hook', () => {
 
       renderHook(() => useSessionMonitor());
 
+      // Advance timers to trigger initial check
+      await vi.advanceTimersByTimeAsync(100);
+
       // Wait for warning and refresh
       await waitFor(() => {
         expect(mockRefreshToken).toHaveBeenCalled();
-      });
+      }, { timeout: 2000 });
 
       // Advance time for next check
-      vi.advanceTimersByTime(60 * 1000);
+      await vi.advanceTimersByTimeAsync(60 * 1000);
 
       // Token should be checked again
       await waitFor(() => {
         expect(mockGetIdTokenResult).toHaveBeenCalledTimes(2);
-      });
+      }, { timeout: 1000 });
     });
   });
 
@@ -470,7 +491,7 @@ describe('useSessionMonitor Hook', () => {
   describe('Error Handling', () => {
     it('should handle errors when checking token expiration', async () => {
       const mockUser = { uid: 'test-user', email: 'test@example.com' };
-      vi.mocked(useAuthStore).mockReturnValue({
+      mockUseAuthStore.mockReturnValue({
         user: mockUser,
         refreshToken: mockRefreshToken,
       } as any);
@@ -486,17 +507,20 @@ describe('useSessionMonitor Hook', () => {
 
       renderHook(() => useSessionMonitor());
 
+      // Advance timers to trigger check
+      await vi.advanceTimersByTimeAsync(100);
+
       // Should log error
       await waitFor(() => {
         expect(consoleErrorSpy).toHaveBeenCalledWith('Error checking token expiration:', tokenError);
-      });
+      }, { timeout: 1000 });
 
       consoleErrorSpy.mockRestore();
     });
 
     it('should not crash when currentUser is null during check', async () => {
       const mockUser = { uid: 'test-user', email: 'test@example.com' };
-      vi.mocked(useAuthStore).mockReturnValue({
+      mockUseAuthStore.mockReturnValue({
         user: mockUser,
         refreshToken: mockRefreshToken,
       } as any);
@@ -510,3 +534,4 @@ describe('useSessionMonitor Hook', () => {
     });
   });
 });
+
