@@ -12,7 +12,7 @@ import { useNotificationStore } from '@/stores/notificationStore';
 export function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const { profile, loading, error, fetchProfile } = useUserStore();
-  const addNotification = useNotificationStore((state) => state.addNotification);
+  const { addNotification } = useNotificationStore();
 
   useEffect(() => {
     fetchProfile();

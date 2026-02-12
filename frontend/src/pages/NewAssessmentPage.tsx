@@ -25,14 +25,14 @@ export const NewAssessmentPage: React.FC = () => {
 
   const { submitAssessment, loading: submitting } = useAssessmentStore();
   const { user } = useAuthStore();
-  const { status, fetchSystemStatus } = useSystemStore();
+  const { status, modelInfo, fetchSystemStatus, fetchModelInfo } = useSystemStore();
   const { addNotification } = useNotificationStore();
 
   // Check system health on mount
   useEffect(() => {
     const checkSystemHealth = async () => {
       try {
-        await fetchSystemStatus();
+        await Promise.all([fetchSystemStatus(), fetchModelInfo()]);
         setSystemCheckLoading(false);
       } catch (error) {
         console.error('Failed to check system status:', error);
@@ -42,15 +42,18 @@ export const NewAssessmentPage: React.FC = () => {
     };
 
     checkSystemHealth();
-  }, [fetchSystemStatus]);
+  }, [fetchSystemStatus, fetchModelInfo]);
 
   // Check if system is available for assessment
   useEffect(() => {
     if (status) {
-      const isAvailable = status.status === 'operational' || status.status === 'degraded';
+      // Model must be available (status operational or degraded, and model loaded)
+      const isAvailable = 
+        (status.status === 'operational' || status.status === 'degraded') &&
+        (!modelInfo || modelInfo.model_loaded !== false);
       setSystemAvailable(isAvailable);
     }
-  }, [status]);
+  }, [status, modelInfo]);
 
   const handleSubmit = async (formData: AssessmentFormData) => {
     // Check system health before submission
@@ -137,9 +140,15 @@ export const NewAssessmentPage: React.FC = () => {
       </Box>
 
       {/* System Status Warning */}
-      {!systemAvailable && (
+      {!systemAvailable && status?.status === 'error' && (
         <Alert severity="error" sx={{ mb: 3 }}>
           The assessment system is currently unavailable. Please try again later or contact support if the issue persists.
+        </Alert>
+      )}
+
+      {!systemAvailable && modelInfo && !modelInfo.model_loaded && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          The prediction model is currently unavailable. The system is undergoing maintenance. Please try again later.
         </Alert>
       )}
 
@@ -150,7 +159,11 @@ export const NewAssessmentPage: React.FC = () => {
       )}
 
       {/* Assessment Stepper */}
-      <AssessmentStepper onSubmit={handleSubmit} loading={submitting} />
+      <AssessmentStepper 
+        onSubmit={handleSubmit} 
+        loading={submitting} 
+        disabled={!systemAvailable}
+      />
     </Container>
   );
 };

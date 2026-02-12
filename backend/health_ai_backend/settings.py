@@ -107,7 +107,9 @@ CACHES = {
 }
 
 # Firebase Configuration
-FIREBASE_CREDENTIALS_PATH = config('FIREBASE_CREDENTIALS_PATH', default='config/firebase-credentials.json')
+FIREBASE_CREDENTIALS_PATH_RELATIVE = config('FIREBASE_CREDENTIALS_PATH', default='config/firebase-credentials.json')
+# Convert to absolute path
+FIREBASE_CREDENTIALS_PATH = os.path.join(BASE_DIR, FIREBASE_CREDENTIALS_PATH_RELATIVE)
 
 # Google Gemini Configuration
 GEMINI_API_KEY = config('GEMINI_API_KEY', default='')

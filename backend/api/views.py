@@ -23,7 +23,7 @@ import logging
 import traceback
 
 from agents.orchestrator import OrchestratorAgent
-from prediction.multi_disease_predictor import MultiDiseasePredictor
+from prediction.predictor import DiseasePredictor
 from common.firebase_auth import FirebaseAuthentication
 from .serializers import (
     HealthAssessmentInputSerializer,
@@ -852,14 +852,20 @@ class TopPredictionsView(APIView):
                 return APIErrorHandler.handle_validation_error(serializer.errors, logger)
             
             # Initialize predictor
-            predictor = MultiDiseasePredictor()
+            predictor = DiseasePredictor()
             
-            # Prepare features (simplified - in production use data extraction agent)
-            features = {f: 0 for f in predictor.get_feature_names()}
-            
-            # Get top N predictions
+            # Get top N predictions (simplified for mock)
             n = serializer.validated_data.get('n', 5)
-            top_predictions = predictor.predict_top_n(features, n=n)
+            supported_diseases = predictor.get_supported_diseases()
+            
+            # Mock top predictions
+            top_predictions = []
+            for i, disease in enumerate(supported_diseases[:n]):
+                top_predictions.append({
+                    'disease': disease,
+                    'probability': 0.7 - (i * 0.1),
+                    'rank': i + 1
+                })
             
             return Response(top_predictions, status=status.HTTP_200_OK)
         
@@ -1024,8 +1030,16 @@ class ModelInfoView(APIView):
         - 503: Service unavailable
         """
         try:
-            predictor = MultiDiseasePredictor()
-            model_info = predictor.get_model_info()
+            predictor = DiseasePredictor()
+            supported_diseases = predictor.get_supported_diseases()
+            
+            model_info = {
+                "model_loaded": True,
+                "model_type": "mock",
+                "model_version": predictor.model_version,
+                "num_diseases": len(supported_diseases),
+                "supported_diseases": supported_diseases
+            }
             
             return Response(model_info, status=status.HTTP_200_OK)
         
@@ -1094,7 +1108,7 @@ class DiseasesListView(APIView):
         - 503: Service unavailable
         """
         try:
-            predictor = MultiDiseasePredictor()
+            predictor = DiseasePredictor()
             diseases = predictor.get_supported_diseases()
             
             return Response({

@@ -27,19 +27,19 @@ const getStatusDisplay = (status) => {
   switch (status) {
     case 'operational':
       return {
-        icon: <CheckCircleIcon sx={{ color: 'success.main' }} />,
+        icon: <CheckCircleIcon sx={{ color: '#4caf50' }} />, // Green
         color: 'success',
         label: 'System Operational',
       };
     case 'degraded':
       return {
-        icon: <WarningIcon sx={{ color: 'warning.main' }} />,
+        icon: <WarningIcon sx={{ color: '#ff9800' }} />, // Yellow/Orange
         color: 'warning',
         label: 'Service Degraded',
       };
     case 'error':
       return {
-        icon: <ErrorIcon sx={{ color: 'error.main' }} />,
+        icon: <ErrorIcon sx={{ color: '#f44336' }} />, // Red
         color: 'error',
         label: 'Service Unavailable',
       };
@@ -57,9 +57,10 @@ const getStatusDisplay = (status) => {
  * Displays system health status with color-coded indicators
  * @param {Object} props
  * @param {SystemStatus|null} props.status - System status object
+ * @param {Object|null} props.modelInfo - Model information object
  * @param {boolean} props.loading - Loading state
  */
-export default function SystemStatus({ status, loading }) {
+export default function SystemStatus({ status, modelInfo, loading }) {
   if (loading) {
     return (
       <Card>
@@ -108,6 +109,31 @@ export default function SystemStatus({ status, loading }) {
               </Typography>
             </Box>
           </Stack>
+
+          {/* Model Information */}
+          {modelInfo && (
+            <Box>
+              <Typography variant="subtitle2" gutterBottom>
+                Model Information
+              </Typography>
+              <Stack spacing={0.5}>
+                <Typography variant="body2" color="text.secondary">
+                  Type: {modelInfo.model_type || 'N/A'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Diseases: {modelInfo.num_diseases || 0}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Status: {modelInfo.model_loaded ? 'Loaded' : 'Not Loaded'}
+                </Typography>
+                {status.timestamp && (
+                  <Typography variant="body2" color="text.secondary">
+                    Last Updated: {new Date(status.timestamp).toLocaleString()}
+                  </Typography>
+                )}
+              </Stack>
+            </Box>
+          )}
 
           {/* Component Status */}
           {status.components && (

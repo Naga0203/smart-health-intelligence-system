@@ -15,7 +15,7 @@ import UserStatistics from '@/components/dashboard/UserStatistics';
  */
 export default function DashboardPage() {
   const { fetchAssessmentHistory, assessmentHistory, loading: assessmentsLoading } = useAssessmentStore();
-  const { fetchSystemStatus, status, loading: systemLoading } = useSystemStore();
+  const { fetchSystemStatus, fetchModelInfo, status, modelInfo, loading: systemLoading } = useSystemStore();
   const { fetchStatistics, statistics, loading: statsLoading } = useUserStore();
 
   useEffect(() => {
@@ -25,6 +25,7 @@ export default function DashboardPage() {
         await Promise.all([
           fetchAssessmentHistory(1, 5), // Fetch first 5 recent assessments
           fetchSystemStatus(),
+          fetchModelInfo(),
           fetchStatistics(),
         ]);
       } catch (error) {
@@ -33,7 +34,7 @@ export default function DashboardPage() {
     };
 
     fetchData();
-  }, [fetchAssessmentHistory, fetchSystemStatus, fetchStatistics]);
+  }, [fetchAssessmentHistory, fetchSystemStatus, fetchModelInfo, fetchStatistics]);
 
   const isLoading = assessmentsLoading || systemLoading || statsLoading;
 
@@ -59,7 +60,7 @@ export default function DashboardPage() {
 
         {/* System Status */}
         <Grid item xs={12} md={6}>
-          <SystemStatus status={status} loading={systemLoading} />
+          <SystemStatus status={status} modelInfo={modelInfo} loading={systemLoading} />
         </Grid>
 
         {/* User Statistics */}

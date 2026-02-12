@@ -23,6 +23,7 @@ const steps = ['Symptoms', 'Demographics', 'Vitals', 'Review'];
 interface AssessmentStepperProps {
   onSubmit: (data: AssessmentFormData) => void;
   loading?: boolean;
+  disabled?: boolean;
 }
 
 export interface SymptomData {
@@ -57,6 +58,7 @@ export interface AssessmentFormData {
 export const AssessmentStepper: React.FC<AssessmentStepperProps> = ({
   onSubmit,
   loading = false,
+  disabled = false,
 }) => {
   const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState<AssessmentFormData>({
@@ -168,7 +170,7 @@ export const AssessmentStepper: React.FC<AssessmentStepperProps> = ({
               <Button
                 variant="contained"
                 onClick={handleSubmit}
-                disabled={loading || !canProceed()}
+                disabled={loading || disabled || !canProceed()}
               >
                 {loading ? 'Submitting...' : 'Submit Assessment'}
               </Button>
@@ -176,7 +178,7 @@ export const AssessmentStepper: React.FC<AssessmentStepperProps> = ({
               <Button
                 variant="contained"
                 onClick={handleNext}
-                disabled={!canProceed()}
+                disabled={disabled || !canProceed()}
               >
                 Next
               </Button>
