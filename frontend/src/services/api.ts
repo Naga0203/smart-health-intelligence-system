@@ -104,7 +104,7 @@ class APIService {
               this.isRefreshing = false;
               return this.client(originalRequest);
             } else {
-              throw new Error('Token refresh failed');
+              throw new Error('Token refresh failed - no token returned');
             }
           } catch (refreshError) {
             this.processQueue(refreshError, null);
@@ -112,7 +112,16 @@ class APIService {
             
             // Clear auth and redirect to login
             const { useAuthStore } = await import('@/stores/authStore');
+            const { useNotificationStore } = await import('@/stores/notificationStore');
+            
             useAuthStore.getState().logout();
+            
+            // Notify user
+            useNotificationStore.getState().addNotification({
+              type: 'warning',
+              message: 'Your session has expired. Please log in again.',
+              dismissible: true,
+            });
             
             if (typeof window !== 'undefined') {
               window.location.href = '/login';
@@ -124,17 +133,9 @@ class APIService {
 
         // Handle 429 Rate Limit
         if (error.response?.status === 429) {
-          const { useNotificationStore } = await import('@/stores/notificationStore');
-          const waitSeconds = error.response.data?.wait_seconds;
-          const message = waitSeconds
-            ? `Rate limit exceeded. Please wait ${waitSeconds} seconds before trying again.`
-            : 'Rate limit exceeded. Please try again later.';
-          
-          useNotificationStore.getState().addNotification({
-            type: 'warning',
-            message,
-            dismissible: true,
-          });
+          const { handleRateLimitError, extractWaitTime } = await import('@/utils/rateLimitHandler');
+          const waitSeconds = extractWaitTime(error.response.data);
+          handleRateLimitError(waitSeconds, error.response.data);
         }
 
         // Handle 400 Bad Request

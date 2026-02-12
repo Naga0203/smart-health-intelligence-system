@@ -1,7 +1,6 @@
 # Environment variables (IMPORTANT: Never commit actual .env files!)
 .env
 .env.local
-.env.example
 .env.*.local
 backend/.env
 frontend/.env
@@ -67,10 +66,7 @@ venv.bak/
 *~
 
 # Kiro directory (AI assistant workspace files)
-# Note: Spec files in .kiro/specs/ may be committed if desired
 .kiro/
-# Uncomment the line below if you want to track spec files
-# !.kiro/specs/
 
 # OS
 .DS_Store
@@ -96,15 +92,35 @@ models/*.joblib
 htmlcov/
 .pytest_cache/
 .hypothesis/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+*.property.test.ts
+*.property.test.tsx
 
-# Documentation
-docs/_build/
+# Documentation (internal development docs)
+BACKEND_FIREBASE_FIX.md
+BACKEND_FIX.md
+CONVERSION-COMPLETE.md
+CONNECTION_CHECKLIST.md
+CONNECTION_GUIDE.md
+COMPLETE_SETUP_GUIDE.md
+BUNDLE_OPTIMIZATION.md
+BUNDLE_SETUP.md
+PERFORMANCE_FEATURES.md
+cleanup-git-cache.ps1
 
 # Frontend
 frontend/node_modules/
 frontend/dist/
 frontend/build/
 frontend/.vite/
+frontend/tsconfig.tsbuildinfo
 node_modules/
 dist/
 build/
+
+# Postman collections (optional - remove if you want to track them)
+*.postman.json
+postman_collection.json

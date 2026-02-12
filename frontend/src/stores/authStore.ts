@@ -8,7 +8,29 @@ import { firebaseService } from '@/services/firebase';
 import { tokenStorage } from '@/utils/secureStorage';
 import { logger } from '@/utils/logger';
 
-export const useAuthStore = create(
+interface User {
+  uid: string;
+  email: string;
+  displayName: string | null;
+  photoURL: string | null;
+}
+
+interface AuthStore {
+  user: User | null;
+  token: string | null;
+  loading: boolean;
+  error: string | null;
+  initialize: () => void;
+  login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
+  logout: () => Promise<void>;
+  refreshToken: () => Promise<void>;
+  setUser: (user: User | null) => void;
+  setToken: (token: string | null) => void;
+  clearError: () => void;
+}
+
+export const useAuthStore = create<AuthStore>()(
   persist(
     (set, get) => ({
       user: null,
