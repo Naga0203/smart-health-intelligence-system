@@ -11,6 +11,7 @@ from typing import Dict, Any, Optional, List
 import logging
 from datetime import datetime
 from treatment.knowledge_base import TreatmentKnowledgeBase
+from agents.treatment_exploration import TreatmentExplorationAgent
 
 logger = logging.getLogger('health_ai.recommendation')
 
@@ -29,6 +30,7 @@ class RecommendationAgent:
     def __init__(self):
         """Initialize the recommendation agent."""
         self.treatment_kb = TreatmentKnowledgeBase()
+        self.treatment_explorer = TreatmentExplorationAgent()  # NEW: Detailed treatment exploration
         
         # Confidence-based gating rules
         self.confidence_gates = {
@@ -148,9 +150,31 @@ class RecommendationAgent:
                 ),
                 "integration_note": (
                     "Different medical systems can often be integrated under professional supervision. "
-                    "Discuss all treatment options with qualified practitioners."
+                    "Discuss with qualified practitioners before combining approaches."
                 )
             }
+            
+            # Add detailed treatment exploration for MEDIUM and HIGH confidence
+            if confidence in ["MEDIUM", "HIGH"]:
+                try:
+                    exploration_input = {
+                        "disease": disease,
+                        "systems": ["all"],
+                        "user_context": {}
+                    }
+                    exploration_result = self.treatment_explorer.process(exploration_input)
+                    
+                    if exploration_result["success"]:
+                        treatment_info["detailed_exploration"] = {
+                            "available": True,
+                            "explore_options": exploration_result["data"]
+                        }
+                except Exception as e:
+                    logger.warning(f"Failed to add treatment exploration: {str(e)}")
+                    treatment_info["detailed_exploration"] = {
+                        "available": False,
+                        "message": "Detailed exploration temporarily unavailable"
+                    }
         
         return treatment_info
     

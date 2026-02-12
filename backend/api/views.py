@@ -1063,9 +1063,14 @@ class DiseasesListView(APIView):
         tags=['System'],
         summary='Get supported diseases list',
         description='''
-        Get list of all diseases supported by the prediction model.
+        Get list of all diseases currently supported by the prediction model.
         
-        Returns the complete list of diseases that the system can predict.
+        **Currently Supported Diseases:**
+        - Diabetes
+        - Heart Disease
+        - Hypertension
+        
+        More diseases will be added in future updates.
         
         **No Authentication Required**
         ''',
@@ -1073,18 +1078,11 @@ class DiseasesListView(APIView):
             200: OpenApiExample(
                 'Diseases List',
                 value={
-                    "total": 715,
+                    "total": 3,
                     "diseases": [
-                        "Fungal infection",
-                        "Allergy",
-                        "GERD",
-                        "Chronic cholestasis",
-                        "Drug Reaction",
-                        "Peptic ulcer disease",
-                        "AIDS",
-                        "Diabetes",
-                        "Gastroenteritis",
-                        "Bronchial Asthma"
+                        "diabetes",
+                        "heart_disease",
+                        "hypertension"
                     ]
                 },
                 response_only=True

@@ -5,9 +5,27 @@ import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+// Optional: Bundle analyzer plugin
+// Install with: npm install --save-dev rollup-plugin-visualizer
+let visualizerPlugin;
+try {
+  const { visualizer } = await import('rollup-plugin-visualizer');
+  visualizerPlugin = visualizer({
+    filename: './dist/stats.html',
+    open: false,
+    gzipSize: true,
+    brotliSize: true,
+  });
+} catch (e) {
+  console.log('Bundle visualizer not installed. Install with: npm install --save-dev rollup-plugin-visualizer');
+}
+
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    visualizerPlugin,
+  ].filter(Boolean),
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -27,5 +45,51 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
+  },
+  build: {
+    // Enable minification
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true, // Remove console.log in production
+        drop_debugger: true,
+      },
+    },
+    // Optimize chunk splitting
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Vendor chunks
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'mui-vendor': ['@mui/material', '@mui/icons-material'],
+          'firebase-vendor': ['firebase/app', 'firebase/auth'],
+          'chart-vendor': ['recharts'],
+          // Store chunks
+          'stores': [
+            './src/stores/authStore.ts',
+            './src/stores/userStore.ts',
+            './src/stores/assessmentStore.ts',
+            './src/stores/systemStore.ts',
+            './src/stores/notificationStore.ts',
+          ],
+        },
+      },
+    },
+    // Chunk size warnings
+    chunkSizeWarningLimit: 1000, // 1MB
+    // Source maps for production debugging
+    sourcemap: true,
+  },
+  // Optimize dependencies
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      '@mui/material',
+      '@mui/icons-material',
+      'zustand',
+      'axios',
+    ],
   },
 })

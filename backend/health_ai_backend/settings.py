@@ -284,6 +284,33 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+# Cache Configuration
+# https://docs.djangoproject.com/en/6.0/topics/cache/
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': config('REDIS_URL', default='redis://127.0.0.1:6379/1'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'SOCKET_CONNECT_TIMEOUT': 5,  # seconds
+            'SOCKET_TIMEOUT': 5,  # seconds
+            'RETRY_ON_TIMEOUT': True,
+            'MAX_CONNECTIONS': 50,
+            'CONNECTION_POOL_KWARGS': {
+                'max_connections': 50,
+                'retry_on_timeout': True
+            }
+        },
+        'KEY_PREFIX': 'health_ai',
+        'TIMEOUT': 3600,  # 1 hour default
+    }
+}
+
+# Cache key versioning (increment when cache schema changes)
+CACHE_MIDDLEWARE_KEY_PREFIX = 'v1'
+
+
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 

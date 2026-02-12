@@ -3,15 +3,25 @@
 // ============================================================================
 
 import axios from 'axios';
+import { getCsrfToken, requiresCsrfProtection } from '@/utils/csrf';
 
 class APIService {
   constructor() {
+    const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    
+    // Validate HTTPS in production
+    if (import.meta.env.PROD && !baseURL.startsWith('https://')) {
+      console.error('SECURITY WARNING: API base URL must use HTTPS in production');
+      throw new Error('API base URL must use HTTPS in production');
+    }
+    
     this.client = axios.create({
-      baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+      baseURL,
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
       },
+      withCredentials: true, // Enable cookies for CSRF
     });
 
     this.isRefreshing = false;
@@ -35,13 +45,22 @@ class APIService {
   }
 
   setupInterceptors() {
-    // Request interceptor - add auth token
+    // Request interceptor - add auth token and CSRF token
     this.client.interceptors.request.use(
       (config) => {
         const token = localStorage.getItem('firebase_token');
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
+        
+        // Add CSRF token for state-changing requests
+        if (requiresCsrfProtection(config.method || 'GET')) {
+          const csrfToken = getCsrfToken();
+          if (csrfToken) {
+            config.headers['X-CSRFToken'] = csrfToken;
+          }
+        }
+        
         return config;
       },
       (error) => Promise.reject(error)

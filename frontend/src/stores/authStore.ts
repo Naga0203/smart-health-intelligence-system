@@ -5,6 +5,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { firebaseService } from '@/services/firebase';
+import { tokenStorage } from '@/utils/secureStorage';
+import { logger } from '@/utils/logger';
 
 export const useAuthStore = create(
   persist(
@@ -27,10 +29,10 @@ export const useAuthStore = create(
             };
             
             set({ user, token, loading: false });
-            localStorage.setItem('firebase_token', token);
+            tokenStorage.setToken(token);
           } else {
             set({ user: null, token: null, loading: false });
-            localStorage.removeItem('firebase_token');
+            tokenStorage.removeToken();
           }
         });
       },
@@ -50,7 +52,7 @@ export const useAuthStore = create(
           };
 
           set({ user, token, loading: false, error: null });
-          localStorage.setItem('firebase_token', token);
+          tokenStorage.setToken(token);
         } catch (error) {
           set({ 
             loading: false, 
@@ -75,7 +77,7 @@ export const useAuthStore = create(
           };
 
           set({ user, token, loading: false, error: null });
-          localStorage.setItem('firebase_token', token);
+          tokenStorage.setToken(token);
         } catch (error) {
           set({ 
             loading: false, 
@@ -91,7 +93,7 @@ export const useAuthStore = create(
         try {
           await firebaseService.logout();
           set({ user: null, token: null, loading: false, error: null });
-          localStorage.removeItem('firebase_token');
+          tokenStorage.clearAuth();
         } catch (error) {
           set({ 
             loading: false, 
@@ -107,12 +109,12 @@ export const useAuthStore = create(
           const token = await firebaseService.getIdToken(true);
           if (token) {
             set({ token });
-            localStorage.setItem('firebase_token', token);
+            tokenStorage.setToken(token);
           }
         } catch (error) {
-          console.error('Token refresh failed:', error);
+          logger.error('Token refresh failed', error);
           set({ user: null, token: null });
-          localStorage.removeItem('firebase_token');
+          tokenStorage.clearAuth();
         }
       },
 
@@ -125,9 +127,9 @@ export const useAuthStore = create(
       setToken: (token) => {
         set({ token });
         if (token) {
-          localStorage.setItem('firebase_token', token);
+          tokenStorage.setToken(token);
         } else {
-          localStorage.removeItem('firebase_token');
+          tokenStorage.removeToken();
         }
       },
 
