@@ -181,7 +181,7 @@ DJANGO_SECRET_KEY=<configured>
 DEBUG=True
 ALLOWED_HOSTS=localhost,127.0.0.1
 FIREBASE_CREDENTIALS_PATH=firebase-credentials.json
-GEMINI_API_KEY=AIzaSyDe9eF_gmXt63hIdagwaOBaqKkx4fv6MMM
+GEMINI_API_KEY=your-api key
 CORS_ALLOWED_ORIGINS=http://localhost:3000
 ```
 
