@@ -188,9 +188,9 @@ CORS_ALLOWED_ORIGINS=http://localhost:3000
 ### Frontend Environment (`.env`)
 ```bash
 VITE_API_BASE_URL=http://localhost:8000
-VITE_FIREBASE_API_KEY=AIzaSyCpLGyh7f8eZn9rf2eaRyeC2PTZh3JkPhY
-VITE_FIREBASE_AUTH_DOMAIN=major-project-2c7c7.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=major-project-2c7c7
+VITE_FIREBASE_API_KEY=your-key
+VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project
 # ... other Firebase config
 ```
 
