@@ -460,6 +460,6 @@ class OrchestratorAgent(BaseHealthAgent):
                 "model_version": self.prediction_engine.model_version
             },
             "database": {
-                "connected": self.db.client is not None
+                "connected": self.db.db is not None
             }
         }

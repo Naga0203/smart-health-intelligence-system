@@ -2,19 +2,24 @@
 // API Service - Backend Integration
 // ============================================================================
 
-import axios from 'axios';
+import axios, { AxiosInstance } from 'axios';
 import { getCsrfToken, requiresCsrfProtection } from '@/utils/csrf';
+import { tokenStorage } from '@/utils/secureStorage';
 
 class APIService {
+  private client: AxiosInstance;
+  private isRefreshing: boolean;
+  private failedQueue: any[];
+
   constructor() {
-    const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-    
+    const baseURL = import.meta.env.VITE_API_BASE_URL || '';
+
     // Validate HTTPS in production
     if (import.meta.env.PROD && !baseURL.startsWith('https://')) {
       console.error('SECURITY WARNING: API base URL must use HTTPS in production');
       throw new Error('API base URL must use HTTPS in production');
     }
-    
+
     this.client = axios.create({
       baseURL,
       timeout: 30000,
@@ -32,7 +37,7 @@ class APIService {
   /**
    * Process queued requests after token refresh
    */
-  processQueue(error, token = null) {
+  processQueue(error: any, token: string | null = null) {
     this.failedQueue.forEach((prom) => {
       if (error) {
         prom.reject(error);
@@ -48,11 +53,11 @@ class APIService {
     // Request interceptor - add auth token and CSRF token
     this.client.interceptors.request.use(
       (config) => {
-        const token = localStorage.getItem('firebase_token');
+        const token = tokenStorage.getToken();
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
-        
+
         // Add CSRF token for state-changing requests
         if (requiresCsrfProtection(config.method || 'GET')) {
           const csrfToken = getCsrfToken();
@@ -60,7 +65,7 @@ class APIService {
             config.headers['X-CSRFToken'] = csrfToken;
           }
         }
-        
+
         return config;
       },
       (error) => Promise.reject(error)
@@ -95,9 +100,9 @@ class APIService {
             // Attempt to refresh token using auth store
             const { useAuthStore } = await import('@/stores/authStore');
             await useAuthStore.getState().refreshToken();
-            
-            const newToken = localStorage.getItem('firebase_token');
-            
+
+            const newToken = tokenStorage.getToken();
+
             if (newToken) {
               this.processQueue(null, newToken);
               originalRequest.headers.Authorization = `Bearer ${newToken}`;
@@ -109,24 +114,24 @@ class APIService {
           } catch (refreshError) {
             this.processQueue(refreshError, null);
             this.isRefreshing = false;
-            
+
             // Clear auth and redirect to login
             const { useAuthStore } = await import('@/stores/authStore');
             const { useNotificationStore } = await import('@/stores/notificationStore');
-            
+
             useAuthStore.getState().logout();
-            
+
             // Notify user
             useNotificationStore.getState().addNotification({
               type: 'warning',
               message: 'Your session has expired. Please log in again.',
               dismissible: true,
             });
-            
+
             if (typeof window !== 'undefined') {
               window.location.href = '/login';
             }
-            
+
             return Promise.reject(refreshError);
           }
         }
@@ -142,7 +147,7 @@ class APIService {
         if (error.response?.status === 400) {
           const { useNotificationStore } = await import('@/stores/notificationStore');
           const message = error.response.data?.message || 'Invalid request. Please check your input.';
-          
+
           useNotificationStore.getState().addNotification({
             type: 'error',
             message,
@@ -153,7 +158,7 @@ class APIService {
         // Handle 500 Server Error
         if (error.response?.status === 500) {
           const { useNotificationStore } = await import('@/stores/notificationStore');
-          
+
           useNotificationStore.getState().addNotification({
             type: 'error',
             message: 'Server error. Please try again later.',
@@ -164,7 +169,7 @@ class APIService {
         // Handle Network Errors
         if (!error.response) {
           const { useNotificationStore } = await import('@/stores/notificationStore');
-          
+
           useNotificationStore.getState().addNotification({
             type: 'error',
             message: 'Network error. Please check your connection.',

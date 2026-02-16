@@ -14,8 +14,11 @@ from rest_framework.exceptions import (
     AuthenticationFailed,
     PermissionDenied,
     NotFound,
+    NotFound,
     Throttled
 )
+from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
+from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
 from drf_spectacular.types import OpenApiTypes
 from datetime import datetime
@@ -202,6 +205,7 @@ class HealthAnalysisAPI(APIView):
         DailyRateThrottle,                # 200/day daily limit
         IPBasedRateThrottle,              # 200/hour per IP
     ]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
     
     def _format_low_confidence_response(self, result_data):
         """
@@ -626,6 +630,7 @@ class HealthAssessmentView(APIView):
         AnonymousHealthAnalysisThrottle,  # 5/hour for anonymous
         IPBasedRateThrottle,              # 200/hour per IP
     ]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
     
     @extend_schema(
         tags=['Health Analysis'],
@@ -782,6 +787,7 @@ class TopPredictionsView(APIView):
     
     authentication_classes = []  # Allow unauthenticated access
     permission_classes = []  # Allow any user
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
     
     @extend_schema(
         tags=['Predictions'],
@@ -1256,7 +1262,8 @@ class UserProfileAPIView(APIView):
             logger.info(f"Fetching profile for user: {user_id}")
             
             # Get Firebase database
-            db = get_firebase_db()
+            # Get Firebase database
+            db = get_firebase_db().db
             
             # Fetch user profile from Firestore
             user_doc = db.collection('users').document(user_id).get()
@@ -1418,7 +1425,8 @@ class UserProfileAPIView(APIView):
                 return APIErrorHandler.handle_validation_error(serializer.errors, logger)
             
             # Get Firebase database
-            db = get_firebase_db()
+            # Get Firebase database
+            db = get_firebase_db().db
             
             # Prepare update data
             update_data = serializer.validated_data
@@ -1525,7 +1533,7 @@ class UserStatisticsAPIView(APIView):
             user_id = request.user.uid
             logger.info(f"Fetching statistics for user: {user_id}")
             
-            db = get_firebase_db()
+            db = get_firebase_db().db
             
             # Get user profile for account age
             user_doc = db.collection('users').document(user_id).get()
@@ -1702,17 +1710,25 @@ class AssessmentHistoryAPIView(APIView):
             
             logger.info(f"Fetching assessment history for user: {user_id}, page: {page}, size: {page_size}")
             
-            db = get_firebase_db()
+            db = get_firebase_db().db
             
             # Query assessments
             assessments_ref = db.collection('assessments').where('user_id', '==', user_id)
             
-            # Apply sorting
-            direction = 'DESCENDING' if sort_order == 'desc' else 'ASCENDING'
-            assessments_ref = assessments_ref.order_by(sort_field, direction=direction)
+            # Get all assessments
+            all_assessments = []
+            for doc in assessments_ref.stream():
+                all_assessments.append(doc)
             
-            # Get all assessments for total count
-            all_assessments = list(assessments_ref.stream())
+            # Apply sorting in Python to avoid Firestore index requirements
+            reverse = (sort_order == 'desc')
+            
+            def get_sort_key(doc):
+                data = doc.to_dict()
+                return data.get(sort_field, '') or ''
+                
+            all_assessments.sort(key=get_sort_key, reverse=reverse)
+            
             total = len(all_assessments)
             
             # Apply pagination
@@ -1747,6 +1763,10 @@ class AssessmentHistoryAPIView(APIView):
             return APIErrorHandler.handle_validation_error(f"Invalid query parameters: {str(e)}", logger)
         
         except Exception as e:
+            import traceback
+            with open('assessments_500_debug.txt', 'w') as f:
+                f.write(f"Error fetching assessments: {str(e)}\n")
+                f.write(traceback.format_exc())
             logger.error(f"Error fetching assessment history for user {request.user.uid}: {str(e)}", exc_info=True)
             return APIErrorHandler.handle_internal_error(e, logger)
 
@@ -1865,7 +1885,7 @@ class AssessmentDetailAPIView(APIView):
             user_id = request.user.uid
             logger.info(f"Fetching assessment {assessment_id} for user: {user_id}")
             
-            db = get_firebase_db()
+            db = get_firebase_db().db
             
             # Fetch assessment
             assessment_doc = db.collection('assessments').document(assessment_id).get()

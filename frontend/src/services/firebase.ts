@@ -7,6 +7,8 @@ import {
   getAuth,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   signOut,
   onAuthStateChanged,
@@ -23,36 +25,68 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
+// Debug config loading (safe)
+console.log('Firebase Config Loading:', {
+  apiKey: !!firebaseConfig.apiKey,
+  authDomain: !!firebaseConfig.authDomain,
+  projectId: !!firebaseConfig.projectId,
+  storageBucket: !!firebaseConfig.storageBucket,
+  messagingSenderId: !!firebaseConfig.messagingSenderId,
+  appId: !!firebaseConfig.appId,
+});
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
 // Configure Google provider
-googleProvider.setCustomParameters({
-  prompt: 'select_account',
-});
+// googleProvider.setCustomParameters({
+//   prompt: 'select_account',
+// });
 
 export class FirebaseService {
   /**
    * Sign in with email and password
    */
-  async loginWithEmail(email, password) {
+  async loginWithEmail(email: string, password: string) {
     return signInWithEmailAndPassword(auth, email, password);
   }
 
   /**
-   * Create new user with email and password
+   * Register with email and password
    */
-  async registerWithEmail(email, password) {
+  async registerWithEmail(email: string, password: string) {
     return createUserWithEmailAndPassword(auth, email, password);
   }
 
   /**
-   * Sign in with Google OAuth
+   * Sign in with Google OAuth (Popup)
    */
   async loginWithGoogle() {
-    return signInWithPopup(auth, googleProvider);
+    try {
+      return await signInWithPopup(auth, googleProvider);
+    } catch (error: any) {
+      if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
+        // Fallback to redirect
+        return signInWithRedirect(auth, googleProvider);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Sign in with Google OAuth (Redirect)
+   */
+  async loginWithGoogleRedirect() {
+    return signInWithRedirect(auth, googleProvider);
+  }
+
+  /**
+   * Get redirect result
+   */
+  async getGoogleRedirectResult() {
+    return getRedirectResult(auth);
   }
 
   /**

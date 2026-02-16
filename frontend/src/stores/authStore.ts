@@ -49,7 +49,7 @@ export const useAuthStore = create<AuthStore>()(
               displayName: firebaseUser.displayName,
               photoURL: firebaseUser.photoURL,
             };
-            
+
             set({ user, token, loading: false });
             tokenStorage.setToken(token);
           } else {
@@ -65,7 +65,7 @@ export const useAuthStore = create<AuthStore>()(
         try {
           const userCredential = await firebaseService.loginWithEmail(email, password);
           const token = await userCredential.user.getIdToken();
-          
+
           const user = {
             uid: userCredential.user.uid,
             email: userCredential.user.email || '',
@@ -76,9 +76,9 @@ export const useAuthStore = create<AuthStore>()(
           set({ user, token, loading: false, error: null });
           tokenStorage.setToken(token);
         } catch (error) {
-          set({ 
-            loading: false, 
-            error: error.message || 'Login failed' 
+          set({
+            loading: false,
+            error: error.message || 'Login failed'
           });
           throw error;
         }
@@ -90,7 +90,7 @@ export const useAuthStore = create<AuthStore>()(
         try {
           const userCredential = await firebaseService.loginWithGoogle();
           const token = await userCredential.user.getIdToken();
-          
+
           const user = {
             uid: userCredential.user.uid,
             email: userCredential.user.email || '',
@@ -100,10 +100,13 @@ export const useAuthStore = create<AuthStore>()(
 
           set({ user, token, loading: false, error: null });
           tokenStorage.setToken(token);
-        } catch (error) {
-          set({ 
-            loading: false, 
-            error: error.message || 'Google login failed' 
+        } catch (error: any) {
+          console.error('Google Login Error:', error);
+          console.error('Error Code:', error.code);
+          console.error('Error Message:', error.message);
+          set({
+            loading: false,
+            error: error.message || 'Google login failed'
           });
           throw error;
         }
@@ -117,9 +120,9 @@ export const useAuthStore = create<AuthStore>()(
           set({ user: null, token: null, loading: false, error: null });
           tokenStorage.clearAuth();
         } catch (error) {
-          set({ 
-            loading: false, 
-            error: error.message || 'Logout failed' 
+          set({
+            loading: false,
+            error: error.message || 'Logout failed'
           });
           throw error;
         }
@@ -162,9 +165,9 @@ export const useAuthStore = create<AuthStore>()(
     }),
     {
       name: 'auth-storage',
-      partialize: (state) => ({ 
+      partialize: (state) => ({
         user: state.user,
-        token: state.token 
+        token: state.token
       }),
     }
   )

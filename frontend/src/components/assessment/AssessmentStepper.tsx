@@ -1,6 +1,7 @@
 // ============================================================================
-// Assessment Stepper Component
+// Assessment Stepper Component - Responsive Design
 // Multi-step form: Symptoms → Demographics → Vitals → Review
+// Mobile-friendly with vertical stepper and proper touch targets
 // ============================================================================
 
 import React, { useState } from 'react';
@@ -12,6 +13,10 @@ import {
   Button,
   Paper,
   Typography,
+  LinearProgress,
+  useTheme,
+  useMediaQuery,
+  Fade,
 } from '@mui/material';
 import { SymptomInput } from './SymptomInput';
 import { DemographicForm } from './DemographicForm';
@@ -60,6 +65,10 @@ export const AssessmentStepper: React.FC<AssessmentStepperProps> = ({
   loading = false,
   disabled = false,
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md')); // < 900px
+  const isSmallMobile = useMediaQuery(theme.breakpoints.down('sm')); // < 600px
+
   const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState<AssessmentFormData>({
     symptoms: [],
@@ -113,6 +122,8 @@ export const AssessmentStepper: React.FC<AssessmentStepperProps> = ({
     }
   };
 
+  const progressPercentage = ((activeStep + 1) / steps.length) * 100;
+
   const renderStepContent = () => {
     switch (activeStep) {
       case 0:
@@ -145,47 +156,130 @@ export const AssessmentStepper: React.FC<AssessmentStepperProps> = ({
 
   return (
     <Box sx={{ width: '100%' }}>
-      <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
-        {steps.map((label) => (
+      {/* Progress Bar - More visible on mobile */}
+      <Box sx={{ mb: 2 }}>
+        <LinearProgress
+          variant="determinate"
+          value={progressPercentage}
+          sx={{
+            height: { xs: 6, sm: 4 },
+            borderRadius: 2,
+            backgroundColor: 'grey.200',
+            '& .MuiLinearProgress-bar': {
+              borderRadius: 2,
+              transition: 'transform 0.4s ease-in-out',
+            },
+          }}
+        />
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{
+            display: 'block',
+            textAlign: 'right',
+            mt: 0.5,
+            fontSize: { xs: '0.75rem', sm: '0.75rem' },
+          }}
+        >
+          Step {activeStep + 1} of {steps.length}
+        </Typography>
+      </Box>
+
+      {/* Stepper - Responsive orientation */}
+      <Stepper
+        activeStep={activeStep}
+        orientation={isMobile ? 'vertical' : 'horizontal'}
+        sx={{
+          mb: { xs: 3, sm: 4 },
+          // Better spacing for mobile
+          '& .MuiStepLabel-root': {
+            px: { xs: 0, sm: 1 },
+          },
+        }}
+      >
+        {steps.map((label, index) => (
           <Step key={label}>
-            <StepLabel>{label}</StepLabel>
+            <StepLabel
+              sx={{
+                '& .MuiStepLabel-label': {
+                  fontSize: { xs: '0.875rem', sm: '1rem' },
+                  fontWeight: activeStep === index ? 600 : 400,
+                },
+              }}
+            >
+              {isSmallMobile ? label.substring(0, 10) : label}
+            </StepLabel>
           </Step>
         ))}
       </Stepper>
 
-      <Paper sx={{ p: 3, minHeight: 400 }}>
-        {renderStepContent()}
+      {/* Content Area */}
+      <Fade in={true} timeout={300} key={activeStep}>
+        <Paper
+          sx={{
+            p: { xs: 2, sm: 3, md: 4 },
+            minHeight: { xs: 350, sm: 400 },
+            transition: 'all 0.3s ease-in-out',
+          }}
+        >
+          {renderStepContent()}
 
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
-          <Button
-            disabled={activeStep === 0}
-            onClick={handleBack}
-            variant="outlined"
+          {/* Navigation Buttons */}
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column-reverse', sm: 'row' },
+              justifyContent: 'space-between',
+              gap: { xs: 2, sm: 0 },
+              mt: 4,
+            }}
           >
-            Back
-          </Button>
+            <Button
+              disabled={activeStep === 0}
+              onClick={handleBack}
+              variant="outlined"
+              sx={{
+                minHeight: { xs: 44, sm: 40 },
+                width: { xs: '100%', sm: 'auto' },
+                minWidth: { sm: 100 },
+              }}
+            >
+              Back
+            </Button>
 
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            {activeStep === steps.length - 1 ? (
-              <Button
-                variant="contained"
-                onClick={handleSubmit}
-                disabled={loading || disabled || !canProceed()}
-              >
-                {loading ? 'Submitting...' : 'Submit Assessment'}
-              </Button>
-            ) : (
-              <Button
-                variant="contained"
-                onClick={handleNext}
-                disabled={disabled || !canProceed()}
-              >
-                Next
-              </Button>
-            )}
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              {activeStep === steps.length - 1 ? (
+                <Button
+                  variant="contained"
+                  onClick={handleSubmit}
+                  disabled={loading || disabled || !canProceed()}
+                  sx={{
+                    minHeight: { xs: 44, sm: 40 },
+                    width: { xs: '100%', sm: 'auto' },
+                    minWidth: { sm: 160 },
+                    position: 'relative',
+                  }}
+                >
+                  {loading ? 'Submitting...' : 'Submit Assessment'}
+                </Button>
+              ) : (
+                <Button
+                  variant="contained"
+                  onClick={handleNext}
+                  disabled={disabled || !canProceed()}
+                  sx={{
+                    minHeight: { xs: 44, sm: 40 },
+                    width: { xs: '100%', sm: 'auto' },
+                    minWidth: { sm: 100 },
+                  }}
+                >
+                  Next
+                </Button>
+              )}
+            </Box>
           </Box>
-        </Box>
-      </Paper>
+        </Paper>
+      </Fade>
     </Box>
   );
 };

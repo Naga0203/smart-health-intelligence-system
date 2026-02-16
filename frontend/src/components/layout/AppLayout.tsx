@@ -13,10 +13,10 @@ export const AppLayout = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md')); // <768px
   const isTablet = useMediaQuery(theme.breakpoints.between('md', 'lg')); // 768-1024px
-  
+
   // Enable global keyboard shortcuts
   useKeyboardShortcuts();
-  
+
   // Sidebar should be closed by default on mobile, open on desktop
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
 
@@ -30,10 +30,10 @@ export const AppLayout = () => {
   };
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', flexDirection: 'column' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', flexDirection: 'column', height: 'auto' }}>
       <Header onMenuClick={toggleSidebar} />
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      
+
       <Box
         component="main"
         role="main"
@@ -60,9 +60,9 @@ export const AppLayout = () => {
           maxWidth: '100%',
         }}
       >
-        <Container 
-          maxWidth="xl" 
-          sx={{ 
+        <Container
+          maxWidth="xl"
+          sx={{
             flexGrow: 1,
             px: { xs: 0, sm: 2, md: 3 },
           }}

@@ -21,6 +21,7 @@ const AssessmentResultsPage = lazy(() => import('@/pages/AssessmentResultsPage')
 const DiseasesPage = lazy(() => import('@/pages/DiseasesPage'));
 const NewAssessmentPage = lazy(() => import('@/pages/NewAssessmentPage'));
 const AssessmentHistoryPage = lazy(() => import('@/pages/AssessmentHistoryPage').then(module => ({ default: module.AssessmentHistoryPage })));
+const TreatmentExplorationPage = lazy(() => import('@/pages/TreatmentExplorationPage'));
 
 export function AppRouter() {
   return (
@@ -31,7 +32,7 @@ export function AppRouter() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
-          
+
           {/* Protected routes with AppLayout */}
           <Route
             path="/app"
@@ -49,8 +50,9 @@ export function AppRouter() {
             <Route path="profile" element={<ProfilePage />} />
             <Route path="upload" element={<UploadReportPage />} />
             <Route path="diseases" element={<DiseasesPage />} />
+            <Route path="diseases/:diseaseId/treatment" element={<TreatmentExplorationPage />} />
           </Route>
-          
+
           {/* Catch-all redirect */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

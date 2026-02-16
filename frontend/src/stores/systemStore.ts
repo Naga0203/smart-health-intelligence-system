@@ -21,11 +21,11 @@ export const useSystemStore = create((set, get) => ({
     set({ loading: true, error: null });
     try {
       const status = await apiService.getSystemStatus();
-      
+
       // Check for status changes and notify
       if (previousStatus && previousStatus.status !== status.status) {
         const notificationStore = useNotificationStore.getState();
-        
+
         if (status.status === 'degraded') {
           notificationStore.addNotification({
             type: 'warning',
@@ -46,12 +46,12 @@ export const useSystemStore = create((set, get) => ({
           });
         }
       }
-      
+
       set({ status, loading: false, error: null });
     } catch (error) {
-      set({ 
-        loading: false, 
-        error: error.response?.data?.message || 'Failed to fetch system status' 
+      set({
+        loading: false,
+        error: error.response?.data?.message || 'Failed to fetch system status'
       });
     }
   },
@@ -63,9 +63,9 @@ export const useSystemStore = create((set, get) => ({
       const modelInfo = await apiService.getModelInfo();
       set({ modelInfo, loading: false, error: null });
     } catch (error) {
-      set({ 
-        loading: false, 
-        error: error.response?.data?.message || 'Failed to fetch model info' 
+      set({
+        loading: false,
+        error: error.response?.data?.message || 'Failed to fetch model info'
       });
     }
   },
@@ -74,12 +74,13 @@ export const useSystemStore = create((set, get) => ({
   fetchDiseases: async () => {
     set({ loading: true, error: null });
     try {
-      const diseases = await apiService.getDiseases();
-      set({ diseases, loading: false, error: null });
+      const response = await apiService.getDiseases();
+      // API returns { total: N, diseases: [...] }
+      set({ diseases: response.diseases || [], loading: false, error: null });
     } catch (error) {
-      set({ 
-        loading: false, 
-        error: error.response?.data?.message || 'Failed to fetch diseases' 
+      set({
+        loading: false,
+        error: error.response?.data?.message || 'Failed to fetch diseases'
       });
     }
   },
@@ -87,11 +88,11 @@ export const useSystemStore = create((set, get) => ({
   // Start polling system status every 60 seconds
   startStatusPolling: () => {
     const { fetchSystemStatus, fetchModelInfo } = get();
-    
+
     // Initial fetch
     fetchSystemStatus();
     fetchModelInfo();
-    
+
     // Poll every 60 seconds
     if (!pollingInterval) {
       pollingInterval = setInterval(() => {

@@ -50,14 +50,14 @@ INSTALLED_APPS = [
     'prediction',
     'treatment',
     'api',
-    'common',
+    'common.apps.CommonConfig',
 ]
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.CommonMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -286,26 +286,36 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Cache Configuration
 # https://docs.djangoproject.com/en/6.0/topics/cache/
+# Using local memory cache for development (no Redis required)
 
 CACHES = {
     'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': config('REDIS_URL', default='redis://127.0.0.1:6379/1'),
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'health-ai-cache',
         'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'SOCKET_CONNECT_TIMEOUT': 5,  # seconds
-            'SOCKET_TIMEOUT': 5,  # seconds
-            'RETRY_ON_TIMEOUT': True,
-            'MAX_CONNECTIONS': 50,
-            'CONNECTION_POOL_KWARGS': {
-                'max_connections': 50,
-                'retry_on_timeout': True
-            }
+            'MAX_ENTRIES': 10000
         },
         'KEY_PREFIX': 'health_ai',
         'TIMEOUT': 3600,  # 1 hour default
     }
 }
+
+# Uncomment below for production with Redis
+# CACHES = {
+#     'default': {
+#         'BACKEND': 'django_redis.cache.RedisCache',
+#         'LOCATION': config('REDIS_URL', default='redis://127.0.0.1:6379/1'),
+#         'OPTIONS': {
+#             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+#             'SOCKET_CONNECT_TIMEOUT': 5,
+#             'SOCKET_TIMEOUT': 5,
+#             'RETRY_ON_TIMEOUT': True,
+#             'MAX_CONNECTIONS': 50,
+#         },
+#         'KEY_PREFIX': 'health_ai',
+#         'TIMEOUT': 3600,
+#     }
+# }
 
 # Cache key versioning (increment when cache schema changes)
 CACHE_MIDDLEWARE_KEY_PREFIX = 'v1'

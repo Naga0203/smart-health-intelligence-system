@@ -107,7 +107,7 @@ class MedicalHistoryAPIView(APIView):
             user_id = request.user.uid
             logger.info(f"Fetching medical history for user: {user_id}")
             
-            db = get_firebase_db()
+            db = get_firebase_db().db
             
             # Fetch medical history from Firestore
             history_doc = db.collection('medical_history').document(user_id).get()
@@ -197,7 +197,7 @@ class MedicalHistoryAPIView(APIView):
             if not serializer.is_valid():
                 return APIErrorHandler.handle_validation_error(serializer.errors, logger)
             
-            db = get_firebase_db()
+            db = get_firebase_db().db
             
             # Prepare data
             history_data = serializer.validated_data
@@ -265,7 +265,7 @@ class AssessmentExportAPIView(APIView):
             user_id = request.user.uid
             logger.info(f"Exporting assessment {assessment_id} for user: {user_id}")
             
-            db = get_firebase_db()
+            db = get_firebase_db().db
             
             # Fetch assessment
             assessment_doc = db.collection('assessments').document(assessment_id).get()
@@ -357,7 +357,7 @@ class ReportUploadAPIView(APIView):
             # TODO: Store file in Firebase Storage or other storage service
             # For now, we'll create a record in Firestore
             
-            db = get_firebase_db()
+            db = get_firebase_db().db
             
             report_ref = db.collection('reports').document()
             report_data = {
@@ -532,7 +532,7 @@ Also provide a brief summary and any warnings or concerns identified.
             }
             
             # Store parsing result
-            db = get_firebase_db()
+            db = get_firebase_db().db
             parsing_ref = db.collection('parsed_reports').document()
             parsing_ref.set({
                 **response_data,

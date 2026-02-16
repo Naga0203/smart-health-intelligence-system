@@ -2,6 +2,8 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 import { fileURLToPath } from 'url'
+// @ts-ignore - Importing JS plugin in TS config
+import { cspPlugin } from './vite-plugin-csp.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -25,6 +27,7 @@ export default defineConfig({
   plugins: [
     react(),
     visualizerPlugin,
+    cspPlugin(),
   ].filter(Boolean),
   resolve: {
     alias: {
@@ -41,7 +44,7 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
     },

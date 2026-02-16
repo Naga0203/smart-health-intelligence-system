@@ -163,8 +163,10 @@ class FirebaseAuthentication(authentication.BaseAuthentication):
         
         except Exception as e:
             logger.error(f"Unexpected authentication error: {str(e)}", exc_info=True)
+            # Re-raise or handle gracefully depending on desired behavior. 
+            # Raising AuthenticationFailed will return 401 instead of 500.
             raise exceptions.AuthenticationFailed(
-                'Authentication failed. Please try again or contact support.'
+                'Authentication failed due to an internal error. Please try again or contact support.'
             )
     
     def authenticate_header(self, request):

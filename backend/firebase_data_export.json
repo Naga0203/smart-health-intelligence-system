@@ -1,0 +1,1488 @@
+{
+  "users": [
+    {
+      "password": "",
+      "email": "",
+      "name": ""
+    },
+    {
+      "created_at": "2025-08-21T20:40:25.646047+00:00",
+      "uid": "test_user_1",
+      "phone_number": "+18431915230",
+      "date_of_birth": "1978-04-18",
+      "emergency_contact": {},
+      "medical_history": [
+        "diabetes",
+        "asthma"
+      ],
+      "updated_at": "2026-02-13T20:40:25.646090+00:00",
+      "email_verified": true,
+      "allergies": [
+        "penicillin"
+      ],
+      "photo_url": "",
+      "last_login": "2026-02-13T20:40:25.646092+00:00",
+      "display_name": "John Doe",
+      "current_medications": [
+        "aspirin"
+      ],
+      "gender": "other",
+      "address": {},
+      "email": "john.doe@example.com"
+    },
+    {
+      "created_at": "2025-12-29T20:40:26.915005+00:00",
+      "uid": "test_user_2",
+      "phone_number": "+12232207160",
+      "date_of_birth": "1987-02-13",
+      "emergency_contact": {},
+      "medical_history": [],
+      "updated_at": "2026-02-13T20:40:26.915041+00:00",
+      "email_verified": true,
+      "allergies": [
+        "penicillin"
+      ],
+      "photo_url": "",
+      "last_login": "2026-02-13T20:40:26.915042+00:00",
+      "display_name": "Jane Smith",
+      "current_medications": [
+        "aspirin"
+      ],
+      "gender": "other",
+      "address": {},
+      "email": "jane.smith@example.com"
+    },
+    {
+      "created_at": "2025-11-15T20:40:27.085716+00:00",
+      "uid": "test_user_3",
+      "phone_number": "+19683473950",
+      "date_of_birth": "1986-07-17",
+      "emergency_contact": {},
+      "medical_history": [],
+      "updated_at": "2026-02-13T20:40:27.085744+00:00",
+      "email_verified": true,
+      "allergies": [
+        "penicillin",
+        "latex"
+      ],
+      "photo_url": "",
+      "last_login": "2026-02-13T20:40:27.085745+00:00",
+      "display_name": "Bob Johnson",
+      "current_medications": [],
+      "gender": "other",
+      "address": {},
+      "email": "bob.johnson@example.com"
+    }
+  ],
+  "medical_history": [
+    {
+      "family_history": [
+        "cancer",
+        "alzheimers",
+        "diabetes"
+      ],
+      "immunizations": [
+        {
+          "date": "2021-09-15",
+          "vaccine": "COVID-19",
+          "dose": "first"
+        },
+        {
+          "date": "2024-02-12",
+          "vaccine": "Hepatitis B",
+          "dose": "first"
+        }
+      ],
+      "conditions": [
+        "arthritis"
+      ],
+      "last_updated": "2026-02-13T20:40:27.211010+00:00",
+      "allergies": [
+        "sulfa drugs"
+      ],
+      "lifestyle": {
+        "diet": "vegetarian",
+        "smoking": "never",
+        "alcohol": "occasional",
+        "exercise": "3-4 times/week"
+      },
+      "user_id": "test_user_1",
+      "current_medications": [
+        {
+          "dosage": "25mg",
+          "frequency": "twice daily",
+          "name": "lisinopril"
+        },
+        {
+          "dosage": "50mg",
+          "frequency": "three times daily",
+          "name": "metformin"
+        }
+      ],
+      "surgeries": [],
+      "notes": "Patient is generally healthy and compliant with medications."
+    },
+    {
+      "family_history": [
+        "alzheimers",
+        "cancer"
+      ],
+      "immunizations": [
+        {
+          "date": "2021-02-24",
+          "vaccine": "COVID-19",
+          "dose": "second"
+        },
+        {
+          "date": "2021-08-27",
+          "vaccine": "Flu",
+          "dose": "second"
+        },
+        {
+          "date": "2021-09-11",
+          "vaccine": "Hepatitis B",
+          "dose": "second"
+        }
+      ],
+      "conditions": [
+        "diabetes",
+        "arthritis"
+      ],
+      "last_updated": "2026-02-13T20:40:27.360025+00:00",
+      "allergies": [],
+      "lifestyle": {
+        "diet": "vegan",
+        "smoking": "former",
+        "alcohol": "moderate",
+        "exercise": "3-4 times/week"
+      },
+      "user_id": "test_user_2",
+      "current_medications": [
+        {
+          "dosage": "100mg",
+          "frequency": "twice daily",
+          "name": "lisinopril"
+        },
+        {
+          "dosage": "25mg",
+          "frequency": "twice daily",
+          "name": "metformin"
+        },
+        {
+          "dosage": "50mg",
+          "frequency": "once daily",
+          "name": "aspirin"
+        }
+      ],
+      "surgeries": [
+        {
+          "type": "tonsillectomy",
+          "date": "2021-09-22",
+          "hospital": "General Hospital"
+        }
+      ],
+      "notes": "Patient is generally healthy and compliant with medications."
+    }
+  ],
+  "assessments": [
+    {
+      "created_at": "2026-02-08T20:40:28.850963+00:00",
+      "age": 61,
+      "extraction_data": {
+        "extracted_features": [
+          "glucose",
+          "bmi",
+          "age",
+          "blood_pressure"
+        ],
+        "method": "gemini_ai_extraction",
+        "confidence": 0.9222016472322255
+      },
+      "probability": 0.6866549342381809,
+      "disease": "Diabetes",
+      "explanation": {
+        "text": "Based on the symptoms provided including increased thirst, frequent urination, fatigue, there is a medium probability of Diabetes.",
+        "generated_by": "gemini",
+        "confidence": "MEDIUM"
+      },
+      "status": "completed",
+      "treatment_info": {
+        "allopathy": {
+          "focus": "Symptom management",
+          "disclaimer": "Consult healthcare professional",
+          "approach": "Medication and monitoring"
+        },
+        "lifestyle": {
+          "focus": "Preventive care",
+          "disclaimer": "General wellness information",
+          "approach": "Diet and exercise"
+        },
+        "ayurveda": {
+          "focus": "Natural remedies",
+          "disclaimer": "Consult Ayurvedic practitioner",
+          "approach": "Holistic balance"
+        }
+      },
+      "symptoms": [
+        "increased thirst",
+        "frequent urination",
+        "fatigue"
+      ],
+      "recommendations": {
+        "confidence": "MEDIUM",
+        "items": [
+          "Consult a healthcare professional",
+          "Monitor symptoms closely",
+          "Maintain a healthy lifestyle"
+        ],
+        "urgency": "medium"
+      },
+      "user_id": "test_user_3",
+      "gender": "male",
+      "prediction_metadata": {
+        "processing_time": 1.3779119147891765,
+        "model_version": "v1.0"
+      },
+      "confidence": "MEDIUM",
+      "id": "0xu1TaQz08Xlm5F0GxP7"
+    },
+    {
+      "created_at": "2025-11-23T20:40:28.638000+00:00",
+      "symptoms": [
+        "headache",
+        "dizziness",
+        "chest pain"
+      ],
+      "age": 43,
+      "extraction_data": {
+        "extracted_features": [
+          "age",
+          "bmi",
+          "glucose",
+          "blood_pressure"
+        ],
+        "method": "gemini_ai_extraction",
+        "confidence": 0.8392012937555314
+      },
+      "recommendations": {
+        "confidence": "LOW",
+        "items": [
+          "Consult a healthcare professional",
+          "Monitor symptoms closely",
+          "Maintain a healthy lifestyle"
+        ],
+        "urgency": "low"
+      },
+      "disease": "Hypertension",
+      "probability": 0.4876727689571424,
+      "explanation": {
+        "text": "Based on the symptoms provided including headache, dizziness, chest pain, there is a low probability of Hypertension.",
+        "generated_by": "gemini",
+        "confidence": "LOW"
+      },
+      "user_id": "test_user_3",
+      "status": "completed",
+      "gender": "male",
+      "prediction_metadata": {
+        "processing_time": 2.473244228030363,
+        "model_version": "v1.0"
+      },
+      "confidence": "LOW",
+      "id": "2nsiTUzexuNUayJyWCas"
+    },
+    {
+      "age": 30,
+      "symptoms": [
+        "fever",
+        "cough",
+        "headache"
+      ],
+      "created_at": "2026-02-12T12:53:45.124000+00:00",
+      "extraction_data": {
+        "features": {
+          "age": 30,
+          "family_history": 0,
+          "smoking": 0,
+          "alcohol": 0,
+          "diastolic_bp": 0,
+          "bmi": 0,
+          "physical_activity": 0,
+          "sleep_hours": 0,
+          "salt_intake": 0,
+          "gender": 1,
+          "systolic_bp": 1,
+          "stress_level": 0
+        },
+        "clarifications_needed": [],
+        "extraction_confidence": 0.6,
+        "missing_features": [
+          "diastolic_bp",
+          "bmi",
+          "smoking",
+          "alcohol",
+          "physical_activity",
+          "stress_level",
+          "family_history",
+          "salt_intake",
+          "sleep_hours"
+        ],
+        "disease": "hypertension",
+        "extraction_method": "rule_based"
+      },
+      "recommendations": {
+        "immediate_actions": {
+          "actions": [
+            "Seek healthcare consultation promptly",
+            "Monitor symptoms closely and document any changes",
+            "Avoid strenuous activities until evaluated",
+            "Have emergency contact information readily available",
+            "Seek immediate emergency care if symptoms become severe"
+          ],
+          "emergency_warning": false,
+          "emergency_contact": "Call emergency services (911) for severe or life-threatening symptoms"
+        },
+        "professional_referral": {
+          "timeframe": "as soon as possible",
+          "suggested_specialists": [
+            "Primary Care Physician",
+            "Cardiologist",
+            "Hypertension Specialist"
+          ],
+          "preparation_tips": [
+            "List all current symptoms and when they started",
+            "Bring any previous medical records or test results",
+            "List current medications and supplements",
+            "Prepare questions about your symptoms and concerns",
+            "Consider bringing a family member or friend for support"
+          ],
+          "questions_to_ask": [
+            "What could be causing these symptoms?",
+            "What tests or evaluations do you recommend?",
+            "What are my treatment options?",
+            "How can I monitor my condition at home?",
+            "When should I schedule follow-up appointments?"
+          ],
+          "urgency": "high",
+          "message": "We strongly recommend consulting with a healthcare professional promptly for proper evaluation and care."
+        },
+        "treatment_information": {
+          "recommendation_context": {
+            "integration_note": "Different medical systems can often be integrated under professional supervision. Discuss all treatment options with qualified practitioners.",
+            "confidence_level": "HIGH",
+            "suitability_note": "Treatment approaches may vary in effectiveness for different individuals. Professional guidance is essential for selecting appropriate treatments."
+          },
+          "disease": "Hypertension",
+          "general_disclaimer": "All treatment information is for educational purposes only. Always consult with qualified healthcare professionals before starting any treatment. Different medical systems may have varying approaches and effectiveness for different individuals.",
+          "available": true,
+          "confidence_required": "HIGH",
+          "systems": {
+            "allopathy": {
+              "recommendations": [
+                "DASH diet implementation",
+                "Regular aerobic exercise",
+                "Sodium restriction (less than 2300mg daily)",
+                "Weight management",
+                "Limited alcohol consumption"
+              ],
+              "focus": "Achieving target blood pressure levels to prevent cardiovascular complications",
+              "disclaimer": "Requires medical supervision for blood pressure monitoring and medication management.",
+              "approach": "Blood pressure control through medication and lifestyle modification",
+              "name": "Allopathy"
+            },
+            "lifestyle": {
+              "recommendations": [
+                "Eat plenty of fruits, vegetables, and whole grains",
+                "Exercise regularly (150 minutes moderate intensity weekly)",
+                "Maintain healthy weight",
+                "Limit sodium to less than 2300mg daily",
+                "Practice stress management techniques"
+              ],
+              "focus": "Evidence-based lifestyle changes to reduce blood pressure and cardiovascular risk",
+              "disclaimer": "General wellness information. Blood pressure should be monitored regularly by healthcare professionals.",
+              "approach": "Lifestyle modifications for natural blood pressure management",
+              "name": "Lifestyle"
+            },
+            "homeopathy": {
+              "recommendations": [
+                "Stress management and relaxation techniques",
+                "Regular, moderate exercise",
+                "Healthy dietary choices",
+                "Adequate sleep and rest",
+                "Emotional balance and mental health care"
+              ],
+              "focus": "Individual remedy selection based on complete symptom picture and constitutional type",
+              "disclaimer": "Requires qualified homeopathic consultation. Blood pressure monitoring and conventional care may be necessary.",
+              "approach": "Constitutional treatment addressing hypertensive tendency",
+              "name": "Homeopathy"
+            },
+            "ayurveda": {
+              "recommendations": [
+                "Regular meditation and stress management",
+                "Gentle yoga and breathing exercises",
+                "Cooling foods and spices",
+                "Regular sleep schedule",
+                "Avoiding excessive heat and stress"
+              ],
+              "focus": "Balancing Vata and Pitta doshas to maintain healthy blood pressure naturally",
+              "disclaimer": "Consult qualified Ayurvedic practitioners. Regular blood pressure monitoring remains essential.",
+              "approach": "Blood pressure management through stress reduction and circulation improvement",
+              "name": "Ayurveda"
+            }
+          }
+        },
+        "generated_by": "recommendation_agent",
+        "assessment_summary": {
+          "probability": 0.95,
+          "confidence": "HIGH",
+          "disease": "Hypertension",
+          "assessment_date": "2026-02-12T12:53:43.171800"
+        },
+        "follow_up_guidance": {
+          "monitoring_frequency": "Daily symptom monitoring",
+          "reassessment": "Immediate if symptoms worsen",
+          "initial_follow_up": "Within a few days"
+        },
+        "disclaimers": {
+          "medical_disclaimer": "This assessment and recommendations are for informational and educational purposes only. They are not intended to be a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition.",
+          "accuracy_disclaimer": "While this system uses advanced AI technology, it has limitations and may not identify all possible conditions or provide complete assessments. Professional medical evaluation remains essential for accurate diagnosis and appropriate treatment.",
+          "emergency_disclaimer": "This system cannot replace emergency medical services. If you are experiencing a medical emergency, call emergency services immediately. Do not rely on this assessment for emergency medical decisions.",
+          "treatment_disclaimer": "Treatment information provided represents general educational content about various medical approaches. Individual treatment plans should always be developed in consultation with qualified healthcare professionals who can consider your complete medical history and individual circumstances."
+        }
+      },
+      "disease": "hypertension",
+      "probability": 0.95,
+      "explanation": {
+        "disclaimer": "IMPORTANT DISCLAIMER: This assessment is for educational and informational purposes only. It is not intended to be a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition.",
+        "contributing_factors": {
+          "primary_symptoms": [],
+          "supporting_symptoms": [],
+          "general_symptoms": [
+            "fever",
+            "cough",
+            "headache"
+          ]
+        },
+        "main_explanation": "Based on the symptoms provided, our system assessed a 95.0% risk level for hypertension with HIGH confidence. This assessment is for informational purposes only and should be discussed with a healthcare professional for proper evaluation and guidance.",
+        "summary": "Risk assessment for Hypertension",
+        "educational_content": {
+          "about": "Hypertension (high blood pressure) is a condition where blood pressure is consistently elevated.",
+          "risk_factors": "Age, family history, obesity, high sodium intake, and lack of exercise increase risk.",
+          "prevention": "Maintaining healthy weight, reducing sodium intake, regular exercise, and limiting alcohol can help."
+        },
+        "confidence_reasoning": {
+          "meaning": "The system has high confidence in this assessment",
+          "recommendation": "We strongly recommend consulting with a healthcare professional for proper evaluation",
+          "reason": "The symptoms strongly align with patterns associated with this condition"
+        },
+        "generated_by": "langchain_gemini_ai",
+        "probability_percent": 95.0,
+        "confidence": "HIGH",
+        "generated_at": "2026-02-12T12:53:43.171052",
+        "agent": "LangChainExplanationAgent"
+      },
+      "user_id": "7f841e8b-0553-4958-8ef3-df9aeb65105b",
+      "status": "completed",
+      "gender": "male",
+      "prediction_metadata": {
+        "model_version": "v1.0_mock",
+        "prediction_timestamp": "2026-02-12T12:53:43.169021",
+        "features_used": 12,
+        "model_type": "MockSVM"
+      },
+      "confidence": "HIGH",
+      "id": "3cihEWWUbPsHTQjDXnvh"
+    },
+    {
+      "created_at": "2026-02-04T20:40:28.242764+00:00",
+      "age": 61,
+      "extraction_data": {
+        "extracted_features": [
+          "blood_pressure",
+          "bmi",
+          "age",
+          "glucose"
+        ],
+        "method": "gemini_ai_extraction",
+        "confidence": 0.7048479605079222
+      },
+      "probability": 0.5506492535670023,
+      "disease": "Diabetes",
+      "explanation": {
+        "text": "Based on the symptoms provided including increased thirst, frequent urination, fatigue, there is a medium probability of Diabetes.",
+        "generated_by": "gemini",
+        "confidence": "MEDIUM"
+      },
+      "status": "completed",
+      "treatment_info": {
+        "allopathy": {
+          "focus": "Symptom management",
+          "disclaimer": "Consult healthcare professional",
+          "approach": "Medication and monitoring"
+        },
+        "lifestyle": {
+          "focus": "Preventive care",
+          "disclaimer": "General wellness information",
+          "approach": "Diet and exercise"
+        },
+        "ayurveda": {
+          "focus": "Natural remedies",
+          "disclaimer": "Consult Ayurvedic practitioner",
+          "approach": "Holistic balance"
+        }
+      },
+      "symptoms": [
+        "increased thirst",
+        "frequent urination",
+        "fatigue"
+      ],
+      "recommendations": {
+        "confidence": "MEDIUM",
+        "items": [
+          "Consult a healthcare professional",
+          "Monitor symptoms closely",
+          "Maintain a healthy lifestyle"
+        ],
+        "urgency": "high"
+      },
+      "user_id": "test_user_2",
+      "gender": "male",
+      "prediction_metadata": {
+        "processing_time": 1.7012370780334167,
+        "model_version": "v1.0"
+      },
+      "confidence": "MEDIUM",
+      "id": "5mByDUBwiLTAUJPAHOG3"
+    },
+    {
+      "created_at": "2025-12-26T20:40:29.286844+00:00",
+      "symptoms": [
+        "headache",
+        "dizziness",
+        "chest pain"
+      ],
+      "age": 45,
+      "extraction_data": {
+        "extracted_features": [
+          "glucose",
+          "blood_pressure",
+          "bmi"
+        ],
+        "method": "gemini_ai_extraction",
+        "confidence": 0.7005730416220345
+      },
+      "recommendations": {
+        "confidence": "LOW",
+        "items": [
+          "Consult a healthcare professional",
+          "Monitor symptoms closely",
+          "Maintain a healthy lifestyle"
+        ],
+        "urgency": "low"
+      },
+      "disease": "Hypertension",
+      "probability": 0.3147060516440476,
+      "explanation": {
+        "text": "Based on the symptoms provided including headache, dizziness, chest pain, there is a low probability of Hypertension.",
+        "generated_by": "gemini",
+        "confidence": "LOW"
+      },
+      "user_id": "test_user_3",
+      "status": "completed",
+      "gender": "male",
+      "prediction_metadata": {
+        "processing_time": 1.5887328809397328,
+        "model_version": "v1.0"
+      },
+      "confidence": "LOW",
+      "id": "DXFtNlwzThmVc4xcquw2"
+    },
+    {
+      "created_at": "2026-02-01T20:40:27.961978+00:00",
+      "age": 52,
+      "extraction_data": {
+        "extracted_features": [
+          "bmi",
+          "glucose",
+          "blood_pressure",
+          "age"
+        ],
+        "method": "gemini_ai_extraction",
+        "confidence": 0.9208056805466128
+      },
+      "probability": 0.7810383692174843,
+      "disease": "Migraine",
+      "explanation": {
+        "text": "Based on the symptoms provided including severe headache, nausea, sensitivity to light, there is a high probability of Migraine.",
+        "generated_by": "gemini",
+        "confidence": "HIGH"
+      },
+      "status": "completed",
+      "treatment_info": {
+        "allopathy": {
+          "focus": "Symptom management",
+          "disclaimer": "Consult healthcare professional",
+          "approach": "Medication and monitoring"
+        },
+        "lifestyle": {
+          "focus": "Preventive care",
+          "disclaimer": "General wellness information",
+          "approach": "Diet and exercise"
+        },
+        "ayurveda": {
+          "focus": "Natural remedies",
+          "disclaimer": "Consult Ayurvedic practitioner",
+          "approach": "Holistic balance"
+        }
+      },
+      "symptoms": [
+        "severe headache",
+        "nausea",
+        "sensitivity to light"
+      ],
+      "recommendations": {
+        "confidence": "HIGH",
+        "items": [
+          "Consult a healthcare professional",
+          "Monitor symptoms closely",
+          "Maintain a healthy lifestyle"
+        ],
+        "urgency": "low"
+      },
+      "user_id": "test_user_1",
+      "gender": "male",
+      "prediction_metadata": {
+        "processing_time": 2.4653196721713777,
+        "model_version": "v1.0"
+      },
+      "confidence": "HIGH",
+      "id": "IEgxZZzTVcltWYclM8ht"
+    },
+    {
+      "created_at": "2026-02-08T20:40:28.122648+00:00",
+      "age": 28,
+      "extraction_data": {
+        "extracted_features": [
+          "bmi",
+          "glucose"
+        ],
+        "method": "gemini_ai_extraction",
+        "confidence": 0.9008895934439527
+      },
+      "probability": 0.8823325611382389,
+      "disease": "Hypertension",
+      "explanation": {
+        "text": "Based on the symptoms provided including headache, dizziness, chest pain, there is a high probability of Hypertension.",
+        "generated_by": "gemini",
+        "confidence": "HIGH"
+      },
+      "status": "completed",
+      "treatment_info": {
+        "allopathy": {
+          "focus": "Symptom management",
+          "disclaimer": "Consult healthcare professional",
+          "approach": "Medication and monitoring"
+        },
+        "lifestyle": {
+          "focus": "Preventive care",
+          "disclaimer": "General wellness information",
+          "approach": "Diet and exercise"
+        },
+        "ayurveda": {
+          "focus": "Natural remedies",
+          "disclaimer": "Consult Ayurvedic practitioner",
+          "approach": "Holistic balance"
+        }
+      },
+      "symptoms": [
+        "headache",
+        "dizziness",
+        "chest pain"
+      ],
+      "recommendations": {
+        "confidence": "HIGH",
+        "items": [
+          "Consult a healthcare professional",
+          "Monitor symptoms closely",
+          "Maintain a healthy lifestyle"
+        ],
+        "urgency": "medium"
+      },
+      "user_id": "test_user_1",
+      "gender": "male",
+      "prediction_metadata": {
+        "processing_time": 1.872865808581687,
+        "model_version": "v1.0"
+      },
+      "confidence": "HIGH",
+      "id": "OnQWn7QTvdSJb74AKsLI"
+    },
+    {
+      "created_at": "2026-01-09T20:40:28.531705+00:00",
+      "age": 49,
+      "extraction_data": {
+        "extracted_features": [
+          "bmi",
+          "glucose"
+        ],
+        "method": "gemini_ai_extraction",
+        "confidence": 0.7690129214484878
+      },
+      "probability": 0.7518949906251748,
+      "disease": "Influenza",
+      "explanation": {
+        "text": "Based on the symptoms provided including fever, body aches, fatigue, there is a high probability of Influenza.",
+        "generated_by": "gemini",
+        "confidence": "HIGH"
+      },
+      "status": "completed",
+      "treatment_info": {
+        "allopathy": {
+          "focus": "Symptom management",
+          "disclaimer": "Consult healthcare professional",
+          "approach": "Medication and monitoring"
+        },
+        "lifestyle": {
+          "focus": "Preventive care",
+          "disclaimer": "General wellness information",
+          "approach": "Diet and exercise"
+        },
+        "ayurveda": {
+          "focus": "Natural remedies",
+          "disclaimer": "Consult Ayurvedic practitioner",
+          "approach": "Holistic balance"
+        }
+      },
+      "symptoms": [
+        "fever",
+        "body aches",
+        "fatigue"
+      ],
+      "recommendations": {
+        "confidence": "HIGH",
+        "items": [
+          "Consult a healthcare professional",
+          "Monitor symptoms closely",
+          "Maintain a healthy lifestyle"
+        ],
+        "urgency": "high"
+      },
+      "user_id": "test_user_2",
+      "gender": "male",
+      "prediction_metadata": {
+        "processing_time": 2.852124378524093,
+        "model_version": "v1.0"
+      },
+      "confidence": "HIGH",
+      "id": "PNd6KN6iFGSES1GmO2xI"
+    },
+    {
+      "lifestyle_recommendations": {
+        "diet": {
+          "foods_to_include": [
+            "Potassium-rich foods (bananas, sweet potatoes, spinach)",
+            "Vegetables and fruits (DASH diet emphasizes these)",
+            "Whole grains (brown rice, whole wheat, oatmeal)",
+            "Low-fat dairy (skim milk, yogurt)",
+            "Nuts, seeds, and legumes"
+          ],
+          "additional_tips": [
+            "DASH diet is highly recommended for hypertension",
+            "Read food labels carefully for sodium content",
+            "Cook at home to control sodium"
+          ],
+          "foods_to_avoid": [
+            "Processed and packaged foods (high sodium)",
+            "Canned soups and vegetables (unless low-sodium)",
+            "Deli meats and cured foods",
+            "Salty snacks (chips, pretzels)"
+          ],
+          "supplements": [
+            "Discuss magnesium, potassium (only under medical supervision)"
+          ],
+          "hydration": "Adequate water intake; limit alcohol consumption",
+          "foods_to_limit": [
+            "Sodium (aim for < 1,500mg per day)",
+            "Caffeine (monitor blood pressure response)",
+            "Saturated fats"
+          ],
+          "meal_timing": "Regular meal schedule helps maintain stable blood pressure"
+        },
+        "risk_mitigation": {
+          "primary_risks": [
+            "Stroke",
+            "Heart attack",
+            "Kidney damage",
+            "Vision loss"
+          ],
+          "mitigation": [
+            "Reduce sodium intake (< 2,300mg per day)",
+            "DASH diet implementation",
+            "Regular blood pressure monitoring",
+            "Weight management",
+            "Limit alcohol consumption"
+          ]
+        },
+        "preventive_care": {
+          "vaccinations": [
+            "Standard adult vaccinations",
+            "Annual flu vaccine",
+            "COVID-19 vaccine"
+          ],
+          "specialist_visits": [
+            "Cardiologist if BP difficult to control"
+          ],
+          "screenings": [
+            "Blood pressure checks regularly (home and clinical)",
+            "Lipid panel annually",
+            "Kidney function tests annually",
+            "Blood glucose or HbA1c annually",
+            "EKG if recommended"
+          ],
+          "regular_checkups": "Regular primary care visits (initially monthly, then every 3-6 months when stable)",
+          "monitoring_at_home": [
+            "Daily or regular blood pressure monitoring",
+            "Weekly weight checks",
+            "Track medication adherence"
+          ]
+        },
+        "exercise": {
+          "duration": "30-60 minutes of moderate-intensity exercise daily",
+          "recommended_activities": [
+            "Brisk walking",
+            "Jogging (if cleared by doctor)",
+            "Cycling",
+            "Swimming",
+            "Dancing",
+            "Light to moderate strength training"
+          ],
+          "medical_clearance": "Consult doctor before starting - medical clearance essential",
+          "intensity_level": "Moderate (50-70% of maximum heart rate)",
+          "frequency": "At least 5-7 days per week",
+          "precautions": [
+            "Avoid heavy weight lifting or straining (Valsalva maneuver)",
+            "Breathe normally during resistance exercises",
+            "Monitor blood pressure before and after exercise initially",
+            "Stay well hydrated",
+            "Avoid exercise if BP is very high (>180/110)"
+          ],
+          "progression_tips": [
+            "Start with 10-15 minutes if new to exercise",
+            "Gradually increase to recommended duration",
+            "Add variety to maintain interest"
+          ]
+        },
+        "lifestyle_priorities": [
+          "1. Reduce sodium intake significantly",
+          "2. Increase potassium-rich foods (fruits, vegetables)",
+          "3. Engage in regular aerobic exercise",
+          "4. Maintain healthy weight (BMI < 25)",
+          "5. Limit alcohol and manage stress"
+        ],
+        "sleep_hygiene": {
+          "bedtime_routine": "Create a relaxing bedtime routine 30-60 minutes before sleep",
+          "avoid_before_bed": "Avoid caffeine 6 hours before bed, alcohol 3 hours before, large meals 2-3 hours before",
+          "sleep_environment": "Keep bedroom cool (60-67°F), dark, and quiet",
+          "physical_activity": "Regular exercise helps sleep, but not within 3 hours of bedtime",
+          "sleep_schedule": "Aim for 7-9 hours of sleep per night with consistent sleep/wake times",
+          "disease_specific": "Consistent sleep schedule can help regulate blood pressure",
+          "screen_time": "Limit screen exposure 1-2 hours before bedtime"
+        },
+        "stress_management": {
+          "techniques": [
+            "Deep breathing exercises",
+            "Meditation",
+            "Regular physical activity",
+            "Time management",
+            "Social connection"
+          ],
+          "mental_health_resources": [
+            "Mental health counseling",
+            "Stress management courses",
+            "Support groups",
+            "Wellness apps"
+          ],
+          "relaxation_methods": [
+            "Reading",
+            "Hobbies",
+            "Music",
+            "Nature time"
+          ],
+          "work_life_balance": [
+            "Set healthy boundaries",
+            "Take regular breaks",
+            "Prioritize self-care"
+          ],
+          "mindfulness_practices": [
+            "Daily meditation",
+            "Mindful breathing",
+            "Present moment awareness"
+          ]
+        },
+        "generated_by": "lifestyle_modification_agent",
+        "disclaimer": "IMPORTANT: These lifestyle recommendations are general guidance based on your health assessment. Always consult with your healthcare provider before making significant changes to your diet, exercise routine, or lifestyle, especially if you have existing health conditions or take medications.",
+        "generated_at": "2026-02-13T15:15:02.013672"
+      },
+      "age": 30,
+      "created_at": "2026-02-13T15:15:03.788000+00:00",
+      "extraction_data": {
+        "features": {
+          "age": 30,
+          "family_history": 0,
+          "smoking": 0,
+          "alcohol": 0,
+          "diastolic_bp": 0,
+          "bmi": 0,
+          "physical_activity": 0,
+          "sleep_hours": 0,
+          "salt_intake": 0,
+          "gender": 1,
+          "systolic_bp": 1,
+          "stress_level": 0
+        },
+        "clarifications_needed": [],
+        "extraction_confidence": 0.6,
+        "missing_features": [
+          "diastolic_bp",
+          "bmi",
+          "smoking",
+          "alcohol",
+          "physical_activity",
+          "stress_level",
+          "family_history",
+          "salt_intake",
+          "sleep_hours"
+        ],
+        "disease": "hypertension",
+        "extraction_method": "rule_based"
+      },
+      "probability": 0.95,
+      "disease": "hypertension",
+      "explanation": {
+        "disclaimer": "IMPORTANT DISCLAIMER: This assessment is for educational and informational purposes only. It is not intended to be a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition.",
+        "contributing_factors": {
+          "primary_symptoms": [],
+          "supporting_symptoms": [],
+          "general_symptoms": [
+            "fever",
+            "cough",
+            "headache"
+          ]
+        },
+        "main_explanation": "Based on the symptoms provided, our system assessed a 95.0% risk level for hypertension with HIGH confidence. This assessment is for informational purposes only and should be discussed with a healthcare professional for proper evaluation and guidance.",
+        "summary": "Risk assessment for Hypertension",
+        "educational_content": {
+          "about": "Hypertension (high blood pressure) is a condition where blood pressure is consistently elevated.",
+          "risk_factors": "Age, family history, obesity, high sodium intake, and lack of exercise increase risk.",
+          "prevention": "Maintaining healthy weight, reducing sodium intake, regular exercise, and limiting alcohol can help."
+        },
+        "confidence_reasoning": {
+          "meaning": "The system has high confidence in this assessment",
+          "recommendation": "We strongly recommend consulting with a healthcare professional for proper evaluation",
+          "reason": "The symptoms strongly align with patterns associated with this condition"
+        },
+        "generated_by": "langchain_gemini_ai",
+        "probability_percent": 95.0,
+        "confidence": "HIGH",
+        "generated_at": "2026-02-13T15:15:01.987909",
+        "agent": "LangChainExplanationAgent"
+      },
+      "status": "completed",
+      "symptoms": [
+        "fever",
+        "cough",
+        "headache"
+      ],
+      "recommendations": {
+        "immediate_actions": {
+          "actions": [
+            "Seek healthcare consultation promptly",
+            "Monitor symptoms closely and document any changes",
+            "Avoid strenuous activities until evaluated",
+            "Have emergency contact information readily available",
+            "Seek immediate emergency care if symptoms become severe"
+          ],
+          "emergency_warning": false,
+          "emergency_contact": "Call emergency services (911) for severe or life-threatening symptoms"
+        },
+        "professional_referral": {
+          "timeframe": "as soon as possible",
+          "suggested_specialists": [
+            "Primary Care Physician",
+            "Cardiologist",
+            "Hypertension Specialist"
+          ],
+          "preparation_tips": [
+            "List all current symptoms and when they started",
+            "Bring any previous medical records or test results",
+            "List current medications and supplements",
+            "Prepare questions about your symptoms and concerns",
+            "Consider bringing a family member or friend for support"
+          ],
+          "questions_to_ask": [
+            "What could be causing these symptoms?",
+            "What tests or evaluations do you recommend?",
+            "What are my treatment options?",
+            "How can I monitor my condition at home?",
+            "When should I schedule follow-up appointments?"
+          ],
+          "urgency": "high",
+          "message": "We strongly recommend consulting with a healthcare professional promptly for proper evaluation and care."
+        },
+        "treatment_information": {
+          "recommendation_context": {
+            "integration_note": "Different medical systems can often be integrated under professional supervision. Discuss with qualified practitioners before combining approaches.",
+            "confidence_level": "HIGH",
+            "suitability_note": "Treatment approaches may vary in effectiveness for different individuals. Professional guidance is essential for selecting appropriate treatments."
+          },
+          "disease": "Hypertension",
+          "general_disclaimer": "All treatment information is for educational purposes only. Always consult with qualified healthcare professionals before starting any treatment. Different medical systems may have varying approaches and effectiveness for different individuals.",
+          "available": true,
+          "confidence_required": "HIGH",
+          "systems": {
+            "allopathy": {
+              "recommendations": [
+                "DASH diet implementation",
+                "Regular aerobic exercise",
+                "Sodium restriction (less than 2300mg daily)",
+                "Weight management",
+                "Limited alcohol consumption"
+              ],
+              "focus": "Achieving target blood pressure levels to prevent cardiovascular complications",
+              "disclaimer": "Requires medical supervision for blood pressure monitoring and medication management.",
+              "approach": "Blood pressure control through medication and lifestyle modification",
+              "name": "Allopathy"
+            },
+            "lifestyle": {
+              "recommendations": [
+                "Eat plenty of fruits, vegetables, and whole grains",
+                "Exercise regularly (150 minutes moderate intensity weekly)",
+                "Maintain healthy weight",
+                "Limit sodium to less than 2300mg daily",
+                "Practice stress management techniques"
+              ],
+              "focus": "Evidence-based lifestyle changes to reduce blood pressure and cardiovascular risk",
+              "disclaimer": "General wellness information. Blood pressure should be monitored regularly by healthcare professionals.",
+              "approach": "Lifestyle modifications for natural blood pressure management",
+              "name": "Lifestyle"
+            },
+            "homeopathy": {
+              "recommendations": [
+                "Stress management and relaxation techniques",
+                "Regular, moderate exercise",
+                "Healthy dietary choices",
+                "Adequate sleep and rest",
+                "Emotional balance and mental health care"
+              ],
+              "focus": "Individual remedy selection based on complete symptom picture and constitutional type",
+              "disclaimer": "Requires qualified homeopathic consultation. Blood pressure monitoring and conventional care may be necessary.",
+              "approach": "Constitutional treatment addressing hypertensive tendency",
+              "name": "Homeopathy"
+            },
+            "ayurveda": {
+              "recommendations": [
+                "Regular meditation and stress management",
+                "Gentle yoga and breathing exercises",
+                "Cooling foods and spices",
+                "Regular sleep schedule",
+                "Avoiding excessive heat and stress"
+              ],
+              "focus": "Balancing Vata and Pitta doshas to maintain healthy blood pressure naturally",
+              "disclaimer": "Consult qualified Ayurvedic practitioners. Regular blood pressure monitoring remains essential.",
+              "approach": "Blood pressure management through stress reduction and circulation improvement",
+              "name": "Ayurveda"
+            }
+          }
+        },
+        "generated_by": "recommendation_agent",
+        "assessment_summary": {
+          "probability": 0.95,
+          "confidence": "HIGH",
+          "disease": "Hypertension",
+          "assessment_date": "2026-02-13T15:15:01.992250"
+        },
+        "follow_up_guidance": {
+          "monitoring_frequency": "Daily symptom monitoring",
+          "reassessment": "Immediate if symptoms worsen",
+          "initial_follow_up": "Within a few days"
+        },
+        "disclaimers": {
+          "medical_disclaimer": "This assessment and recommendations are for informational and educational purposes only. They are not intended to be a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition.",
+          "accuracy_disclaimer": "While this system uses advanced AI technology, it has limitations and may not identify all possible conditions or provide complete assessments. Professional medical evaluation remains essential for accurate diagnosis and appropriate treatment.",
+          "emergency_disclaimer": "This system cannot replace emergency medical services. If you are experiencing a medical emergency, call emergency services immediately. Do not rely on this assessment for emergency medical decisions.",
+          "treatment_disclaimer": "Treatment information provided represents general educational content about various medical approaches. Individual treatment plans should always be developed in consultation with qualified healthcare professionals who can consider your complete medical history and individual circumstances."
+        }
+      },
+      "user_id": "79b942f3-3a0b-4050-b61e-4b5405db72ab",
+      "gender": "male",
+      "prediction_metadata": {
+        "model_version": "v1.0_mock",
+        "prediction_timestamp": "2026-02-13T15:15:01.983719",
+        "features_used": 12,
+        "model_type": "MockSVM"
+      },
+      "confidence": "HIGH",
+      "id": "ZSydzq1xA2uV222YZmUe"
+    },
+    {
+      "created_at": "2026-01-05T20:40:27.524408+00:00",
+      "age": 62,
+      "extraction_data": {
+        "extracted_features": [
+          "bmi",
+          "glucose",
+          "blood_pressure"
+        ],
+        "method": "gemini_ai_extraction",
+        "confidence": 0.8784401708660581
+      },
+      "probability": 0.7163820831306487,
+      "disease": "Asthma",
+      "explanation": {
+        "text": "Based on the symptoms provided including shortness of breath, wheezing, chest tightness, there is a medium probability of Asthma.",
+        "generated_by": "gemini",
+        "confidence": "MEDIUM"
+      },
+      "status": "completed",
+      "treatment_info": {
+        "allopathy": {
+          "focus": "Symptom management",
+          "disclaimer": "Consult healthcare professional",
+          "approach": "Medication and monitoring"
+        },
+        "lifestyle": {
+          "focus": "Preventive care",
+          "disclaimer": "General wellness information",
+          "approach": "Diet and exercise"
+        },
+        "ayurveda": {
+          "focus": "Natural remedies",
+          "disclaimer": "Consult Ayurvedic practitioner",
+          "approach": "Holistic balance"
+        }
+      },
+      "symptoms": [
+        "shortness of breath",
+        "wheezing",
+        "chest tightness"
+      ],
+      "recommendations": {
+        "confidence": "MEDIUM",
+        "items": [
+          "Consult a healthcare professional",
+          "Monitor symptoms closely",
+          "Maintain a healthy lifestyle"
+        ],
+        "urgency": "medium"
+      },
+      "user_id": "test_user_1",
+      "gender": "male",
+      "prediction_metadata": {
+        "processing_time": 1.5262995284825605,
+        "model_version": "v1.0"
+      },
+      "confidence": "MEDIUM",
+      "id": "ohocqRsadWhswVJm28dv"
+    },
+    {
+      "created_at": "2026-01-06T20:40:29.126600+00:00",
+      "age": 25,
+      "extraction_data": {
+        "extracted_features": [
+          "bmi",
+          "glucose",
+          "blood_pressure",
+          "age"
+        ],
+        "method": "gemini_ai_extraction",
+        "confidence": 0.7918226957622454
+      },
+      "probability": 0.6596712746322239,
+      "disease": "Influenza",
+      "explanation": {
+        "text": "Based on the symptoms provided including fever, body aches, fatigue, there is a medium probability of Influenza.",
+        "generated_by": "gemini",
+        "confidence": "MEDIUM"
+      },
+      "status": "completed",
+      "treatment_info": {
+        "allopathy": {
+          "focus": "Symptom management",
+          "disclaimer": "Consult healthcare professional",
+          "approach": "Medication and monitoring"
+        },
+        "lifestyle": {
+          "focus": "Preventive care",
+          "disclaimer": "General wellness information",
+          "approach": "Diet and exercise"
+        },
+        "ayurveda": {
+          "focus": "Natural remedies",
+          "disclaimer": "Consult Ayurvedic practitioner",
+          "approach": "Holistic balance"
+        }
+      },
+      "symptoms": [
+        "fever",
+        "body aches",
+        "fatigue"
+      ],
+      "recommendations": {
+        "confidence": "MEDIUM",
+        "items": [
+          "Consult a healthcare professional",
+          "Monitor symptoms closely",
+          "Maintain a healthy lifestyle"
+        ],
+        "urgency": "medium"
+      },
+      "user_id": "test_user_3",
+      "gender": "male",
+      "prediction_metadata": {
+        "processing_time": 1.3475290411507943,
+        "model_version": "v1.0"
+      },
+      "confidence": "MEDIUM",
+      "id": "qLYR4a5eRuK02B3EpdkP"
+    },
+    {
+      "created_at": "2025-11-29T20:40:27.764747+00:00",
+      "age": 49,
+      "extraction_data": {
+        "extracted_features": [
+          "age",
+          "bmi"
+        ],
+        "method": "gemini_ai_extraction",
+        "confidence": 0.8250290161745246
+      },
+      "probability": 0.8200585852132622,
+      "disease": "Diabetes",
+      "explanation": {
+        "text": "Based on the symptoms provided including increased thirst, frequent urination, fatigue, there is a high probability of Diabetes.",
+        "generated_by": "gemini",
+        "confidence": "HIGH"
+      },
+      "status": "completed",
+      "treatment_info": {
+        "allopathy": {
+          "focus": "Symptom management",
+          "disclaimer": "Consult healthcare professional",
+          "approach": "Medication and monitoring"
+        },
+        "lifestyle": {
+          "focus": "Preventive care",
+          "disclaimer": "General wellness information",
+          "approach": "Diet and exercise"
+        },
+        "ayurveda": {
+          "focus": "Natural remedies",
+          "disclaimer": "Consult Ayurvedic practitioner",
+          "approach": "Holistic balance"
+        }
+      },
+      "symptoms": [
+        "increased thirst",
+        "frequent urination",
+        "fatigue"
+      ],
+      "recommendations": {
+        "confidence": "HIGH",
+        "items": [
+          "Consult a healthcare professional",
+          "Monitor symptoms closely",
+          "Maintain a healthy lifestyle"
+        ],
+        "urgency": "high"
+      },
+      "user_id": "test_user_1",
+      "gender": "male",
+      "prediction_metadata": {
+        "processing_time": 2.7181721650723825,
+        "model_version": "v1.0"
+      },
+      "confidence": "HIGH",
+      "id": "ujadtG1OhMFKzFZIb2uw"
+    },
+    {
+      "created_at": "2025-11-26T20:40:27.638148+00:00",
+      "age": 42,
+      "extraction_data": {
+        "extracted_features": [
+          "glucose",
+          "blood_pressure"
+        ],
+        "method": "gemini_ai_extraction",
+        "confidence": 0.801799405506799
+      },
+      "probability": 0.6060004219264464,
+      "disease": "Hypertension",
+      "explanation": {
+        "text": "Based on the symptoms provided including headache, dizziness, chest pain, there is a medium probability of Hypertension.",
+        "generated_by": "gemini",
+        "confidence": "MEDIUM"
+      },
+      "status": "completed",
+      "treatment_info": {
+        "allopathy": {
+          "focus": "Symptom management",
+          "disclaimer": "Consult healthcare professional",
+          "approach": "Medication and monitoring"
+        },
+        "lifestyle": {
+          "focus": "Preventive care",
+          "disclaimer": "General wellness information",
+          "approach": "Diet and exercise"
+        },
+        "ayurveda": {
+          "focus": "Natural remedies",
+          "disclaimer": "Consult Ayurvedic practitioner",
+          "approach": "Holistic balance"
+        }
+      },
+      "symptoms": [
+        "headache",
+        "dizziness",
+        "chest pain"
+      ],
+      "recommendations": {
+        "confidence": "MEDIUM",
+        "items": [
+          "Consult a healthcare professional",
+          "Monitor symptoms closely",
+          "Maintain a healthy lifestyle"
+        ],
+        "urgency": "medium"
+      },
+      "user_id": "test_user_1",
+      "gender": "male",
+      "prediction_metadata": {
+        "processing_time": 2.5103440866152154,
+        "model_version": "v1.0"
+      },
+      "confidence": "MEDIUM",
+      "id": "xjrw5SIe9vXkIqR6tgRz"
+    },
+    {
+      "created_at": "2025-12-15T20:40:28.990715+00:00",
+      "age": 64,
+      "extraction_data": {
+        "extracted_features": [
+          "glucose",
+          "blood_pressure",
+          "bmi",
+          "age"
+        ],
+        "method": "gemini_ai_extraction",
+        "confidence": 0.9341338633879346
+      },
+      "probability": 0.5515587363078048,
+      "disease": "Migraine",
+      "explanation": {
+        "text": "Based on the symptoms provided including severe headache, nausea, sensitivity to light, there is a medium probability of Migraine.",
+        "generated_by": "gemini",
+        "confidence": "MEDIUM"
+      },
+      "status": "completed",
+      "treatment_info": {
+        "allopathy": {
+          "focus": "Symptom management",
+          "disclaimer": "Consult healthcare professional",
+          "approach": "Medication and monitoring"
+        },
+        "lifestyle": {
+          "focus": "Preventive care",
+          "disclaimer": "General wellness information",
+          "approach": "Diet and exercise"
+        },
+        "ayurveda": {
+          "focus": "Natural remedies",
+          "disclaimer": "Consult Ayurvedic practitioner",
+          "approach": "Holistic balance"
+        }
+      },
+      "symptoms": [
+        "severe headache",
+        "nausea",
+        "sensitivity to light"
+      ],
+      "recommendations": {
+        "confidence": "MEDIUM",
+        "items": [
+          "Consult a healthcare professional",
+          "Monitor symptoms closely",
+          "Maintain a healthy lifestyle"
+        ],
+        "urgency": "medium"
+      },
+      "user_id": "test_user_3",
+      "gender": "male",
+      "prediction_metadata": {
+        "processing_time": 2.089066187148785,
+        "model_version": "v1.0"
+      },
+      "confidence": "MEDIUM",
+      "id": "y8YQGqflmp6Rhh8v1eeG"
+    },
+    {
+      "created_at": "2026-01-12T20:40:28.399098+00:00",
+      "age": 27,
+      "extraction_data": {
+        "extracted_features": [
+          "blood_pressure",
+          "bmi",
+          "glucose"
+        ],
+        "method": "gemini_ai_extraction",
+        "confidence": 0.7658580293718319
+      },
+      "probability": 0.7243368785075063,
+      "disease": "Hypertension",
+      "explanation": {
+        "text": "Based on the symptoms provided including headache, dizziness, chest pain, there is a medium probability of Hypertension.",
+        "generated_by": "gemini",
+        "confidence": "MEDIUM"
+      },
+      "status": "completed",
+      "treatment_info": {
+        "allopathy": {
+          "focus": "Symptom management",
+          "disclaimer": "Consult healthcare professional",
+          "approach": "Medication and monitoring"
+        },
+        "lifestyle": {
+          "focus": "Preventive care",
+          "disclaimer": "General wellness information",
+          "approach": "Diet and exercise"
+        },
+        "ayurveda": {
+          "focus": "Natural remedies",
+          "disclaimer": "Consult Ayurvedic practitioner",
+          "approach": "Holistic balance"
+        }
+      },
+      "symptoms": [
+        "headache",
+        "dizziness",
+        "chest pain"
+      ],
+      "recommendations": {
+        "confidence": "MEDIUM",
+        "items": [
+          "Consult a healthcare professional",
+          "Monitor symptoms closely",
+          "Maintain a healthy lifestyle"
+        ],
+        "urgency": "low"
+      },
+      "user_id": "test_user_2",
+      "gender": "male",
+      "prediction_metadata": {
+        "processing_time": 1.840912558513137,
+        "model_version": "v1.0"
+      },
+      "confidence": "MEDIUM",
+      "id": "yjNfXhTaz2Kf6J0EFYoe"
+    }
+  ],
+  "export_date": "2026-02-13T20:48:25.317468"
+}

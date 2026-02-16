@@ -1,6 +1,7 @@
 // ============================================================================
-// Demographic Form Component
+// Demographic Form Component - Responsive Design
 // Collects age, gender, and medical history
+// Mobile-friendly with proper touch targets
 // ============================================================================
 
 import React from 'react';
@@ -14,6 +15,8 @@ import {
   Typography,
   Chip,
   Autocomplete,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import type { DemographicFormData } from './AssessmentStepper';
 
@@ -50,6 +53,9 @@ export const DemographicForm: React.FC<DemographicFormProps> = ({
   data,
   onChange,
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm')); // < 600px
+
   const handleAgeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const age = parseInt(e.target.value, 10);
     if (!isNaN(age) && age > 0 && age <= 150) {
@@ -72,14 +78,22 @@ export const DemographicForm: React.FC<DemographicFormProps> = ({
 
   return (
     <Box>
-      <Typography variant="h6" gutterBottom>
+      <Typography
+        variant="h6"
+        gutterBottom
+        sx={{ fontSize: { xs: '1.125rem', sm: '1.25rem' } }}
+      >
         Demographic Information
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+      <Typography
+        variant="body2"
+        color="text.secondary"
+        sx={{ mb: { xs: 2, sm: 3 } }}
+      >
         This information helps provide more accurate risk assessments.
       </Typography>
 
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 2.5, sm: 3 } }}>
         {/* Age */}
         <TextField
           label="Age"
@@ -90,10 +104,25 @@ export const DemographicForm: React.FC<DemographicFormProps> = ({
           inputProps={{ min: 1, max: 150 }}
           helperText="Enter your age in years"
           fullWidth
+          sx={{
+            '& .MuiInputBase-root': {
+              minHeight: { xs: 44, sm: 40 },
+            },
+          }}
+          size={isMobile ? 'medium' : 'medium'}
         />
 
         {/* Gender */}
-        <FormControl fullWidth required>
+        <FormControl
+          fullWidth
+          required
+          sx={{
+            '& .MuiInputBase-root': {
+              minHeight: { xs: 44, sm: 40 },
+            },
+          }}
+          size={isMobile ? 'medium' : 'medium'}
+        >
           <InputLabel>Gender</InputLabel>
           <Select
             value={data.gender}
@@ -119,6 +148,10 @@ export const DemographicForm: React.FC<DemographicFormProps> = ({
                 label={option}
                 {...getTagProps({ index })}
                 key={index}
+                sx={{
+                  // Ensure chips are touch-friendly
+                  minHeight: { xs: 32, sm: 28 },
+                }}
               />
             ))
           }
@@ -128,6 +161,11 @@ export const DemographicForm: React.FC<DemographicFormProps> = ({
               label="Medical History"
               placeholder="Add conditions"
               helperText="Select or type existing medical conditions (optional)"
+              sx={{
+                '& .MuiInputBase-root': {
+                  minHeight: { xs: 44, sm: 40 },
+                },
+              }}
             />
           )}
         />

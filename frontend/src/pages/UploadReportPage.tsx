@@ -1,321 +1,531 @@
-import React, { useState, useCallback } from 'react';
-import { Container, Box, Typography, Paper, Button, Alert } from '@mui/material';
+// ============================================================================
+// Upload Medical Records Page - Responsive Design
+// Clean, modern interface for uploading medical documents
+// Matches HealthIntel AI design mockup
+// ============================================================================
+
+import React, { useState, useCallback, useRef } from 'react';
+import {
+  Container,
+  Box,
+  Typography,
+  Paper,
+  Button,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  ListItemSecondaryAction,
+  IconButton,
+  LinearProgress,
+  Breadcrumbs,
+  Link,
+  Alert,
+  Fade,
+  useTheme,
+  useMediaQuery,
+} from '@mui/material';
+import {
+  CloudUpload,
+  Description,
+  Delete,
+  CheckCircle,
+  Error as ErrorIcon,
+  Warning,
+  NavigateNext,
+  Lock,
+} from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { FileDropzone } from '@/components/upload/FileDropzone';
-import { FilePreview } from '@/components/upload/FilePreview';
-import { UploadProgress, FileUploadStatus } from '@/components/upload/UploadProgress';
-import { ExtractionPreview, ExtractedData } from '@/components/upload/ExtractionPreview';
-import { useAssessmentStore } from '@/stores/assessmentStore';
-import { useSystemStore } from '@/stores/systemStore';
-import { useNotificationStore } from '@/stores/notificationStore';
+
+interface UploadedFile {
+  id: string;
+  file: File;
+  status: 'pending' | 'uploading' | 'validated' | 'error';
+  progress: number;
+  errorMessage?: string;
+}
+
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+const ALLOWED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png', '.dcm'];
 
 export const UploadReportPage: React.FC = () => {
   const navigate = useNavigate();
-  const submitAssessment = useAssessmentStore((state: any) => state.submitAssessment);
-  const systemStatus = useSystemStore((state: any) => state.status);
-  const addNotification = useNotificationStore((state: any) => state.addNotification);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [uploadStatuses, setUploadStatuses] = useState<FileUploadStatus[]>([]);
-  const [extractedData, setExtractedData] = useState<ExtractedData[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFilesSelected = useCallback((files: File[]) => {
-    setSelectedFiles((prev) => [...prev, ...files]);
-    setUploadError(null);
-  }, []);
-
-  const handleRemoveFile = useCallback((index: number) => {
-    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
-    // Also remove from upload statuses and extracted data if present
-    setUploadStatuses((prev) => prev.filter((_, i) => i !== index));
-    setExtractedData((prev) => prev.filter((_, i) => i !== index));
-  }, []);
-
-  const simulateFileUpload = useCallback(
-    async (file: File, index: number): Promise<ExtractedData> => {
-      // Update status to uploading
-      setUploadStatuses((prev) => {
-        const newStatuses = [...prev];
-        newStatuses[index] = {
-          fileName: file.name,
-          progress: 0,
-          status: 'uploading',
-        };
-        return newStatuses;
-      });
-
-      // Simulate upload progress
-      for (let progress = 0; progress <= 100; progress += 10) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        setUploadStatuses((prev) => {
-          const newStatuses = [...prev];
-          if (newStatuses[index]) {
-            newStatuses[index].progress = progress;
-          }
-          return newStatuses;
-        });
-      }
-
-      // Simulate extraction (in real implementation, this would call the backend)
-      // For now, return mock extracted data
-      const mockExtractedData: ExtractedData = {
-        fileName: file.name,
-        confidence: Math.floor(Math.random() * 40) + 60, // 60-100
-        method: 'OCR + NLP',
-        extractedFeatures: ['text_extraction', 'entity_recognition', 'medical_terminology'],
-        symptoms: ['fever', 'cough', 'fatigue'],
-        vitals: {
-          temperature: 99.5,
-          heartRate: 85,
-          bloodPressureSystolic: 120,
-          bloodPressureDiastolic: 80,
-        },
-        demographics: {
-          age: 35,
-          gender: 'male',
-        },
-        notes: 'Extracted from medical report dated ' + new Date().toLocaleDateString(),
-      };
-
-      // Update status to completed
-      setUploadStatuses((prev) => {
-        const newStatuses = [...prev];
-        newStatuses[index] = {
-          fileName: file.name,
-          progress: 100,
-          status: 'completed',
-        };
-        return newStatuses;
-      });
-
-      return mockExtractedData;
-    },
-    []
-  );
-
-  const handleUpload = useCallback(async () => {
-    if (selectedFiles.length === 0) {
-      addNotification({
-        type: 'warning',
-        message: 'Please select at least one file to upload',
-        dismissible: true,
-      });
-      return;
+  // Validate file
+  const validateFile = (file: File): { valid: boolean; error?: string } => {
+    // Check file size
+    if (file.size > MAX_FILE_SIZE) {
+      return { valid: false, error: 'File exceeds 50MB limit' };
     }
 
-    // Check system status
-    if (systemStatus?.status !== 'operational') {
-      addNotification({
-        type: 'error',
-        message: 'System is currently unavailable. Please try again later.',
-        dismissible: true,
-      });
-      return;
+    // Check file type
+    const extension = '.' + file.name.split('.').pop()?.toLowerCase();
+    const isValidType = ALLOWED_TYPES.includes(file.type) ||
+      ALLOWED_EXTENSIONS.includes(extension);
+
+    if (!isValidType) {
+      return { valid: false, error: 'File format not supported' };
     }
 
-    setIsUploading(true);
-    setUploadError(null);
+    return { valid: true };
+  };
 
-    try {
-      // Initialize upload statuses
-      const initialStatuses: FileUploadStatus[] = selectedFiles.map((file) => ({
-        fileName: file.name,
+  // Handle file selection
+  const handleFiles = useCallback((files: FileList | null) => {
+    if (!files) return;
+
+    const newFiles: UploadedFile[] = [];
+
+    Array.from(files).forEach((file) => {
+      const validation = validateFile(file);
+
+      const uploadedFile: UploadedFile = {
+        id: `${file.name}-${Date.now()}-${Math.random()}`,
+        file,
+        status: validation.valid ? 'pending' : 'error',
         progress: 0,
-        status: 'pending',
-      }));
-      setUploadStatuses(initialStatuses);
-
-      // Upload files and extract data
-      const extractedResults: ExtractedData[] = [];
-      for (let i = 0; i < selectedFiles.length; i++) {
-        try {
-          const result = await simulateFileUpload(selectedFiles[i], i);
-          extractedResults.push(result);
-        } catch (error) {
-          setUploadStatuses((prev) => {
-            const newStatuses = [...prev];
-            newStatuses[i] = {
-              fileName: selectedFiles[i].name,
-              progress: 0,
-              status: 'error',
-              error: 'Upload failed',
-            };
-            return newStatuses;
-          });
-        }
-      }
-
-      setExtractedData(extractedResults);
-
-      if (extractedResults.length === 0) {
-        setUploadError('All file uploads failed. Please try again.');
-      } else if (extractedResults.length < selectedFiles.length) {
-        addNotification({
-          type: 'warning',
-          message: 'Some files failed to upload. Please review the results.',
-          dismissible: true,
-        });
-      } else {
-        addNotification({
-          type: 'success',
-          message: 'All files uploaded successfully',
-          dismissible: true,
-        });
-      }
-    } catch (error) {
-      setUploadError('An error occurred during upload. Please try again.');
-      console.error('Upload error:', error);
-    } finally {
-      setIsUploading(false);
-    }
-  }, [selectedFiles, systemStatus, addNotification, simulateFileUpload]);
-
-  const handleConfirmSubmit = useCallback(async () => {
-    if (extractedData.length === 0) {
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      // Combine all extracted data into a single assessment request
-      const allSymptoms = new Set<string>();
-      let demographics = null;
-      let vitals = null;
-
-      extractedData.forEach((data) => {
-        if (data.symptoms) {
-          data.symptoms.forEach((symptom) => allSymptoms.add(symptom));
-        }
-        if (data.demographics && !demographics) {
-          demographics = data.demographics;
-        }
-        if (data.vitals && !vitals) {
-          vitals = data.vitals;
-        }
-      });
-
-      // Create assessment request
-      const assessmentData = {
-        symptoms: Array.from(allSymptoms),
-        age: demographics?.age || 30,
-        gender: demographics?.gender || 'other',
-        additional_info: {
-          vitals,
-          source: 'medical_report_upload',
-          files: extractedData.map((d) => d.fileName),
-        },
+        errorMessage: validation.error,
       };
 
-      // Submit assessment
-      await submitAssessment(assessmentData);
+      newFiles.push(uploadedFile);
 
-      addNotification({
-        type: 'success',
-        message: 'Assessment submitted successfully',
-        dismissible: true,
-      });
+      // Simulate upload for valid files
+      if (validation.valid) {
+        simulateUpload(uploadedFile.id);
+      }
+    });
 
-      // Navigate to results or dashboard
-      // In a real implementation, we would navigate to the specific assessment result
-      navigate('/app/dashboard');
-    } catch (error) {
-      addNotification({
-        type: 'error',
-        message: 'Failed to submit assessment. Please try again.',
-        dismissible: true,
-      });
-      console.error('Submit error:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [extractedData, submitAssessment, addNotification, navigate]);
-
-  const handleCancel = useCallback(() => {
-    setExtractedData([]);
-    setUploadStatuses([]);
-    setSelectedFiles([]);
+    setUploadedFiles(prev => [...prev, ...newFiles]);
   }, []);
 
-  const handleBack = useCallback(() => {
-    navigate('/app/dashboard');
-  }, [navigate]);
+  // Simulate file upload
+  const simulateUpload = (fileId: string) => {
+    // Start uploading
+    setUploadedFiles(prev =>
+      prev.map(f => f.id === fileId ? { ...f, status: 'uploading' as const, progress: 0 } : f)
+    );
 
-  const overallProgress = uploadStatuses.length > 0
-    ? uploadStatuses.reduce((sum, status) => sum + status.progress, 0) / uploadStatuses.length
-    : 0;
+    // Simulate progress
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += 15;
+
+      if (progress >= 100) {
+        clearInterval(interval);
+        setUploadedFiles(prev =>
+          prev.map(f => f.id === fileId ? { ...f, status: 'validated' as const, progress: 100 } : f)
+        );
+      } else {
+        setUploadedFiles(prev =>
+          prev.map(f => f.id === fileId ? { ...f, progress } : f)
+        );
+      }
+    }, 200);
+  };
+
+  // Handle drag events
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    handleFiles(e.dataTransfer.files);
+  };
+
+  // Handle browse button click
+  const handleBrowseClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Handle file input change
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleFiles(e.target.files);
+  };
+
+  // Remove file
+  const handleRemoveFile = (fileId: string) => {
+    setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
+  };
+
+  // Get file icon
+  const getFileIcon = (status: UploadedFile['status']) => {
+    switch (status) {
+      case 'validated':
+        return <CheckCircle sx={{ color: 'success.main' }} />;
+      case 'error':
+        return <ErrorIcon sx={{ color: 'error.main' }} />;
+      case 'uploading':
+        return <Description sx={{ color: 'primary.main' }} />;
+      default:
+        return <Description />;
+    }
+  };
+
+  // Get status color
+  const getStatusColor = (status: UploadedFile['status']) => {
+    switch (status) {
+      case 'validated':
+        return 'success.main';
+      case 'error':
+        return 'error.main';
+      case 'uploading':
+        return 'primary.main';
+      default:
+        return 'text.secondary';
+    }
+  };
+
+  // Format file size
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
+  // Handle process reports
+  const handleProcessReports = () => {
+    // Navigate to results or trigger processing
+    navigate('/app/dashboard');
+  };
+
+  // Handle cancel
+  const handleCancel = () => {
+    setUploadedFiles([]);
+  };
+
+  const hasValidFiles = uploadedFiles.some(f => f.status === 'validated');
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Button
-        startIcon={<ArrowBackIcon />}
-        onClick={handleBack}
-        sx={{ mb: 3 }}
-      >
-        Back to Dashboard
-      </Button>
+    <Fade in={true} timeout={500}>
+      <Box>
+        <Container
+          maxWidth="lg"
+          sx={{
+            py: { xs: 2, sm: 3, md: 4 },
+            px: { xs: 2, sm: 3 },
+          }}
+        >
+          {/* Breadcrumbs */}
+          <Breadcrumbs
+            separator={<NavigateNext fontSize="small" />}
+            sx={{ mb: { xs: 2, sm: 3 } }}
+          >
+            <Link
+              color="inherit"
+              href="/app/dashboard"
+              underline="hover"
+              sx={{ cursor: 'pointer' }}
+            >
+              Home
+            </Link>
+            <Link
+              color="inherit"
+              href="/app/assessment/new"
+              underline="hover"
+              sx={{ cursor: 'pointer' }}
+            >
+              New Case
+            </Link>
+            <Typography color="text.primary">Upload Reports</Typography>
+          </Breadcrumbs>
 
-      <Paper elevation={3} sx={{ p: 4 }}>
-        <Typography variant="h4" gutterBottom>
-          Upload Medical Reports
-        </Typography>
-        <Typography variant="body1" color="text.secondary" paragraph>
-          Upload your medical reports (PDF, JPG, PNG, DICOM) for automated data extraction and
-          health risk assessment.
-        </Typography>
+          {/* Page Title */}
+          <Box sx={{ mb: { xs: 3, sm: 4 } }}>
+            <Typography
+              variant="h3"
+              gutterBottom
+              sx={{
+                fontSize: { xs: '1.75rem', sm: '2.5rem', md: '3rem' },
+                fontWeight: 700,
+              }}
+            >
+              Upload Medical Records
+            </Typography>
+            <Typography
+              variant="body1"
+              color="text.secondary"
+              sx={{
+                fontSize: { xs: '0.875rem', sm: '1rem' },
+              }}
+            >
+              Securely upload patient history, lab results, or imaging for AI analysis.
+            </Typography>
+          </Box>
 
-        {systemStatus?.status !== 'operational' && (
-          <Alert severity="warning" sx={{ mb: 3 }}>
-            System is currently {systemStatus?.status || 'unavailable'}. Please try again later.
-          </Alert>
-        )}
-
-        <Box sx={{ mt: 3 }}>
-          <FileDropzone onFilesSelected={handleFilesSelected} />
-        </Box>
-
-        {selectedFiles.length > 0 && (
-          <>
-            <FilePreview files={selectedFiles} onRemove={handleRemoveFile} />
-
-            {extractedData.length === 0 && (
-              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
-                <Button
-                  variant="contained"
-                  onClick={handleUpload}
-                  disabled={isUploading || systemStatus?.status !== 'operational'}
-                >
-                  {isUploading ? 'Uploading...' : 'Upload and Extract Data'}
-                </Button>
+          {/* Drag & Drop Zone */}
+          <Paper
+            onDragEnter={handleDragEnter}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            sx={{
+              border: '2px dashed',
+              borderColor: isDragging ? 'primary.main' : 'divider',
+              borderRadius: 2,
+              bgcolor: isDragging ? 'action.hover' : 'background.paper',
+              p: { xs: 4, sm: 6, md: 8 },
+              textAlign: 'center',
+              transition: 'all 0.2s ease-in-out',
+              cursor: 'pointer',
+              mb: { xs: 3, sm: 4 },
+              '&:hover': {
+                borderColor: 'primary.light',
+                bgcolor: 'action.hover',
+              },
+            }}
+          >
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 2,
+              }}
+            >
+              <Box
+                sx={{
+                  width: { xs: 60, sm: 80 },
+                  height: { xs: 60, sm: 80 },
+                  borderRadius: '50%',
+                  bgcolor: 'primary.light',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <CloudUpload
+                  sx={{
+                    fontSize: { xs: 32, sm: 40 },
+                    color: 'primary.main',
+                  }}
+                />
               </Box>
-            )}
-          </>
-        )}
 
-        {uploadStatuses.length > 0 && (
-          <UploadProgress files={uploadStatuses} overallProgress={overallProgress} />
-        )}
+              <Typography
+                variant="h6"
+                sx={{
+                  fontSize: { xs: '1rem', sm: '1.25rem' },
+                  fontWeight: 600,
+                }}
+              >
+                Drag & drop files here
+              </Typography>
 
-        {uploadError && (
-          <Alert severity="error" sx={{ mt: 3 }}>
-            {uploadError}
-          </Alert>
-        )}
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+              >
+                Supports PDF, JPG, PNG, and DICOM (Max 50MB per file).
+              </Typography>
 
-        {extractedData.length > 0 && (
-          <ExtractionPreview
-            extractedData={extractedData}
-            onConfirm={handleConfirmSubmit}
-            onCancel={handleCancel}
-            loading={isSubmitting}
-          />
-        )}
-      </Paper>
-    </Container>
+              <Button
+                variant="outlined"
+                onClick={handleBrowseClick}
+                sx={{
+                  mt: 1,
+                  minHeight: { xs: 44, sm: 40 },
+                  px: 4,
+                }}
+              >
+                Browse Files
+              </Button>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.jpg,.jpeg,.png,.dcm"
+                onChange={handleFileInputChange}
+                style={{ display: 'none' }}
+              />
+            </Box>
+          </Paper>
+
+          {/* Uploaded Files List */}
+          {uploadedFiles.length > 0 && (
+            <Box sx={{ mb: { xs: 3, sm: 4 } }}>
+              <Typography
+                variant="h6"
+                gutterBottom
+                sx={{
+                  fontSize: { xs: '1.125rem', sm: '1.25rem' },
+                  fontWeight: 600,
+                  mb: 2,
+                }}
+              >
+                Uploaded Files
+              </Typography>
+
+              <List sx={{ bgcolor: 'background.paper', borderRadius: 1 }}>
+                {uploadedFiles.map((uploadedFile) => (
+                  <ListItem
+                    key={uploadedFile.id}
+                    sx={{
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 1,
+                      mb: 1.5,
+                      transition: 'all 0.2s ease-in-out',
+                      '&:hover': {
+                        bgcolor: 'action.hover',
+                      },
+                    }}
+                  >
+                    <ListItemIcon>
+                      {getFileIcon(uploadedFile.status)}
+                    </ListItemIcon>
+
+                    <ListItemText
+                      primary={
+                        <Typography
+                          variant="body1"
+                          sx={{
+                            fontSize: { xs: '0.875rem', sm: '1rem' },
+                            fontWeight: 500,
+                          }}
+                        >
+                          {uploadedFile.file.name}
+                        </Typography>
+                      }
+                      secondary={
+                        <Box>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ fontSize: { xs: '0.75rem', sm: '0.75rem' } }}
+                          >
+                            {formatFileSize(uploadedFile.file.size) + ' • '}
+                            {uploadedFile.status === 'validated' && 'Complete'}
+                            {uploadedFile.status === 'uploading' && `Uploading... ${uploadedFile.progress}%`}
+                            {uploadedFile.status === 'error' && uploadedFile.errorMessage}
+                          </Typography>
+
+                          {uploadedFile.status === 'uploading' && (
+                            <LinearProgress
+                              variant="determinate"
+                              value={uploadedFile.progress}
+                              sx={{ mt: 1, height: 6, borderRadius: 1 }}
+                            />
+                          )}
+                        </Box>
+                      }
+                    />
+
+                    <ListItemSecondaryAction>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        {uploadedFile.status === 'validated' && (
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: 'success.main',
+                              fontWeight: 600,
+                              display: { xs: 'none', sm: 'block' },
+                            }}
+                          >
+                            Validated
+                          </Typography>
+                        )}
+
+                        <IconButton
+                          edge="end"
+                          onClick={() => handleRemoveFile(uploadedFile.id)}
+                          sx={{
+                            minWidth: { xs: 44, sm: 40 },
+                            minHeight: { xs: 44, sm: 40 },
+                          }}
+                        >
+                          <Delete />
+                        </IconButton>
+                      </Box>
+                    </ListItemSecondaryAction>
+                  </ListItem>
+                ))}
+              </List>
+            </Box>
+          )}
+
+          {/* Security Notice & Actions */}
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              justifyContent: 'space-between',
+              alignItems: { xs: 'stretch', sm: 'center' },
+              gap: 2,
+              mt: 4,
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Lock sx={{ color: 'text.secondary', fontSize: 18 }} />
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ fontSize: { xs: '0.75rem', sm: '0.75rem' } }}
+              >
+                Your data is encrypted end-to-end. We adhere to strict HIPAA privacy standards to ensure patient confidentiality.
+              </Typography>
+            </Box>
+
+            <Box
+              sx={{
+                display: 'flex',
+                gap: 2,
+                flexDirection: { xs: 'column', sm: 'row' },
+              }}
+            >
+              <Button
+                variant="outlined"
+                onClick={handleCancel}
+                disabled={uploadedFiles.length === 0}
+                sx={{
+                  minHeight: { xs: 44, sm: 40 },
+                  minWidth: { sm: 120 },
+                }}
+              >
+                Cancel
+              </Button>
+
+              <Button
+                variant="contained"
+                onClick={handleProcessReports}
+                disabled={!hasValidFiles}
+                sx={{
+                  minHeight: { xs: 44, sm: 40 },
+                  minWidth: { sm: 160 },
+                }}
+              >
+                Process Reports
+              </Button>
+            </Box>
+          </Box>
+        </Container>
+      </Box>
+    </Fade>
   );
 };
 
