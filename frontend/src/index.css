@@ -3,6 +3,28 @@
    Includes smooth animations and transitions for enhanced UX
    ============================================================================ */
 
+:root {
+  /* Primary Gradient */
+  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  
+  /* Secondary Gradient */
+  --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  
+  /* Accent Gradient */
+  --gradient-accent: linear-gradient(90deg, #06b6d4 0%, #10b981 100%);
+  
+  /* Text Gradient */
+  --gradient-text: linear-gradient(90deg, #667eea 0%, #764ba2 50%, #f5576c 100%);
+  
+  /* Solid Colors */
+  --color-primary: #667eea;
+  --color-secondary: #f093fb;
+  --color-success: #10b981;
+  --color-info: #06b6d4;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+}
+
 /* CSS Reset */
 *,
 *::before,

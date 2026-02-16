@@ -5,7 +5,19 @@
 import { create } from 'zustand';
 import { apiService } from '@/services/api';
 
-export const useAssessmentStore = create((set) => ({
+interface AssessmentStore {
+  currentAssessment: any;
+  assessmentHistory: any;
+  loading: boolean;
+  error: string | null;
+  submitAssessment: (data: any, isAuthenticated: boolean) => Promise<any>;
+  fetchAssessmentHistory: (page?: number, pageSize?: number) => Promise<void>;
+  fetchAssessmentDetail: (id: string) => Promise<void>;
+  clearCurrentAssessment: () => void;
+  clearError: () => void;
+}
+
+export const useAssessmentStore = create<AssessmentStore>((set) => ({
   currentAssessment: null,
   assessmentHistory: null,
   loading: false,
@@ -15,10 +27,10 @@ export const useAssessmentStore = create((set) => ({
   submitAssessment: async (data, isAuthenticated) => {
     set({ loading: true, error: null });
     try {
-      const assessment = isAuthenticated 
+      const assessment = isAuthenticated
         ? await apiService.analyzeHealth(data)
         : await apiService.assessAnonymous(data);
-      
+
       set({ currentAssessment: assessment, loading: false, error: null });
       return assessment;
     } catch (error) {
@@ -35,9 +47,9 @@ export const useAssessmentStore = create((set) => ({
       const history = await apiService.getAssessmentHistory(page, pageSize);
       set({ assessmentHistory: history, loading: false, error: null });
     } catch (error) {
-      set({ 
-        loading: false, 
-        error: error.response?.data?.message || 'Failed to fetch history' 
+      set({
+        loading: false,
+        error: error.response?.data?.message || 'Failed to fetch history'
       });
       throw error;
     }
@@ -50,9 +62,9 @@ export const useAssessmentStore = create((set) => ({
       const assessment = await apiService.getAssessmentDetail(id);
       set({ currentAssessment: assessment, loading: false, error: null });
     } catch (error) {
-      set({ 
-        loading: false, 
-        error: error.response?.data?.message || 'Failed to fetch assessment' 
+      set({
+        loading: false,
+        error: error.response?.data?.message || 'Failed to fetch assessment'
       });
       throw error;
     }

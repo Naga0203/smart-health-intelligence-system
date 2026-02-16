@@ -19,45 +19,35 @@ const breakpoints = {
 // Modern gradient-rich color palette with medical professionalism
 const palette = {
   primary: {
-    main: '#667eea',      // Modern purple-blue
-    light: '#a5b4fc',
-    dark: '#4c51bf',
-    contrastText: '#FFFFFF',
+    main: '#667eea',
+    light: '#8b9cf9',
+    dark: '#4c5ec7',
   },
   secondary: {
-    main: '#f093fb',      // Soft pink-purple
-    light: '#fbc2eb',
-    dark: '#c471ed',
-    contrastText: '#FFFFFF',
+    main: '#f093fb',
+    light: '#f5b4fc',
+    dark: '#e66bf7',
   },
   background: {
-    default: '#f8fafc',   // Very light blue-gray
+    default: '#f8fafc',
     paper: '#FFFFFF',
   },
   text: {
-    primary: '#1e293b',   // Slate gray for primary text
-    secondary: '#64748b', // Medium slate for secondary text
+    primary: '#1f2937',
+    secondary: '#64748b',
+    disabled: '#94a3b8',
   },
-  // Risk level colors with modern gradients
   success: {
-    main: '#10b981',      // Emerald green
-    light: '#6ee7b7',
-    dark: '#059669',
-  },
-  warning: {
-    main: '#f59e0b',      // Amber
-    light: '#fcd34d',
-    dark: '#d97706',
-  },
-  error: {
-    main: '#ef4444',      // Modern red
-    light: '#fca5a5',
-    dark: '#dc2626',
+    main: '#10b981',
   },
   info: {
-    main: '#06b6d4',      // Cyan
-    light: '#67e8f9',
-    dark: '#0891b2',
+    main: '#06b6d4',
+  },
+  warning: {
+    main: '#f59e0b',
+  },
+  error: {
+    main: '#ef4444',
   },
   // Custom gradient colors
   gradient: {
@@ -331,8 +321,8 @@ export const BREAKPOINTS = {
 export const isMobile = () => window.innerWidth < BREAKPOINTS.MOBILE;
 
 // Helper function to check if viewport is tablet
-export const isTablet = () => 
-  window.innerWidth >= BREAKPOINTS.MOBILE && 
+export const isTablet = () =>
+  window.innerWidth >= BREAKPOINTS.MOBILE &&
   window.innerWidth < BREAKPOINTS.TABLET;
 
 // Helper function to check if viewport is desktop

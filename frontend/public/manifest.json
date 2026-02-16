@@ -1,0 +1,15 @@
+{
+  "name": "SymptoSense",
+  "short_name": "SymptoSense",
+  "description": "AI-Powered Health Intelligence Platform",
+  "icons": [
+    {
+      "src": "/symptosense-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "theme_color": "#667eea",
+  "background_color": "#ffffff"
+}

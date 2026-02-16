@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Box, Container, Grid, Typography } from '@mui/material';
+import { Container, Grid, Typography } from '@mui/material';
 import { useAssessmentStore } from '@/stores/assessmentStore';
-import { useSystemStore } from '@/stores/systemStore';
+
 import { useUserStore } from '@/stores/userStore';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import RecentAssessments from '@/components/dashboard/RecentAssessments';
-import SystemStatus from '@/components/dashboard/SystemStatus';
+
 import QuickActions from '@/components/dashboard/QuickActions';
 import UserStatistics from '@/components/dashboard/UserStatistics';
 import TopPredictions from '@/components/dashboard/TopPredictions';
@@ -17,13 +17,13 @@ import { apiService } from '@/services/api';
  */
 export default function DashboardPage() {
   const { fetchAssessmentHistory, assessmentHistory, loading: assessmentsLoading } = useAssessmentStore();
-  const { fetchSystemStatus, fetchModelInfo, status, modelInfo, loading: systemLoading } = useSystemStore();
+
   const { fetchStatistics, statistics, loading: statsLoading } = useUserStore();
-  
+
   // Top predictions state
   const [predictions, setPredictions] = useState(null);
   const [predictionsLoading, setPredictionsLoading] = useState(false);
-  const [predictionsError, setPredictionsError] = useState(null);
+  const [predictionsError, setPredictionsError] = useState<string | null>(null);
 
   useEffect(() => {
     // Fetch all dashboard data on mount
@@ -31,8 +31,7 @@ export default function DashboardPage() {
       try {
         await Promise.all([
           fetchAssessmentHistory(1, 5), // Fetch first 5 recent assessments
-          fetchSystemStatus(),
-          fetchModelInfo(),
+
           fetchStatistics(),
         ]);
       } catch (error) {
@@ -41,7 +40,7 @@ export default function DashboardPage() {
     };
 
     fetchData();
-  }, [fetchAssessmentHistory, fetchSystemStatus, fetchModelInfo, fetchStatistics]);
+  }, [fetchAssessmentHistory, fetchStatistics]);
 
   /**
    * Fetch top N predictions
@@ -51,11 +50,11 @@ export default function DashboardPage() {
   const handleFetchPredictions = async (n = 5) => {
     setPredictionsLoading(true);
     setPredictionsError(null);
-    
+
     try {
       // Try to get data from the most recent assessment
       const recentAssessment = assessmentHistory?.assessments?.[0];
-      
+
       if (!recentAssessment || !recentAssessment.symptoms || recentAssessment.symptoms.length === 0) {
         setPredictionsError('No recent assessment data available. Complete an assessment first.');
         setPredictions(null);
@@ -69,7 +68,7 @@ export default function DashboardPage() {
         'other', // Default gender if not available
         n
       );
-      
+
       setPredictions(result.predictions || []);
     } catch (error) {
       console.error('Error fetching top predictions:', error);
@@ -80,9 +79,9 @@ export default function DashboardPage() {
     }
   };
 
-  const isLoading = assessmentsLoading || systemLoading || statsLoading;
+  const isLoading = assessmentsLoading || statsLoading;
 
-  if (isLoading && !assessmentHistory && !status && !statistics) {
+  if (isLoading && !assessmentHistory && !statistics) {
     return (
       <Container maxWidth="lg" sx={{ py: 4 }}>
         <LoadingSkeleton />
@@ -98,22 +97,19 @@ export default function DashboardPage() {
 
       <Grid container spacing={3}>
         {/* Quick Actions */}
-        <Grid item xs={12}>
+        <Grid size={{ xs: 12 }}>
           <QuickActions />
         </Grid>
 
-        {/* System Status */}
-        <Grid item xs={12} md={6}>
-          <SystemStatus status={status} modelInfo={modelInfo} loading={systemLoading} />
-        </Grid>
+
 
         {/* User Statistics */}
-        <Grid item xs={12} md={6}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <UserStatistics statistics={statistics} loading={statsLoading} />
         </Grid>
 
         {/* Top Predictions */}
-        <Grid item xs={12} md={6}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <TopPredictions
             predictions={predictions}
             loading={predictionsLoading}
@@ -124,10 +120,10 @@ export default function DashboardPage() {
         </Grid>
 
         {/* Recent Assessments */}
-        <Grid item xs={12} md={6}>
-          <RecentAssessments 
-            assessments={assessmentHistory?.assessments || []} 
-            loading={assessmentsLoading} 
+        <Grid size={{ xs: 12, md: 6 }}>
+          <RecentAssessments
+            assessments={assessmentHistory?.assessments || []}
+            loading={assessmentsLoading}
           />
         </Grid>
       </Grid>
