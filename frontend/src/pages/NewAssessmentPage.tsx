@@ -44,6 +44,9 @@ export const NewAssessmentPage: React.FC = () => {
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
   // Calculate progress (for demo, based on filled fields)
   const calculateProgress = () => {
     let filled = 0;
@@ -134,25 +137,48 @@ export const NewAssessmentPage: React.FC = () => {
     setTemperature('');
     setPainSeverity(4);
     setAttachedFiles([]);
+    setSubmitError(null);
   };
 
   // Submit form
-  const handleSubmit = () => {
-    // Here you would submit to backend
-    console.log({
-      symptomDescription,
-      selectedSymptoms,
-      duration,
-      temperature,
-      painSeverity,
-      attachedFiles,
-    });
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    setSubmitError(null);
+    try {
+      // Combine description and selected symptoms
+      const symptomsInput = [
+        symptomDescription,
+        ...selectedSymptoms
+      ].filter(Boolean).join(', ');
 
-    // Navigate to results
-    // In a real app, this would be the ID returned from the backend
-    // For demo purposes, we'll use a hardcoded ID or generate one
-    const demoId = '12345';
-    navigate(`/app/assessment/${demoId}`);
+      if (!symptomsInput) {
+        setSubmitError('Please describe your symptoms or select from the list.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      console.log('Submitting symptoms:', symptomsInput);
+
+      // Call API
+      const response = await import('@/services/api').then(m => m.apiService.predictSymptoms(symptomsInput));
+
+      console.log('Prediction Response:', response);
+
+      // Navigate to results
+      // Assuming response contains assessment_id or we use a temporary ID for now
+      // For now, we'll use a placeholder or response ID if available
+      const assessmentId = response.assessment_id || 'new';
+
+      // Store result in state/store if needed, or pass via state
+      navigate(`/app/assessment/${assessmentId}`, { state: { result: response } });
+
+    } catch (error: any) {
+      console.error('Prediction failed:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to submit symptoms. Please try again.';
+      setSubmitError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const progress = calculateProgress();
@@ -230,6 +256,12 @@ export const NewAssessmentPage: React.FC = () => {
               Our AI system will analyze your input to suggest next steps. Please be as descriptive as possible.
             </Typography>
           </Box>
+
+          {submitError && (
+            <Alert severity="error" sx={{ mb: 4 }} onClose={() => setSubmitError(null)}>
+              {submitError}
+            </Alert>
+          )}
 
           {/* Symptom Description */}
           <Box sx={{ mb: 4 }}>
@@ -646,6 +678,7 @@ export const NewAssessmentPage: React.FC = () => {
               <Button
                 variant="outlined"
                 onClick={handleReset}
+                disabled={isSubmitting}
                 sx={{
                   minHeight: { xs: 44, sm: 40 },
                   minWidth: { sm: 120 },
@@ -667,8 +700,8 @@ export const NewAssessmentPage: React.FC = () => {
               <Button
                 variant="contained"
                 onClick={handleSubmit}
-                disabled={!symptomDescription}
-                endIcon={<Box component="span" sx={{ fontSize: '1.2rem' }}>→</Box>}
+                disabled={!symptomDescription || isSubmitting}
+                endIcon={!isSubmitting && <Box component="span" sx={{ fontSize: '1.2rem' }}>→</Box>}
                 sx={{
                   minHeight: { xs: 44, sm: 40 },
                   minWidth: { sm: 160 },
@@ -688,7 +721,7 @@ export const NewAssessmentPage: React.FC = () => {
                   },
                 }}
               >
-                Submit Symptoms
+                {isSubmitting ? 'Analyzing...' : 'Submit Symptoms'}
               </Button>
             </Box>
           </Box>

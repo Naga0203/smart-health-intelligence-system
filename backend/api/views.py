@@ -1919,3 +1919,950 @@ class AssessmentDetailAPIView(APIView):
         except Exception as e:
             logger.error(f"Error fetching assessment {assessment_id} for user {request.user.uid}: {str(e)}", exc_info=True)
             return APIErrorHandler.handle_internal_error(e, logger)
+
+
+
+# ============================================================================
+# Medical Report Upload and Extraction APIs
+# ============================================================================
+
+class ReportUploadView(APIView):
+    """
+    Medical report upload endpoint.
+    
+    POST: Upload medical report file and initiate extraction
+    
+    Requires Firebase authentication.
+    Validates: Requirements 2.4, 10.1, 10.2
+    """
+    
+    authentication_classes = [FirebaseAuthentication]
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [
+        HealthAnalysisRateThrottle,  # 100/hour
+    ]
+    parser_classes = [MultiPartParser, FormParser]
+    
+    @extend_schema(
+        tags=['Medical Reports'],
+        summary='Upload medical report',
+        description='''
+        Upload a medical report file (PDF, JPG, PNG) and initiate extraction.
+        
+        The file will be stored securely in Firebase Storage and processed asynchronously
+        to extract structured medical data using Google Gemini AI.
+        
+        **Authentication Required**: Firebase ID token
+        
+        **Supported Formats**: PDF, JPG, PNG
+        **Maximum File Size**: 10MB
+        
+        **Rate Limits**:
+        - 100 requests per hour (authenticated users)
+        ''',
+        request={
+            'multipart/form-data': {
+                'type': 'object',
+                'properties': {
+                    'file': {
+                        'type': 'string',
+                        'format': 'binary',
+                        'description': 'Medical report file (PDF, JPG, PNG)'
+                    },
+                    'assessment_type': {
+                        'type': 'string',
+                        'enum': ['lab_results', 'diagnosis', 'prescription', 'general'],
+                        'description': 'Optional assessment type'
+                    }
+                },
+                'required': ['file']
+            }
+        },
+        responses={
+            201: OpenApiExample(
+                'Upload Successful',
+                value={
+                    "success": True,
+                    "job_id": "550e8400-e29b-41d4-a716-446655440000",
+                    "report_id": "660e8400-e29b-41d4-a716-446655440001",
+                    "file_name": "lab_report.pdf",
+                    "file_size": 245678,
+                    "upload_timestamp": "2026-02-17T12:00:00Z",
+                    "status": "processing",
+                    "estimated_completion_seconds": 8
+                },
+                response_only=True
+            ),
+            400: OpenApiExample(
+                'Invalid File',
+                value={
+                    "success": False,
+                    "error_code": "invalid_format",
+                    "message": "File validation failed",
+                    "details": "Invalid file type: application/msword. Allowed types: PDF, JPG, PNG"
+                },
+                response_only=True
+            ),
+            401: OpenApiExample(
+                'Authentication Failed',
+                value={
+                    "error": "authentication_error",
+                    "message": "Authentication failed",
+                    "details": "Invalid or expired Firebase ID token",
+                    "status_code": 401
+                },
+                response_only=True
+            ),
+            413: OpenApiExample(
+                'File Too Large',
+                value={
+                    "success": False,
+                    "error_code": "file_too_large",
+                    "message": "File validation failed",
+                    "details": "File size 12.5MB exceeds maximum 10MB"
+                },
+                response_only=True
+            ),
+            500: OpenApiExample(
+                'Upload Failed',
+                value={
+                    "success": False,
+                    "error_code": "upload_failed",
+                    "message": "Failed to upload file",
+                    "details": "Storage service unavailable"
+                },
+                response_only=True
+            )
+        }
+    )
+    def post(self, request):
+        """
+        POST /api/reports/upload/
+        
+        Upload medical report file and initiate extraction.
+        
+        Headers:
+        Authorization: Bearer <firebase_id_token>
+        Content-Type: multipart/form-data
+        
+        Request Body (multipart/form-data):
+        - file: Medical report file (PDF, JPG, PNG)
+        - assessment_type: Optional assessment type (lab_results, diagnosis, prescription, general)
+        
+        Response (201 Created):
+        {
+            "success": true,
+            "job_id": "550e8400-e29b-41d4-a716-446655440000",
+            "report_id": "660e8400-e29b-41d4-a716-446655440001",
+            "file_name": "lab_report.pdf",
+            "file_size": 245678,
+            "upload_timestamp": "2026-02-17T12:00:00Z",
+            "status": "processing",
+            "estimated_completion_seconds": 8
+        }
+        
+        Error Responses:
+        - 400: Invalid file format or validation failed
+        - 401: Authentication failed
+        - 413: File too large
+        - 429: Rate limit exceeded
+        - 500: Upload or processing failed
+        """
+        try:
+            from api.file_storage import FileStorageService
+            from api.extraction_jobs import ExtractionJobManager
+            from agents.enhanced_extraction import EnhancedExtractionAgent
+            
+            # Extract user_id from authenticated Firebase user
+            user_id = request.user.uid
+            
+            logger.info(f"Report upload request from user: {user_id}")
+            
+            # Validate file is present
+            if 'file' not in request.FILES:
+                return Response(
+                    {
+                        "success": False,
+                        "error_code": "missing_file",
+                        "message": "No file provided",
+                        "details": "Request must include a 'file' field"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            uploaded_file = request.FILES['file']
+            assessment_type = request.data.get('assessment_type', 'general')
+            
+            # Initialize services
+            file_storage = FileStorageService()
+            job_manager = ExtractionJobManager()
+            
+            # Step 1: Validate file
+            validation_result = file_storage.validate_file(uploaded_file)
+            if not validation_result.valid:
+                logger.warning(f"File validation failed for user {user_id}: {validation_result.errors}")
+                
+                # Determine appropriate status code
+                error_message = validation_result.errors[0] if validation_result.errors else "File validation failed"
+                if "exceeds maximum" in error_message:
+                    status_code = status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+                    error_code = "file_too_large"
+                else:
+                    status_code = status.HTTP_400_BAD_REQUEST
+                    error_code = "invalid_format"
+                
+                return Response(
+                    {
+                        "success": False,
+                        "error_code": error_code,
+                        "message": "File validation failed",
+                        "details": ", ".join(validation_result.errors)
+                    },
+                    status=status_code
+                )
+            
+            # Step 2: Upload file to Firebase Storage
+            try:
+                upload_result = file_storage.upload_file(uploaded_file, user_id)
+                report_id = upload_result['report_id']
+                file_name = upload_result['file_name']
+                file_size = upload_result['file_size']
+                file_type = upload_result['content_type']
+                storage_path = upload_result['storage_path']
+                
+                logger.info(f"File uploaded successfully: {report_id}, size: {file_size} bytes")
+                
+            except ValueError as e:
+                # Validation error from upload_file
+                logger.error(f"File upload validation error: {e}")
+                return Response(
+                    {
+                        "success": False,
+                        "error_code": "validation_error",
+                        "message": str(e),
+                        "details": str(e)
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            except Exception as e:
+                # Storage error
+                logger.error(f"File upload failed: {e}")
+                return Response(
+                    {
+                        "success": False,
+                        "error_code": "upload_failed",
+                        "message": "Failed to upload file",
+                        "details": str(e)
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+            # Step 3: Create extraction job
+            try:
+                job_id = job_manager.create_job(report_id, user_id)
+                logger.info(f"Extraction job created: {job_id}")
+                
+            except Exception as e:
+                logger.error(f"Failed to create extraction job: {e}")
+                # Clean up uploaded file
+                try:
+                    file_storage.delete_file(report_id, user_id)
+                except:
+                    pass
+                
+                return Response(
+                    {
+                        "success": False,
+                        "error_code": "job_creation_failed",
+                        "message": "Failed to create extraction job",
+                        "details": str(e)
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+            # Step 4: Store report metadata
+            try:
+                job_manager.store_report_metadata(
+                    report_id=report_id,
+                    user_id=user_id,
+                    file_name=file_name,
+                    file_size=file_size,
+                    file_type=file_type,
+                    storage_path=storage_path,
+                    extraction_job_id=job_id
+                )
+                logger.info(f"Report metadata stored: {report_id}")
+                
+            except Exception as e:
+                logger.error(f"Failed to store report metadata: {e}")
+                # Continue anyway - metadata can be reconstructed
+            
+            # Step 5: Trigger async extraction (simplified - in production would use Celery)
+            # For now, we'll update job status to processing and trigger extraction synchronously
+            try:
+                job_manager.update_job_status(job_id, 'processing', progress=10)
+                
+                # Trigger extraction in background (simplified)
+                # In production, this would be: extract_medical_data_task.delay(job_id, report_id, user_id, file_type)
+                extraction_agent = EnhancedExtractionAgent()
+                
+                # Get file stream
+                file_stream = file_storage.get_file_stream(report_id, user_id)
+                
+                # Extract data
+                extraction_result = extraction_agent.extract_from_report(file_stream, file_type)
+                
+                if extraction_result['success']:
+                    # Mark job complete
+                    job_manager.mark_job_complete(
+                        job_id,
+                        extraction_result['extracted_data'],
+                        extraction_result['metadata']
+                    )
+                    logger.info(f"Extraction completed successfully: {job_id}")
+                else:
+                    # Mark job failed
+                    job_manager.mark_job_failed(
+                        job_id,
+                        extraction_result.get('error_code', 'extraction_failed'),
+                        extraction_result.get('message', 'Extraction failed'),
+                        extraction_result.get('extracted_data')
+                    )
+                    logger.warning(f"Extraction failed: {job_id}")
+                
+            except Exception as e:
+                logger.error(f"Extraction trigger failed: {e}")
+                # Mark job as failed
+                try:
+                    job_manager.mark_job_failed(
+                        job_id,
+                        'extraction_trigger_failed',
+                        f"Failed to trigger extraction: {str(e)}"
+                    )
+                except:
+                    pass
+            
+            # Step 6: Return response
+            upload_timestamp = datetime.utcnow().isoformat() + 'Z'
+            
+            response_data = {
+                "success": True,
+                "job_id": job_id,
+                "report_id": report_id,
+                "file_name": file_name,
+                "file_size": file_size,
+                "upload_timestamp": upload_timestamp,
+                "status": "processing",
+                "estimated_completion_seconds": 8
+            }
+            
+            logger.info(f"Report upload successful for user {user_id}: {report_id}")
+            
+            return Response(response_data, status=status.HTTP_201_CREATED)
+        
+        except AuthenticationFailed as e:
+            return APIErrorHandler.handle_authentication_error(e, logger)
+        
+        except PermissionDenied as e:
+            return APIErrorHandler.handle_permission_error(e, logger)
+        
+        except Throttled as e:
+            RateLimitExceededLogger.log_rate_limit_exceeded(
+                request,
+                e.__class__.__name__,
+                e.wait
+            )
+            return APIErrorHandler.handle_rate_limit_error(e, logger)
+        
+        except Exception as e:
+            logger.error(f"Unexpected error in report upload for user {request.user.uid if hasattr(request.user, 'uid') else 'unknown'}: {str(e)}", exc_info=True)
+            return APIErrorHandler.handle_internal_error(e, logger)
+
+
+
+class ExtractionStatusView(APIView):
+    """
+    Extraction status endpoint.
+    
+    GET: Check extraction job status and retrieve results
+    
+    Requires Firebase authentication.
+    Validates: Requirements 10.3, 10.4
+    """
+    
+    authentication_classes = [FirebaseAuthentication]
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [
+        HealthAnalysisRateThrottle,  # 100/hour
+    ]
+    parser_classes = [JSONParser]
+    
+    @extend_schema(
+        tags=['Medical Reports'],
+        summary='Get extraction job status',
+        description='''
+        Check the status of a medical report extraction job and retrieve results when complete.
+        
+        The extraction process is asynchronous. Poll this endpoint to check progress and
+        retrieve extracted medical data when processing is complete.
+        
+        **Authentication Required**: Firebase ID token
+        
+        **Status Values**:
+        - processing: Extraction in progress
+        - complete: Extraction finished successfully
+        - failed: Extraction failed with error details
+        
+        **Rate Limits**:
+        - 100 requests per hour (authenticated users)
+        ''',
+        parameters=[
+            OpenApiParameter(
+                name='job_id',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+                description='Extraction job ID (UUID)',
+                required=True
+            )
+        ],
+        responses={
+            200: OpenApiExample(
+                'Processing Status',
+                value={
+                    "job_id": "550e8400-e29b-41d4-a716-446655440000",
+                    "status": "processing",
+                    "progress_percent": 65,
+                    "message": "Extracting medical data from report..."
+                },
+                response_only=True
+            ),
+            200: OpenApiExample(
+                'Complete Status',
+                value={
+                    "job_id": "550e8400-e29b-41d4-a716-446655440000",
+                    "status": "complete",
+                    "extracted_data": {
+                        "symptoms": ["fever", "cough", "fatigue"],
+                        "vitals": {
+                            "blood_pressure": "120/80",
+                            "heart_rate": 72,
+                            "temperature": 37.2,
+                            "weight": 70.5,
+                            "height": 175.0
+                        },
+                        "lab_results": [
+                            {
+                                "test_name": "Glucose",
+                                "value": 95.0,
+                                "unit": "mg/dL",
+                                "reference_range": "70-100",
+                                "date": "2026-02-15"
+                            }
+                        ],
+                        "medications": [
+                            {
+                                "name": "Metformin",
+                                "dosage": "500mg",
+                                "frequency": "twice daily",
+                                "start_date": "2026-01-10"
+                            }
+                        ],
+                        "diagnoses": [
+                            {
+                                "condition": "Type 2 Diabetes",
+                                "icd_code": "E11",
+                                "date": "2026-01-10",
+                                "status": "active"
+                            }
+                        ],
+                        "confidence_scores": {
+                            "overall": 0.85,
+                            "symptoms": 0.90,
+                            "vitals": 0.88,
+                            "lab_results": 0.92,
+                            "medications": 0.85,
+                            "diagnoses": 0.80
+                        }
+                    },
+                    "extraction_metadata": {
+                        "extraction_time_seconds": 7.2,
+                        "ocr_used": False,
+                        "pages_processed": 3,
+                        "gemini_model": "gemini-1.5-flash"
+                    }
+                },
+                response_only=True
+            ),
+            200: OpenApiExample(
+                'Failed Status',
+                value={
+                    "job_id": "550e8400-e29b-41d4-a716-446655440000",
+                    "status": "failed",
+                    "error_code": "unreadable",
+                    "message": "Unable to extract text from report. File may be corrupted or password-protected.",
+                    "partial_data": {}
+                },
+                response_only=True
+            ),
+            401: OpenApiExample(
+                'Authentication Failed',
+                value={
+                    "error": "authentication_error",
+                    "message": "Authentication failed",
+                    "details": "Invalid or expired Firebase ID token",
+                    "status_code": 401
+                },
+                response_only=True
+            ),
+            403: OpenApiExample(
+                'Permission Denied',
+                value={
+                    "error": "permission_error",
+                    "message": "Permission denied",
+                    "details": "You do not have access to this extraction job",
+                    "status_code": 403
+                },
+                response_only=True
+            ),
+            404: OpenApiExample(
+                'Job Not Found',
+                value={
+                    "error": "not_found",
+                    "message": "Resource not found",
+                    "details": "Extraction job not found: 550e8400-e29b-41d4-a716-446655440000",
+                    "status_code": 404
+                },
+                response_only=True
+            ),
+            500: OpenApiExample(
+                'Internal Server Error',
+                value={
+                    "error": "internal_server_error",
+                    "message": "An unexpected error occurred",
+                    "details": "Failed to retrieve job status",
+                    "status_code": 500
+                },
+                response_only=True
+            )
+        }
+    )
+    def get(self, request, job_id):
+        """
+        GET /api/reports/extract/{job_id}/
+        
+        Check extraction job status and retrieve results.
+        
+        Headers:
+        Authorization: Bearer <firebase_id_token>
+        
+        Path Parameters:
+        - job_id: Extraction job ID (UUID)
+        
+        Response (200 OK - Processing):
+        {
+            "job_id": "550e8400-e29b-41d4-a716-446655440000",
+            "status": "processing",
+            "progress_percent": 65,
+            "message": "Extracting medical data from report..."
+        }
+        
+        Response (200 OK - Complete):
+        {
+            "job_id": "550e8400-e29b-41d4-a716-446655440000",
+            "status": "complete",
+            "extracted_data": {
+                "symptoms": [...],
+                "vitals": {...},
+                "lab_results": [...],
+                "medications": [...],
+                "diagnoses": [...],
+                "confidence_scores": {...}
+            },
+            "extraction_metadata": {
+                "extraction_time_seconds": 7.2,
+                "ocr_used": false,
+                "pages_processed": 3,
+                "gemini_model": "gemini-1.5-flash"
+            }
+        }
+        
+        Response (200 OK - Failed):
+        {
+            "job_id": "550e8400-e29b-41d4-a716-446655440000",
+            "status": "failed",
+            "error_code": "unreadable",
+            "message": "Unable to extract text from report",
+            "partial_data": {}
+        }
+        
+        Error Responses:
+        - 401: Authentication failed
+        - 403: Permission denied (not job owner)
+        - 404: Job not found
+        - 429: Rate limit exceeded
+        - 500: Internal server error
+        """
+        try:
+            from api.extraction_jobs import ExtractionJobManager
+            
+            # Extract user_id from authenticated Firebase user
+            user_id = request.user.uid
+            
+            logger.info(f"Extraction status request from user: {user_id}, job_id: {job_id}")
+            
+            # Initialize job manager
+            job_manager = ExtractionJobManager()
+            
+            # Step 1: Retrieve job status
+            try:
+                job_data = job_manager.get_job_status(job_id)
+                
+            except ValueError as e:
+                # Job not found
+                logger.warning(f"Job not found: {job_id}")
+                return APIErrorHandler.handle_not_found_error(
+                    f"Extraction job not found: {job_id}",
+                    logger
+                )
+            except Exception as e:
+                logger.error(f"Failed to retrieve job status: {e}")
+                return APIErrorHandler.handle_internal_error(e, logger)
+            
+            # Step 2: Verify user has access to this job
+            job_user_id = job_data.get('user_id')
+            if job_user_id != user_id:
+                logger.warning(f"User {user_id} attempted to access job {job_id} owned by {job_user_id}")
+                return APIErrorHandler.handle_permission_error(
+                    "You do not have access to this extraction job",
+                    logger
+                )
+            
+            # Step 3: Format response based on job status
+            job_status = job_data.get('status')
+            
+            if job_status == 'processing' or job_status == 'pending':
+                # Return processing status
+                response_data = {
+                    "job_id": job_id,
+                    "status": "processing",
+                    "progress_percent": job_data.get('progress_percent', 0),
+                    "message": self._get_status_message(job_data.get('progress_percent', 0))
+                }
+                
+                logger.debug(f"Job {job_id} is processing: {job_data.get('progress_percent', 0)}%")
+                
+                return Response(response_data, status=status.HTTP_200_OK)
+            
+            elif job_status == 'complete':
+                # Return complete status with extracted data
+                extracted_data = job_data.get('extracted_data', {})
+                extraction_metadata = job_data.get('extraction_metadata', {})
+                
+                response_data = {
+                    "job_id": job_id,
+                    "status": "complete",
+                    "extracted_data": extracted_data,
+                    "extraction_metadata": extraction_metadata
+                }
+                
+                logger.info(f"Job {job_id} completed successfully")
+                
+                return Response(response_data, status=status.HTTP_200_OK)
+            
+            elif job_status == 'failed':
+                # Return failed status with error details
+                error_info = job_data.get('error_info', {})
+                partial_data = job_data.get('extracted_data', {})
+                
+                response_data = {
+                    "job_id": job_id,
+                    "status": "failed",
+                    "error_code": error_info.get('error_code', 'unknown_error'),
+                    "message": error_info.get('message', 'Extraction failed'),
+                    "partial_data": partial_data
+                }
+                
+                logger.warning(f"Job {job_id} failed: {error_info.get('error_code')}")
+                
+                return Response(response_data, status=status.HTTP_200_OK)
+            
+            else:
+                # Unknown status
+                logger.error(f"Unknown job status: {job_status} for job {job_id}")
+                return Response(
+                    {
+                        "job_id": job_id,
+                        "status": "unknown",
+                        "message": f"Unknown job status: {job_status}"
+                    },
+                    status=status.HTTP_200_OK
+                )
+        
+        except AuthenticationFailed as e:
+            return APIErrorHandler.handle_authentication_error(e, logger)
+        
+        except PermissionDenied as e:
+            return APIErrorHandler.handle_permission_error(e, logger)
+        
+        except Throttled as e:
+            RateLimitExceededLogger.log_rate_limit_exceeded(
+                request,
+                e.__class__.__name__,
+                e.wait
+            )
+            return APIErrorHandler.handle_rate_limit_error(e, logger)
+        
+        except Exception as e:
+            logger.error(f"Unexpected error in extraction status for user {request.user.uid if hasattr(request.user, 'uid') else 'unknown'}: {str(e)}", exc_info=True)
+            return APIErrorHandler.handle_internal_error(e, logger)
+    
+    def _get_status_message(self, progress_percent: int) -> str:
+        """
+        Get human-readable status message based on progress.
+        
+        Args:
+            progress_percent: Progress percentage (0-100)
+            
+        Returns:
+            Status message string
+        """
+        if progress_percent < 20:
+            return "Initializing extraction process..."
+        elif progress_percent < 40:
+            return "Reading report content..."
+        elif progress_percent < 60:
+            return "Extracting medical data..."
+        elif progress_percent < 80:
+            return "Validating extracted data..."
+        elif progress_percent < 100:
+            return "Finalizing extraction..."
+        else:
+            return "Processing complete"
+
+
+
+class ReportMetadataView(APIView):
+    """
+    Report metadata endpoint.
+    
+    GET: Retrieve report metadata and download URL
+    
+    Requires Firebase authentication.
+    Validates: Requirements 2.4, 10.5
+    """
+    
+    authentication_classes = [FirebaseAuthentication]
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [
+        HealthAnalysisRateThrottle,  # 100/hour
+    ]
+    parser_classes = [JSONParser]
+    
+    @extend_schema(
+        tags=['Medical Reports'],
+        summary='Get report metadata',
+        description='''
+        Retrieve metadata for a medical report and generate a signed download URL.
+        
+        Returns information about the uploaded report including file details,
+        upload timestamp, and a temporary signed URL for downloading the file.
+        
+        **Authentication Required**: Firebase ID token
+        
+        **Authorization**: Users can only access their own reports
+        
+        **Download URL**: Signed URL expires in 1 hour
+        
+        **Rate Limits**:
+        - 100 requests per hour (authenticated users)
+        ''',
+        parameters=[
+            OpenApiParameter(
+                name='report_id',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.PATH,
+                description='Report ID (UUID)',
+                required=True
+            )
+        ],
+        responses={
+            200: OpenApiExample(
+                'Report Metadata',
+                value={
+                    "report_id": "660e8400-e29b-41d4-a716-446655440001",
+                    "user_id": "firebase_user_123",
+                    "file_name": "lab_report.pdf",
+                    "file_size": 245678,
+                    "file_type": "application/pdf",
+                    "upload_timestamp": "2026-02-17T12:00:00Z",
+                    "download_url": "https://storage.googleapis.com/...",
+                    "extraction_job_id": "550e8400-e29b-41d4-a716-446655440000",
+                    "associated_assessment_id": "770e8400-e29b-41d4-a716-446655440002"
+                },
+                response_only=True
+            ),
+            401: OpenApiExample(
+                'Authentication Failed',
+                value={
+                    "error": "authentication_error",
+                    "message": "Authentication failed",
+                    "details": "Invalid or expired Firebase ID token",
+                    "status_code": 401
+                },
+                response_only=True
+            ),
+            403: OpenApiExample(
+                'Permission Denied',
+                value={
+                    "error": "permission_error",
+                    "message": "Permission denied",
+                    "details": "You do not have access to this report",
+                    "status_code": 403
+                },
+                response_only=True
+            ),
+            404: OpenApiExample(
+                'Report Not Found',
+                value={
+                    "error": "not_found",
+                    "message": "Resource not found",
+                    "details": "Report not found: 660e8400-e29b-41d4-a716-446655440001",
+                    "status_code": 404
+                },
+                response_only=True
+            ),
+            500: OpenApiExample(
+                'Internal Server Error',
+                value={
+                    "error": "internal_server_error",
+                    "message": "An unexpected error occurred",
+                    "details": "Failed to retrieve report metadata",
+                    "status_code": 500
+                },
+                response_only=True
+            )
+        }
+    )
+    def get(self, request, report_id):
+        """
+        GET /api/reports/{report_id}/
+        
+        Retrieve report metadata and download URL.
+        
+        Headers:
+        Authorization: Bearer <firebase_id_token>
+        
+        Path Parameters:
+        - report_id: Report ID (UUID)
+        
+        Response (200 OK):
+        {
+            "report_id": "660e8400-e29b-41d4-a716-446655440001",
+            "user_id": "firebase_user_123",
+            "file_name": "lab_report.pdf",
+            "file_size": 245678,
+            "file_type": "application/pdf",
+            "upload_timestamp": "2026-02-17T12:00:00Z",
+            "download_url": "https://storage.googleapis.com/...",
+            "extraction_job_id": "550e8400-e29b-41d4-a716-446655440000",
+            "associated_assessment_id": "770e8400-e29b-41d4-a716-446655440002"
+        }
+        
+        Error Responses:
+        - 401: Authentication failed
+        - 403: Permission denied (not report owner)
+        - 404: Report not found
+        - 429: Rate limit exceeded
+        - 500: Internal server error
+        """
+        try:
+            from api.extraction_jobs import ExtractionJobManager
+            from api.file_storage import FileStorageService
+            
+            # Extract user_id from authenticated Firebase user
+            user_id = request.user.uid
+            
+            logger.info(f"Report metadata request from user: {user_id}, report_id: {report_id}")
+            
+            # Initialize services
+            job_manager = ExtractionJobManager()
+            file_storage = FileStorageService()
+            
+            # Step 1: Retrieve report metadata from Firestore
+            try:
+                report_data = job_manager.get_report_metadata(report_id)
+                
+            except ValueError as e:
+                # Report not found
+                logger.warning(f"Report not found: {report_id}")
+                return APIErrorHandler.handle_not_found_error(
+                    f"Report not found: {report_id}",
+                    logger
+                )
+            except Exception as e:
+                logger.error(f"Failed to retrieve report metadata: {e}")
+                return APIErrorHandler.handle_internal_error(e, logger)
+            
+            # Step 2: Verify user has access to this report (authorization check)
+            report_user_id = report_data.get('user_id')
+            if report_user_id != user_id:
+                logger.warning(f"User {user_id} attempted to access report {report_id} owned by {report_user_id}")
+                return APIErrorHandler.handle_permission_error(
+                    "You do not have access to this report",
+                    logger
+                )
+            
+            # Step 3: Generate signed download URL
+            try:
+                download_url = file_storage.get_file_url(
+                    report_id=report_id,
+                    user_id=user_id,
+                    expiration_minutes=60
+                )
+                
+                logger.info(f"Generated download URL for report: {report_id}")
+                
+            except FileNotFoundError as e:
+                logger.error(f"File not found in storage for report {report_id}: {e}")
+                return APIErrorHandler.handle_not_found_error(
+                    f"Report file not found in storage: {report_id}",
+                    logger
+                )
+            except Exception as e:
+                logger.error(f"Failed to generate download URL: {e}")
+                return APIErrorHandler.handle_internal_error(e, logger)
+            
+            # Step 4: Format response
+            response_data = {
+                "report_id": report_id,
+                "user_id": report_data.get('user_id'),
+                "file_name": report_data.get('file_name'),
+                "file_size": report_data.get('file_size'),
+                "file_type": report_data.get('file_type'),
+                "upload_timestamp": report_data.get('upload_timestamp'),
+                "download_url": download_url,
+                "extraction_job_id": report_data.get('extraction_job_id'),
+                "associated_assessment_id": report_data.get('associated_assessment_id')
+            }
+            
+            logger.info(f"Report metadata retrieved successfully for user {user_id}: {report_id}")
+            
+            return Response(response_data, status=status.HTTP_200_OK)
+        
+        except AuthenticationFailed as e:
+            return APIErrorHandler.handle_authentication_error(e, logger)
+        
+        except PermissionDenied as e:
+            return APIErrorHandler.handle_permission_error(e, logger)
+        
+        except Throttled as e:
+            RateLimitExceededLogger.log_rate_limit_exceeded(
+                request,
+                e.__class__.__name__,
+                e.wait
+            )
+            return APIErrorHandler.handle_rate_limit_error(e, logger)
+        
+        except Exception as e:
+            logger.error(f"Unexpected error in report metadata for user {request.user.uid if hasattr(request.user, 'uid') else 'unknown'}: {str(e)}", exc_info=True)
+            return APIErrorHandler.handle_internal_error(e, logger)

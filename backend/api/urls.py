@@ -16,14 +16,19 @@ from .views import (
     UserProfileAPIView,
     UserStatisticsAPIView,
     AssessmentHistoryAPIView,
-    AssessmentDetailAPIView
+    AssessmentDetailAPIView,
+    ReportUploadView,
+    ExtractionStatusView,
+    ReportMetadataView
 )
 from .new_views import (
     MedicalHistoryAPIView,
     AssessmentExportAPIView,
     ReportUploadAPIView,
+    ReportUploadAPIView,
     ReportParseAPIView
 )
+from prediction.views import SymptomPredictionView
 
 app_name = 'api'
 
@@ -63,7 +68,12 @@ urlpatterns = [
     path('user/assessments/<str:assessment_id>/export/', AssessmentExportAPIView.as_view(), name='assessment-export'),
     
     # Report Upload and Parsing endpoints
-    path('reports/upload/', ReportUploadAPIView.as_view(), name='report-upload'),
+    path('reports/upload/', ReportUploadView.as_view(), name='report-upload'),
+    path('reports/extract/<str:job_id>/', ExtractionStatusView.as_view(), name='extraction-status'),
+    path('reports/<str:report_id>/', ReportMetadataView.as_view(), name='report-metadata'),
     path('reports/parse/', ReportParseAPIView.as_view(), name='report-parse'),
+
+    # Symptom Prediction
+    path('predict/symptoms/', SymptomPredictionView.as_view(), name='predict-symptoms'),
 ]
 

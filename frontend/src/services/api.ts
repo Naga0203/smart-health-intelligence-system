@@ -7,7 +7,7 @@ import { getCsrfToken, requiresCsrfProtection } from '@/utils/csrf';
 import { tokenStorage } from '@/utils/secureStorage';
 
 class APIService {
-  private client: AxiosInstance;
+  public client: AxiosInstance;
   private isRefreshing: boolean;
   private failedQueue: any[];
 
@@ -265,6 +265,16 @@ class APIService {
       age,
       gender,
       n,
+    });
+    return response.data;
+  }
+
+  /**
+   * POST /api/predict/symptoms/ - Get symptom-based disease predictions
+   */
+  async predictSymptoms(symptoms: string[] | string) {
+    const response = await this.client.post('/api/predict/symptoms/', {
+      symptoms,
     });
     return response.data;
   }
