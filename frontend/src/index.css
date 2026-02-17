@@ -1,28 +1,127 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* ============================================================================
    Global Styles and CSS Reset - Mobile-First Approach
    Includes smooth animations and transitions for enhanced UX
    ============================================================================ */
 
+/* 🌞 Light Theme (Default) */
 :root {
-  /* Primary Gradient */
-  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  
-  /* Secondary Gradient */
-  --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  
-  /* Accent Gradient */
-  --gradient-accent: linear-gradient(90deg, #06b6d4 0%, #10b981 100%);
-  
-  /* Text Gradient */
-  --gradient-text: linear-gradient(90deg, #667eea 0%, #764ba2 50%, #f5576c 100%);
-  
-  /* Solid Colors */
-  --color-primary: #667eea;
-  --color-secondary: #f093fb;
-  --color-success: #10b981;
-  --color-info: #06b6d4;
-  --color-warning: #f59e0b;
-  --color-error: #ef4444;
+  /* =====================
+     BRAND
+  ====================== */
+  --primary-50: #EAF6FB;
+  --primary-100: #E6F0FF;
+  --primary-200: #56CCF2;
+  --primary-400: #2D9CDB;
+  --primary-500: #2F80ED;
+  --primary-600: #2563EB;
+
+  /* =====================
+     STATUS
+  ====================== */
+  --success: #27AE60;
+  --warning: #F2994A;
+  --danger: #EB5757;
+  --info: #56CCF2;
+
+  /* =====================
+     RISK
+  ====================== */
+  --risk-high: #EB5757;
+  --risk-moderate: #F2994A;
+  --risk-low: #27AE60;
+
+  /* =====================
+     BACKGROUNDS
+  ====================== */
+  --bg-app: #F5F7FA;
+  --bg-soft: #F7F9FC;
+  --bg-card: #FFFFFF;
+
+  /* =====================
+     TEXT
+  ====================== */
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
+  --text-muted: #64748B;
+
+  /* =====================
+     BORDERS
+  ====================== */
+  --border: #E5E7EB;
+  --border-soft: #E2E8F0;
+
+  /* =====================
+     SURFACE STATES
+  ====================== */
+  --surface-info: #E8F1FF;
+  --surface-warning: #FFF8E1;
+  --surface-disclaimer: #FFF3CD;
+
+  /* Legacy Compatibility & Gradients */
+  --color-primary: var(--primary-500);
+  --color-secondary: #9B51E0;
+  /* Kept for legacy */
+  --color-error: var(--danger);
+
+  --gradient-primary: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%);
+  --gradient-secondary: linear-gradient(135deg, #9B51E0 0%, #805AD5 100%);
+  --gradient-accent: linear-gradient(90deg, #56CCF2 0%, var(--primary-500) 100%);
+  --gradient-text: linear-gradient(90deg, var(--primary-500) 0%, #9B51E0 100%);
+}
+
+/* 🌙 Dark Theme */
+.dark {
+  /* =====================
+     BACKGROUNDS
+  ====================== */
+  --bg-app: #0F172A;
+  /* Deep slate */
+  --bg-soft: #1E293B;
+  /* Elevated surface */
+  --bg-card: #111827;
+  /* Card background */
+
+  /* =====================
+     TEXT
+  ====================== */
+  --text-primary: #F8FAFC;
+  --text-secondary: #CBD5E1;
+  --text-muted: #94A3B8;
+
+  /* =====================
+     BORDERS
+  ====================== */
+  --border: #334155;
+  --border-soft: #1E293B;
+
+  /* =====================
+     STATUS (Slightly adjusted for contrast)
+  ====================== */
+  --success: #22C55E;
+  --warning: #F59E0B;
+  --danger: #F87171;
+  --info: #38BDF8;
+
+  /* =====================
+     RISK COLORS
+  ====================== */
+  --risk-high: #F87171;
+  --risk-moderate: #FBBF24;
+  --risk-low: #4ADE80;
+
+  /* =====================
+     SURFACE STATES
+  ====================== */
+  --surface-info: rgba(56, 189, 248, 0.15);
+  --surface-warning: rgba(245, 158, 11, 0.15);
+  --surface-disclaimer: rgba(251, 191, 36, 0.15);
+
+  /* Legacy Compatibility */
+  --color-primary: var(--primary-500);
 }
 
 /* CSS Reset */
@@ -53,10 +152,11 @@ body {
     'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans',
     'Helvetica Neue', sans-serif;
   line-height: 1.5;
-  color: #1F2937;
-  background-color: #F9FAFB;
+  color: var(--text-primary);
+  background-color: var(--bg-app);
   overflow-x: hidden;
   height: auto;
+  transition: color 0.3s, background-color 0.3s;
 }
 
 /* Remove default list styles */
@@ -73,11 +173,11 @@ a {
 }
 
 a:hover {
-  color: #4A90E2;
+  color: var(--primary-400);
 }
 
 /* Remove default button styles */
-button {
+button:not(.MuiButtonBase-root) {
   border: none;
   background: none;
   font-family: inherit;
@@ -215,7 +315,7 @@ h6 {
 
 /* Focus visible styles for accessibility */
 :focus-visible {
-  outline: 2px solid #4A90E2;
+  outline: 2px solid var(--primary-400);
   outline-offset: 2px;
 }
 
@@ -225,7 +325,7 @@ a:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-  outline: 2px solid #4A90E2;
+  outline: 2px solid var(--primary-400);
   outline-offset: 2px;
 }
 
@@ -308,7 +408,175 @@ select:focus-visible {
   }
 }
 
-/* Dark mode support (optional - can be extended later) */
-@media (prefers-color-scheme: dark) {
-  /* Add dark mode styles if needed */
+/* ============================================================================
+   Accessible Modal Styles
+   ============================================================================ */
+
+:root {
+  --shadow-soft: 0 20px 40px rgba(0, 0, 0, 0.08);
+}
+
+/* Button Styles */
+.btn-ghost {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-weight: 500;
+  padding: 8px 16px;
+  /* Added padding for better hit area */
+  border-radius: 8px;
+  transition: background 0.2s ease;
+}
+
+.btn-ghost:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.dark .btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.btn-secondary {
+  background: #F3F4F6;
+  color: #111827;
+  border: 1px solid var(--border);
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s ease;
+}
+
+.dark .btn-secondary {
+  background: #1E293B;
+  color: #F8FAFC;
+  border-color: #334155;
+}
+
+.btn-secondary:hover {
+  background: #E5E7EB;
+}
+
+.dark .btn-secondary:hover {
+  background: #334155;
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.btn-danger:hover {
+  background: #d64545;
+  transform: translateY(-1px);
+}
+
+.btn-danger:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Modal */
+.modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  z-index: 1000;
+}
+
+.modal.active {
+  visibility: visible;
+  opacity: 1;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  position: relative;
+  background: var(--bg-card);
+  padding: 2rem;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 420px;
+  box-shadow: var(--shadow-soft);
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  transform: scale(0.95);
+  opacity: 0;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.modal.active .modal-content {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.modal-icon {
+  color: var(--danger);
+  margin-bottom: 1rem;
+  background: rgba(235, 87, 87, 0.1);
+  /* Subtle red background */
+  padding: 12px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.modal-content p {
+  margin-top: 0.75rem;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.modal-actions {
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  width: 100%;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .modal-content {
+    padding: 1.5rem;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+
+  .modal,
+  .modal-content {
+    transition: none;
+  }
 }

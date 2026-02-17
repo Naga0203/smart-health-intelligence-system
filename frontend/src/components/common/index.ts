@@ -11,3 +11,4 @@ export { CriticalErrorModal } from './CriticalErrorModal';
 export { DataQualityAlert } from './DataQualityAlert';
 export { ConfidenceWarning } from './ConfidenceWarning';
 export { SessionMonitor } from './SessionMonitor';
+export { LogoutModal } from './LogoutModal';

@@ -19,46 +19,47 @@ const breakpoints = {
 // Modern gradient-rich color palette with medical professionalism
 const palette = {
   primary: {
-    main: '#667eea',
-    light: '#8b9cf9',
-    dark: '#4c5ec7',
+    main: '#2F80ED',   // Primary Blue (Buttons / Progress / Highlights)
+    light: '#56CCF2',  // Light Blue Accent
+    dark: '#2563EB',   // Darker Blue (Hover)
   },
   secondary: {
-    main: '#f093fb',
-    light: '#f5b4fc',
-    dark: '#e66bf7',
+    main: '#9B51E0',   // Homeopathy Purple
+    light: '#D6BCFA',
+    dark: '#805AD5',
   },
   background: {
-    default: '#f8fafc',
-    paper: '#FFFFFF',
+    default: '#F5F7FA', // Neutral Background
+    paper: '#FFFFFF',   // Card BG
   },
   text: {
-    primary: '#1f2937',
-    secondary: '#64748b',
-    disabled: '#94a3b8',
+    primary: '#111827', // Primary Text
+    secondary: '#6B7280', // Secondary Text
+    disabled: '#9CA3AF',
   },
   success: {
-    main: '#10b981',
+    main: '#27AE60',   // Success Green / Ayurveda
   },
   info: {
-    main: '#06b6d4',
+    main: '#56CCF2',   // Light Blue Accent / Info Banner
   },
   warning: {
-    main: '#f59e0b',
+    main: '#F2994A',   // Moderate Risk / Lifestyle Orange
+    light: '#F2C94C',  // Yellow Driver / Info Banner Yellow
   },
   error: {
-    main: '#ef4444',
+    main: '#EB5757',   // Error Red / High Risk / Heart Vitals
   },
   // Custom gradient colors
   gradient: {
-    primary: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    secondary: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-    success: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
-    info: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-    warm: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-    cool: 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)',
-    sunset: 'linear-gradient(135deg, #ff6b6b 0%, #feca57 100%)',
-    ocean: 'linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%)',
+    primary: 'linear-gradient(135deg, #2F80ED 0%, #2563EB 100%)', // Blue Gradient
+    secondary: 'linear-gradient(135deg, #9B51E0 0%, #805AD5 100%)', // Purple Gradient
+    success: 'linear-gradient(135deg, #27AE60 0%, #2ECC71 100%)', // Green Gradient
+    info: 'linear-gradient(135deg, #1FA2FF 0%, #12D8FA 100%)', // Signup CTA Gradient
+    warm: 'linear-gradient(135deg, #F2994A 0%, #F2C94C 100%)', // Orange/Yellow Gradient
+    cool: 'linear-gradient(135deg, #56CCF2 0%, #2F80ED 100%)', // Light to Dark Blue
+    sunset: 'linear-gradient(135deg, #EB5757 0%, #F2994A 100%)', // Red to Orange
+    ocean: 'linear-gradient(180deg, #EAF6FB 0%, #F5FBFF 100%)', // Hero Background Gradient
   },
 };
 
@@ -167,29 +168,40 @@ const components = {
   MuiButton: {
     styleOverrides: {
       root: {
-        borderRadius: '12px',
+        borderRadius: '8px', // Slightly sharper for modern feel
         padding: '10px 20px',
         fontWeight: 600,
         boxShadow: 'none',
-        transition: 'all 0.3s ease',
+        textTransform: 'none',
+        transition: 'all 0.2s ease-in-out',
         '@media (min-width:768px)': {
           padding: '12px 24px',
         },
         '&:hover': {
-          transform: 'translateY(-2px)',
-          boxShadow: '0 10px 20px rgba(0,0,0,0.1)',
+          transform: 'translateY(-1px)',
+          boxShadow: '0 4px 12px rgba(47, 128, 237, 0.25)', // Blue shadow
         },
       },
       contained: {
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: '#2F80ED', // Primary Blue
+        color: '#FFFFFF',
         '&:hover': {
-          background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)',
+          background: '#2563EB', // Darker Blue
+          boxShadow: '0 6px 16px rgba(47, 128, 237, 0.35)',
+        },
+      },
+      outlined: {
+        borderColor: '#2F80ED',
+        color: '#2F80ED',
+        '&:hover': {
+          backgroundColor: '#E8F1FF', // Soft Blue Accent background
+          borderColor: '#2563EB',
         },
       },
       sizeLarge: {
         padding: '14px 28px',
         fontSize: '1rem',
-        borderRadius: '14px',
+        borderRadius: '10px',
         '@media (min-width:768px)': {
           padding: '16px 32px',
           fontSize: '1.125rem',
