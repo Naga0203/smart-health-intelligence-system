@@ -1493,3 +1493,64 @@ Profile View (Updated)
 - [ ] Dependencies updated
 - [ ] Secrets secured
 
+
+
+---
+
+## 11. Performance Requirements
+
+### 11.1 Response Time Requirements
+
+| Operation | Target | Maximum | Priority |
+|-----------|--------|---------|----------|
+| Health Check | < 100ms | 200ms | P0 |
+| Page Load (First Paint) | < 1s | 2s | P0 |
+| Page Load (Interactive) | < 2s | 3s | P0 |
+| Profile Retrieval | < 500ms | 1s | P1 |
+| Assessment Submission | < 3s | 5s | P0 |
+| Assessment History | < 1s | 2s | P1 |
+| API Response (Simple) | < 200ms | 500ms | P1 |
+| API Response (AI) | < 3s | 5s | P0 |
+
+### 11.2 Throughput Requirements
+
+| Metric | Target | Notes |
+|--------|--------|-------|
+| Concurrent Users | 100+ | Simultaneous active users |
+| Requests per Second | 50+ | Peak load handling |
+| Assessments per Hour | 1000+ | System capacity |
+| Database Queries | < 100ms | 95th percentile |
+| Cache Hit Rate | > 80% | For cached endpoints |
+
+### 11.3 Scalability Requirements
+
+#### Horizontal Scaling
+- **Load Balancer**: Support multiple backend instances
+- **Stateless Backend**: No server-side sessions
+- **Database**: Firebase auto-scales
+- **Cache**: Redis cluster support
+
+#### Vertical Scaling
+- **CPU**: Efficient algorithm implementation
+- **Memory**: Optimized data structures
+- **Storage**: Efficient data models
+- **Network**: Minimal payload sizes
+
+### 11.4 Frontend Performance
+
+#### Bundle Size
+- **Initial Bundle**: < 500KB (gzipped)
+- **Lazy Loading**: Route-based code splitting
+- **Tree Shaking**: Remove unused code
+- **Compression**: Gzip/Brotli enabled
+
+#### Rendering Performance
+- **First Contentful Paint**: < 1.5s
+- **Largest Contentful Paint**: < 2.5s
+- **Time to Interactive**: < 3.5s
+- **Cumulative Layout Shift**: < 0.1
+- **First Input Delay**: < 100ms
+
+#### Optimization Techniques
+- Code splitting by route
+- Lazy loading of compone

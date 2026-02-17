@@ -1,20 +1,10 @@
-"""
-LangChain-based Validation Agent for AI Health Intelligence System
-
-This agent provides the first line of defense against incomplete or unsafe inputs
-using LangChain framework for enhanced agent capabilities.
-
-Validates: Requirements 1.2, 1.3, 1.5
-"""
-
 import re
-from typing import Dict, List, Any, Optional
-from datetime import datetime
 import logging
-from agents.base_agent import BaseHealthAgent
+from typing import Dict, Any, Optional, List
+from datetime import datetime
+from backend.agents.base_agent import BaseHealthAgent
 
-logger = logging.getLogger('health_ai.validation')
-
+logger_validation = logging.getLogger('health_ai.validation')
 
 class LangChainValidationAgent(BaseHealthAgent):
     """
@@ -65,7 +55,7 @@ class LangChainValidationAgent(BaseHealthAgent):
             Be specific about what the user should do to fix the issues."""
         )
         
-        logger.info("LangChain ValidationAgent initialized")
+        logger_validation.info("LangChain ValidationAgent initialized")
     
     def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -96,7 +86,7 @@ class LangChainValidationAgent(BaseHealthAgent):
             )
             
         except Exception as e:
-            logger.error(f"Validation processing error: {str(e)}")
+            logger_validation.error(f"Validation processing error: {str(e)}")
             return self.get_fallback_response(input_data)
     
     def validate_symptoms(self, user_input: Dict[str, Any]) -> Dict[str, Any]:
@@ -109,7 +99,7 @@ class LangChainValidationAgent(BaseHealthAgent):
         Returns:
             Dictionary with validation results and enhanced feedback
         """
-        logger.info(f"Validating symptoms input: {len(user_input)} fields provided")
+        logger_validation.info(f"Validating symptoms input: {len(user_input)} fields provided")
         
         try:
             # Check required fields
@@ -140,7 +130,7 @@ class LangChainValidationAgent(BaseHealthAgent):
             # If all validations pass, return sanitized input
             sanitized_input = self._sanitize_input(user_input)
             
-            logger.info("Input validation successful")
+            logger_validation.info("Input validation successful")
             return {
                 "valid": True,
                 "sanitized_input": sanitized_input,
@@ -149,7 +139,7 @@ class LangChainValidationAgent(BaseHealthAgent):
             }
             
         except Exception as e:
-            logger.error(f"Validation error: {str(e)}")
+            logger_validation.error(f"Validation error: {str(e)}")
             return {
                 "valid": False,
                 "reason": "Internal validation error",
@@ -190,7 +180,7 @@ class LangChainValidationAgent(BaseHealthAgent):
             return enhanced_feedback
             
         except Exception as e:
-            logger.error(f"Error getting enhanced feedback: {str(e)}")
+            logger_validation.error(f"Error getting enhanced feedback: {str(e)}")
             return None
     
     def _validate_required_fields(self, user_input: Dict[str, Any]) -> Dict[str, Any]:
@@ -198,7 +188,7 @@ class LangChainValidationAgent(BaseHealthAgent):
         missing_fields = [field for field in self.REQUIRED_FIELDS if field not in user_input or user_input[field] is None]
         
         if missing_fields:
-            logger.warning(f"Missing required fields: {missing_fields}")
+            logger_validation.warning(f"Missing required fields: {missing_fields}")
             return {
                 "valid": False,
                 "reason": "Missing critical fields",
@@ -212,14 +202,14 @@ class LangChainValidationAgent(BaseHealthAgent):
         try:
             age_int = int(age)
             if not (self.MIN_AGE <= age_int <= self.MAX_AGE):
-                logger.warning(f"Invalid age range: {age_int}")
+                logger_validation.warning(f"Invalid age range: {age_int}")
                 return {
                     "valid": False,
                     "reason": f"Age must be between {self.MIN_AGE} and {self.MAX_AGE} years"
                 }
             return {"valid": True}
         except (ValueError, TypeError):
-            logger.warning(f"Invalid age format: {age}")
+            logger_validation.warning(f"Invalid age format: {age}")
             return {
                 "valid": False,
                 "reason": "Age must be a valid number"
@@ -235,7 +225,7 @@ class LangChainValidationAgent(BaseHealthAgent):
         
         gender_lower = gender.lower().strip()
         if gender_lower not in self.VALID_GENDERS:
-            logger.warning(f"Invalid gender: {gender}")
+            logger_validation.warning(f"Invalid gender: {gender}")
             return {
                 "valid": False,
                 "reason": f"Gender must be one of: {', '.join(self.VALID_GENDERS)}"
@@ -292,7 +282,7 @@ class LangChainValidationAgent(BaseHealthAgent):
         for key, value in user_input.items():
             if isinstance(value, str):
                 if self._contains_unsafe_content(value):
-                    logger.warning(f"Unsafe content detected in field: {key}")
+                    logger_validation.warning(f"Unsafe content detected in field: {key}")
                     return {
                         "valid": False,
                         "reason": "Input contains potentially unsafe content"
@@ -300,7 +290,7 @@ class LangChainValidationAgent(BaseHealthAgent):
             elif isinstance(value, list):
                 for item in value:
                     if isinstance(item, str) and self._contains_unsafe_content(item):
-                        logger.warning(f"Unsafe content detected in list field: {key}")
+                        logger_validation.warning(f"Unsafe content detected in list field: {key}")
                         return {
                             "valid": False,
                             "reason": "Input contains potentially unsafe content"

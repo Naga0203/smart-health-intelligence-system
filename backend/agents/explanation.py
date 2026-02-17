@@ -1,19 +1,9 @@
-"""
-LangChain-based Explanation Agent for AI Health Intelligence System
-
-This agent generates human-readable explanations for health risk assessments
-using LangChain framework with Google Gemini AI while maintaining strict ethical boundaries.
-
-Validates: Requirements 5.1, 5.2, 5.3, 5.4
-"""
-
-from typing import Dict, Any, Optional
 import logging
+from typing import Dict, Any, Optional, List
 from datetime import datetime
-from agents.base_agent import BaseHealthAgent
+from backend.agents.base_agent import BaseHealthAgent
 
-logger = logging.getLogger('health_ai.explanation')
-
+logger_explanation = logging.getLogger('health_ai.explanation')
 
 class LangChainExplanationAgent(BaseHealthAgent):
     """
@@ -107,7 +97,7 @@ Use clear paragraphs and simple language. Explain any medical terminology. Empha
 IMPORTANT: This is for educational purposes only and not a medical diagnosis."""
         )
         
-        logger.info("LangChain ExplanationAgent initialized")
+        logger_explanation.info("LangChain ExplanationAgent initialized")
     
     def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -151,7 +141,7 @@ IMPORTANT: This is for educational purposes only and not a medical diagnosis."""
             )
             
         except Exception as e:
-            logger.error(f"Error in explanation processing: {str(e)}")
+            logger_explanation.error(f"Error in explanation processing: {str(e)}")
             return self.get_fallback_response(input_data)
     
     def explain(self, disease: str, probability: float, confidence: str, 
@@ -169,7 +159,7 @@ IMPORTANT: This is for educational purposes only and not a medical diagnosis."""
         Returns:
             Dictionary containing explanation components
         """
-        logger.info(f"Generating explanation for {disease} with {confidence} confidence using LangChain")
+        logger_explanation.info(f"Generating explanation for {disease} with {confidence} confidence using LangChain")
         
         try:
             # Generate the main explanation using LangChain
@@ -192,11 +182,11 @@ IMPORTANT: This is for educational purposes only and not a medical diagnosis."""
                 "agent": "LangChainExplanationAgent"
             }
             
-            logger.info("LangChain explanation generated successfully")
+            logger_explanation.info("LangChain explanation generated successfully")
             return explanation_data
             
         except Exception as e:
-            logger.error(f"Error generating LangChain explanation: {str(e)}")
+            logger_explanation.error(f"Error generating LangChain explanation: {str(e)}")
             return self._get_fallback_explanation(disease, probability, confidence)
     
     def _generate_langchain_explanation(self, disease: str, probability: float, 
@@ -234,7 +224,7 @@ IMPORTANT: This is for educational purposes only and not a medical diagnosis."""
                 return self._get_simple_explanation(disease, probability, confidence)
                 
         except Exception as e:
-            logger.error(f"LangChain explanation generation failed: {str(e)}")
+            logger_explanation.error(f"LangChain explanation generation failed: {str(e)}")
             return self._get_simple_explanation(disease, probability, confidence)
     
     def _get_simple_explanation(self, disease: str, probability: float, confidence: str) -> str:
@@ -316,7 +306,7 @@ IMPORTANT: This is for educational purposes only and not a medical diagnosis."""
     
     def _get_fallback_explanation(self, disease: str, probability: float, confidence: str) -> Dict[str, Any]:
         """Generate fallback explanation when main generation fails."""
-        logger.warning("Using fallback explanation due to LangChain generation failure")
+        logger_explanation.warning("Using fallback explanation due to LangChain generation failure")
         
         return {
             "summary": f"Risk assessment for {disease.replace('_', ' ').title()}",

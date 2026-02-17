@@ -1,33 +1,27 @@
-"""
-LangChain-based Orchestrator Agent for AI Health Intelligence System
-
-This agent coordinates the entire health assessment pipeline:
-1. Data Extraction (Gemini AI)
-2. ML Prediction
-3. Confidence Evaluation
-4. Explanation Generation
-5. Recommendation Generation
-6. MongoDB Storage
-
-Validates: Requirements 8.2, 8.5
-"""
-
-from typing import Dict, Any, Optional
 import logging
-from datetime import datetime
 import uuid
-from agents.base_agent import BaseHealthAgent
-from agents.data_extraction import DataExtractionAgent
-from agents.validation import LangChainValidationAgent
-from agents.explanation import LangChainExplanationAgent
-from agents.recommendation import RecommendationAgent
-from agents.lifestyle import LifestyleModificationAgent
-from agents.reflection import ReflectionAgent
-from prediction.predictor import DiseasePredictor
-from common.firebase_db import get_firebase_db
+from typing import Dict, Any, List
+from datetime import datetime
 
-logger = logging.getLogger('health_ai.orchestrator')
+from backend.agents.base_agent import BaseHealthAgent
+from backend.agents.validation import LangChainValidationAgent
+from backend.agents.data_extraction import DataExtractionAgent
+from backend.agents.explanation import LangChainExplanationAgent
+from backend.agents.recommendation import RecommendationAgent
+from backend.agents.lifestyle import LifestyleModificationAgent
+from backend.agents.reflection import ReflectionAgent
 
+try:
+    from backend.prediction.predictor import DiseasePredictor
+    from backend.common.firebase_db import get_firebase_db
+except ImportError:
+    try:
+        from prediction.predictor import DiseasePredictor
+        from common.firebase_db import get_firebase_db
+    except ImportError:
+        pass
+
+logger_orchestrator = logging.getLogger('health_ai.orchestrator')
 
 class OrchestratorAgent(BaseHealthAgent):
     """
@@ -66,7 +60,7 @@ class OrchestratorAgent(BaseHealthAgent):
         # Initialize Firebase database
         self.db = get_firebase_db()
         
-        logger.info("OrchestratorAgent initialized with complete pipeline including reflection agent")
+        logger_orchestrator.info("OrchestratorAgent initialized with complete pipeline including reflection agent")
     
     def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -91,7 +85,7 @@ class OrchestratorAgent(BaseHealthAgent):
             )
             
         except Exception as e:
-            logger.error(f"Pipeline error: {str(e)}")
+            logger_orchestrator.error(f"Pipeline error: {str(e)}")
             return self.format_agent_response(
                 success=False,
                 message=f"Pipeline error: {str(e)}",
@@ -111,7 +105,7 @@ class OrchestratorAgent(BaseHealthAgent):
         pipeline_start = datetime.utcnow()
         user_id = user_input.get("user_id", str(uuid.uuid4()))
         
-        logger.info(f"Starting pipeline for user: {user_id}")
+        logger_orchestrator.info(f"Starting pipeline for user: {user_id}")
         
         # Step 1: Validate Input
         self.log_agent_action("step_1_validation")
@@ -226,7 +220,7 @@ class OrchestratorAgent(BaseHealthAgent):
             
             # Extract revised components
             if "_verification_info" in revised:
-                logger.warning(f"Assessment auto-corrected: {revised['_verification_info']['corrections_applied']}")
+                logger_orchestrator.warning(f"Assessment auto-corrected: {revised['_verification_info']['corrections_applied']}")
             
             # Update components with corrections
             if "prediction" in revised:
@@ -236,7 +230,7 @@ class OrchestratorAgent(BaseHealthAgent):
         
         # Log critical issues for escalation
         if verification_result["severity"] == "critical":
-            logger.critical(f"Critical safety issue detected and corrected: {verification_result['issue_count']} issues")
+            logger_orchestrator.critical(f"Critical safety issue detected and corrected: {verification_result['issue_count']} issues")
         
         # Step 9: Store in MongoDB
         self.log_agent_action("step_9_database_storage")
@@ -272,7 +266,7 @@ class OrchestratorAgent(BaseHealthAgent):
             prediction_metadata=prediction_metadata
         )
         
-        logger.info(f"Pipeline completed for user: {user_id} in {processing_time:.2f}s")
+        logger_orchestrator.info(f"Pipeline completed for user: {user_id} in {processing_time:.2f}s")
         
         return complete_response
     
@@ -311,7 +305,7 @@ class OrchestratorAgent(BaseHealthAgent):
         if scores[selected_disease] == 0:
             selected_disease = "diabetes"
         
-        logger.info(f"Selected disease: {selected_disease} (scores: {scores})")
+        logger_orchestrator.info(f"Selected disease: {selected_disease} (scores: {scores})")
         return selected_disease
     
     def _evaluate_confidence(self, probability: float) -> str:
@@ -332,10 +326,10 @@ class OrchestratorAgent(BaseHealthAgent):
             return "HIGH"
     
     def _store_assessment(self, user_id: str, sanitized_input: Dict[str, Any],
-                         disease: str, probability: float, confidence: str,
-                         extraction_data: Dict[str, Any], prediction_metadata: Dict[str, Any],
-                         explanation_data: Dict[str, Any], recommendations: Dict[str, Any],
-                         lifestyle_recommendations: Dict[str, Any] = None) -> Dict[str, str]:
+                          disease: str, probability: float, confidence: str,
+                          extraction_data: Dict[str, Any], prediction_metadata: Dict[str, Any],
+                          explanation_data: Dict[str, Any], recommendations: Dict[str, Any],
+                          lifestyle_recommendations: Dict[str, Any] = None) -> Dict[str, str]:
         """
         Store complete assessment in Firebase Firestore.
         
@@ -403,15 +397,15 @@ class OrchestratorAgent(BaseHealthAgent):
             }
             
         except Exception as e:
-            logger.error(f"Error storing assessment: {str(e)}")
+            logger_orchestrator.error(f"Error storing assessment: {str(e)}")
             return {}
     
     def _build_response(self, user_id: str, disease: str, probability: float,
-                       confidence: str, extraction_confidence: float,
-                       explanation: Dict[str, Any], recommendations: Dict[str, Any],
-                       lifestyle_recommendations: Dict[str, Any],
-                       storage_ids: Dict[str, str], processing_time: float,
-                       prediction_metadata: Dict[str, Any]) -> Dict[str, Any]:
+                        confidence: str, extraction_confidence: float,
+                        explanation: Dict[str, Any], recommendations: Dict[str, Any],
+                        lifestyle_recommendations: Dict[str, Any],
+                        storage_ids: Dict[str, str], processing_time: float,
+                        prediction_metadata: Dict[str, Any]) -> Dict[str, Any]:
         """Build the complete response for the frontend."""
         return {
             "user_id": user_id,

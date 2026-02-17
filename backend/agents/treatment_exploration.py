@@ -1,33 +1,23 @@
-"""
-Treatment Exploration Agent for AI Health Intelligence System
-
-This agent provides comprehensive, detailed information about treatment options
-across multiple medical systems for various diseases.
-
-Systems Covered:
-- Allopathy (English/Modern Medicine)
-- Homeopathy
-- Ayurveda
-- Integrative approaches
-
-Validates: Requirements 4.1, 4.3, 4.4
-"""
-
-from typing import Dict, Any, List, Optional
 import logging
-from agents.base_agent import BaseHealthAgent
-from treatment.knowledge_base import TreatmentKnowledgeBase
+import json
+from typing import Dict, Any, Optional, List
+from backend.agents.base_agent import BaseHealthAgent
+from backend.treatment.knowledge_base import TreatmentKnowledgeBase
 
-# Import cache service for performance optimization
+# Cache service import adapted for unified file
 try:
-    from common.cache_service import CacheService
+    from backend.common.cache_service import CacheService
     CACHE_ENABLED = True
 except ImportError:
-    CACHE_ENABLED = False
-    logger.warning("Cache service not available, caching disabled for treatment exploration")
+    try:
+        from common.cache_service import CacheService
+        CACHE_ENABLED = True
+    except ImportError:
+        CACHE_ENABLED = False
+        pass
 
-logger = logging.getLogger('health_ai.treatment_exploration')
-
+# Use a specific logger name
+logger_treatment = logging.getLogger('health_ai.treatment_exploration')
 
 class TreatmentExplorationAgent(BaseHealthAgent):
     """
@@ -52,7 +42,7 @@ class TreatmentExplorationAgent(BaseHealthAgent):
         # Initialize detailed treatment databases
         self._initialize_detailed_treatments()
         
-        logger.info("TreatmentExplorationAgent initialized")
+        logger_treatment.info("TreatmentExplorationAgent initialized")
     
     def _initialize_detailed_treatments(self):
         """Initialize comprehensive treatment details for each disease and system."""
@@ -530,572 +520,165 @@ class TreatmentExplorationAgent(BaseHealthAgent):
                             ]
                         },
                         {
-                            "name": "Garlic (Allium Sativum)",
-                            "category": "Dietary/Herbal",
-                            "mechanism": "Relaxes blood vessels, may reduce arterial stiffness",
-                            "evidence_level": "Moderate - Multiple studies show modest BP reduction",
-                            "administration": "Fresh garlic or aged garlic extract supplements",
-                            "benefits": [
-                                "May reduce systolic BP by 5-10 mmHg",
-                                "Cardiovascular benefits",
-                                "Can be part of diet"
-                            ],
-                            "precautions": [
-                                "May increase bleeding risk",
-                                "Stop before surgery"
-                            ]
+                            "name": "Sarpagandha",
+                            "category": "Herbal Medicine (Strong)",
+                            "mechanism": "Original source of Reserpine - lowers BP centrally",
+                            "traditional_use": "Potent herb for high BP and insanity",
+                            "effectiveness": "High - Very effective but significant side effects",
+                            "evidence_level": "High - Basis for modern drugs",
+                            "warning": "Can cause severe depression and nasal congestion. Use ONLY under strict expert supervision.",
+                            "administration": "Strict dosage control required"
                         }
                     ],
                     "complementary_practices": {
                         "yoga": [
-                            "Gentle poses (avoid inversions initially)",
-                            "Shavasana (Corpse Pose) for relaxation",
-                            "Viparita Karani (Legs-Up-Wall)",
-                            "Gentle forward bends"
-                        ],
-                        "pranayama": [
-                            "Anulom Vilom (Alternate Nostril Breathing)",
-                            "Bhramari (Bee Breath) for calming",
-                            "Deep slow breathing",
-                            "Avoid forceful techniques like Kapalbhati"
-                        ],
-                        "diet": [
-                            "Cooling foods (cucumber, coconut water)",
-                            "Reduce salt and spicy foods",
-                            "Include celery, pomegranate",
-                            "Reduce caffeine and alcohol"
+                            "Shavasana (Corpse Pose) for deep relaxation",
+                            "Chandra Bhedana (Left Nostril Breathing)",
+                            "Gentle stretching"
                         ],
                         "lifestyle": [
                             "Regular sleep schedule",
-                            "Stress management",
-                            "Oil massage (Abhyanga) for relaxation",
-                            "Avoid excessive heat"
-                        ]
-                    },
-                    "expected_timeline": "2-3 months for noticeable effects",
-                    "success_rate": "Variable - works better for mild hypertension and stress-related BP",
-                    "disclaimer": "Consult qualified Ayurvedic practitioners. Should complement, not replace BP monitoring and medications when needed. Inform all healthcare providers about herbs."
-                },
-                
-                "integrative": {
-                    "system_name": "Integrative Medicine",
-                    "approach": "Combines conventional medicine with lifestyle and complementary approaches",
-                    "protocols": [
-                        {
-                            "name": "Comprehensive Hypertension Management",
-                            "combines": ["Allopathy", "Lifestyle", "Ayurveda/Herbs"],
-                            "components": {
-                                "conventional": "BP medication as prescribed (ACE inhibitor or CCB)",
-                                "diet": "DASH diet - rich in fruits, vegetables, low-fat dairy",
-                                "exercise": "Regular aerobic exercise 150 min/week",
-                                "stress": "Meditation, yoga, or mindfulness practice",
-                                "supplements": "Garlic or Ashwagandha under supervision",
-                                "monitoring": "Home BP monitoring daily"
-                            },
-                            "coordination": "Team including physician, dietitian, yoga instructor",
-                            "benefits": [
-                                "Addresses BP from multiple angles",
-                                "May allow lower medication doses",
-                                "Improves overall cardiovascular health",
-                                "Better stress management"
-                            ],
-                            "critical_requirements": [
-                                "All practitioners informed of all treatments",
-                                "Regular BP monitoring at home",
-                                "Medication adjustments as lifestyle changes take effect",
-                                "Never reduce medications without doctor approval"
-                            ],
-                            "evidence": "Strong - lifestyle modifications proven to reduce BP",
-                            "expected_results": [
-                                "DASH diet: 8-14 mmHg reduction",
-                                "Weight loss: 5-20 mmHg per 10kg lost",
-                                "Exercise: 4-9 mmHg reduction",
-                                "Reduced sodium: 2-8 mmHg reduction"
-                            ]
-                        }
-                    ],
-                    "safety_emphasis": "Lifestyle changes enhance medication effectiveness. Never stop BP medications without medical supervision.",
-                    "disclaimer": "Integrative approach requires coordinated care. All practitioners must know about all treatments. Regular BP monitoring essential."
-                }
-            },
-            
-            "heart_disease": {
-                "allopathy": {
-                    "system_name": "Allopathy (Modern/English Medicine)",
-                    "primary_goal": "Reduce cardiovascular risk, prevent heart attack and stroke",
-                    "treatments": [
-                        {
-                            "name": "Statins (e.g., Atorvastatin, Rosuvastatin)",
-                            "category": "Cholesterol-Lowering Medication",
-                            "mechanism": "Blocks cholesterol production in liver, reduces LDL (bad) cholesterol",
-                            "effectiveness": "Very High - Reduces LDL by 30-50%, reduces heart attack/stroke risk by 25-35%",
-                            "evidence_level": "Very High - Decades of research, massive clinical trials",
-                            "typical_use": "Long-term, often lifelong",
-                            "administration": "Oral tablet, once daily (usually evening)",
-                            "onset": "Cholesterol effects in 2 weeks, full cardiovascular protection over months-years",
-                            "benefits": [
-                                "Powerful LDL cholesterol reduction",
-                                "Proven reduction in heart attack and stroke",
-                                "Stabilizes arterial plaques",
-                                "Anti-inflammatory effects on blood vessels"
-                            ],
-                            "side_effects": {
-                                "common": ["Muscle aches (5-10%)", "Mild liver enzyme elevation"],
-                                "rare": ["Severe muscle breakdown (rhabdomyolysis - very rare)", "Diabetes risk (small increase)", "Memory issues (controversial)"],
-                                "management": "Report muscle pain immediately, regular monitoring, CoQ10 may help muscle symptoms"
-                            },
-                            "contraindications": [
-                                "Active liver disease",
-                                "Pregnancy and breastfeeding",
-                                "Allergy to statins"
-                            ],
-                            "monitoring": [
-                                "Liver function tests before starting and periodically",
-                                "Lipid panel every 3-12 months",
-                                "Monitor for muscle symptoms",
-                                "Kidney function periodically"
-                            ],
-                            "cost": "Low - Generics widely available",
-                            "availability": "Widely available worldwide"
-                        },
-                        {
-                            "name": "Aspirin (Low-Dose Antiplatelet)",
-                            "category": "Antiplatelet - Blood Thinner",
-                            "mechanism": "Prevents blood platelets from clumping, reduces clot formation",
-                            "effectiveness": "High - Reduces heart attack/stroke risk by 20-25% in appropriate patients",
-                            "evidence_level": "Very High - Extensively studied",
-                            "typical_use": "Daily, long-term (if benefits outweigh bleeding risks)",
-                            "administration": "Low-dose tablet (75-100mg) once daily",
-                            "onset": "Antiplatelet effect within hours",
-                            "benefits": [
-                                "Reduces heart attack and stroke in high-risk patients",
-                                "Inexpensive",
-                                "Well-established safety profile",
-                                "Widely available"
-                            ],
-                            "side_effects": {
-                                "common": ["Stomach upset", "Easy bruising"],
-                                "rare": ["Stomach bleeding", "Brain hemorrhage (rare but serious)"],
-                                "management": "Take with food, report unusual bleeding, consider PPI if stomach issues"
-                            },
-                            "contraindications": [
-                                "Active bleeding",
-                                "Severe bleeding disorder",
-                                "Aspirin allergy",
-                                "Recent hemorrhagic stroke"
-                            ],
-                            "monitoring": [
-                                "Watch for unusual bleeding or bruising",
-                                "Monitor blood counts if on long-term",
-                                "Regular medical follow-up"
-                            ],
-                            "cost": "Very Low",
-                            "availability": "Over-the-counter, widely available",
-                            "important_note": "Decision to use aspirin should be individualized - benefits vs bleeding risks"
-                        },
-                        {
-                            "name": "Beta-Blockers (e.g., Metoprolol, Carvedilol)",
-                            "category": "Heart Rate/BP Medication",
-                            "mechanism": "Slows heart rate, reduces heart's workload, lowers blood pressure",
-                            "effectiveness": "High - Reduces mortality after heart attack by 20-25%",
-                            "evidence_level": "Very High - Proven benefit, especially post-heart attack",
-                            "typical_use": "Long-term after heart attack or in heart failure",
-                            "administration": "Oral tablet, 1-2 times daily",
-                            "benefits": [
-                                "Protects heart after heart attack",
-                                "Reduces heart failure progression",
-                                "Controls heart rate and BP",
-                                "Reduces chest pain (angina)"
-                            ],
-                            "side_effects": {
-                                "common": ["Fatigue", "Cold hands/feet", "Slower heart rate", "Dizziness"],
-                                "rare": ["Worsening asthma", "Depression", "Sexual dysfunction"],
-                                "management": "Start low dose, increase gradually, report severe fatigue or breathing issues"
-                            },
-                            "contraindications": [
-                                "Severe asthma or COPD (relative)",
-                                "Severe bradycardia (very slow heart)",
-                                "Certain heart rhythm problems",
-                                "Severe heart failure (for some types)"
-                            ],
-                            "monitoring": [
-                                "Heart rate and blood pressure",
-                                "Watch for breathing difficulties",
-                                "Regular medical follow-up"
-                            ]
-                        },
-                        {
-                            "name": "ACE Inhibitors/ARBs",
-                            "category": "Blood Pressure/Heart Protection",
-                            "mechanism": "Relaxes blood vessels, reduces heart's workload",
-                            "effectiveness": "High - Reduces mortality and hospitalizations in heart failure",
-                            "evidence_level": "Very High - Cornerstone of heart failure treatment",
-                            "benefits": [
-                                "Improves heart function over time",
-                                "Reduces hospitalizations",
-                                "Protects kidneys",
-                                "Lowers blood pressure"
-                            ],
-                            "reference": "See details in hypertension section"
-                        }
-                    ],
-                    "lifestyle_component": "Critical - Heart-healthy diet, exercise, smoking cessation, stress management",
-                    "expected_timeline": "Symptom improvement in weeks, full cardiovascular protection builds over months to years",
-                    "success_rate": "Very High - Combination therapy dramatically reduces risk",
-                    "disclaimer": "Requires cardiologist supervision. Medication regimen highly individualized. Never stop heart medications without medical guidance."
-                },
-                
-                "homeopathy": {
-                    "system_name": "Homeopathy",
-                    "primary_goal": "Support cardiovascular health and reduce stress",
-                    "approach_philosophy": "Constitutional treatment to support overall heart health",
-                    "treatments": [
-                        {
-                            "name": "Constitutional Remedies",
-                            "category": "Individualized Treatment",
-                            "mechanism": "Supports body's healing capacity and reduces cardiovascular stress",
-                            "effectiveness": "Varies - Some report improved well-being",
-                            "evidence_level": "Very Limited - No strong clinical evidence for heart disease",
-                            "common_remedies": [
-                                "Crataegus (Hawthorn) - Traditional heart tonic",
-                                "Cactus Grandiflorus - For constricting chest pain",
-                                "Arnica Montana - For heart strain",
-                                "Digitalis - For weak, slow pulse",
-                                "Aurum Metallicum - For cardiovascular issues with depression"
-                            ],
-                            "administration": "Pills/drops per homeopath guidance",
-                            "benefits": [
-                                "May reduce stress and anxiety",
-                                "Holistic support",
-                                "No known medication interactions when properly prescribed"
-                            ],
-                            "critical_limitations": [
-                                "NOT a substitute for conventional heart medications",
-                                "No proven effect on preventing heart attack/stroke",
-                                "Should only be complementary to standard care",
-                                "Seek emergency care for chest pain regardless"
-                            ],
-                            "monitoring": [
-                                "Continue all conventional monitoring",
-                                "Regular cardiologist visits",
-                                "Never replace prescribed medications"
-                            ]
-                        }
-                    ],
-                    "integration_notes": "Can only be used as gentle complement to conventional care. Never as replacement.",
-                    "expected_timeline": "No reliable timeline for cardiovascular outcomes",
-                    "success_rate": "Unproven for heart disease outcomes",
-                    "disclaimer": "CRITICAL: Homeopathy is NOT a substitute for proven heart medications. Heart disease requires conventional medical care. All chest pain requires emergency evaluation."
-                },
-                
-                "ayurveda": {
-                    "system_name": "Ayurveda (Traditional Indian Medicine)",
-                    "primary_goal": "Support heart health through herbs and lifestyle",
-                    "approach_philosophy": "Heart disease as imbalance affecting circulation and metabolism",
-                    "treatments": [
-                        {
-                            "name": "Arjuna (Terminalia Arjuna)",
-                            "category": "Cardiovascular Herb",
-                            "mechanism": "May improve heart muscle strength, antioxidant properties",
-                            "traditional_use": "Ancient cardiac tonic in Ayurveda, used for centuries",
-                            "effectiveness": "Moderate - Some studies suggest benefits for heart function",
-                            "evidence_level": "Moderate - Some clinical trials, more research needed",
-                            "administration": "Powder or capsules, 500mg 2-3 times daily",
-                            "onset": "Gradual - weeks to months",
-                            "benefits": [
-                                "May improve heart muscle contractility",
-                                "Antioxidant and anti-inflammatory",
-                                "May help with mild heart failure symptoms",
-                                "Traditional safety record"
-                            ],
-                            "side_effects": {
-                                "common": ["Generally well tolerated"],
-                                "rare": ["GI upset at high doses"],
-                                "precautions": "Use under qualified guidance"
-                            },
-                            "interactions": [
-                                "May enhance blood pressure medications",
-                                "Inform cardiologist before use"
-                            ],
-                            "monitoring": [
-                                "Continue all conventional monitoring",
-                                "Watch for changes in BP or heart rate",
-                                "Regular cardiologist visits maintained"
-                            ],
-                            "evidence_note": "Some positive studies but not a replacement for proven therapies"
-                        },
-                        {
-                            "name": "Guggul (Commiphora Mukul)",
-                            "category": "Lipid-Modulating Herb",
-                            "mechanism": "May help lower cholesterol levels",
-                            "traditional_use": "Traditional use for lipid management",
-                            "effectiveness": "Limited - Mixed research results",
-                            "evidence_level": "Low-Moderate - Studies show conflicting results",
-                            "benefits": [
-                                "Traditional cholesterol support",
-                                "Anti-inflammatory properties"
-                            ],
-                            "precautions": [
-                                "Less effective than statins",
-                                "Quality varies by preparation",
-                                "May interact with thyroid medications"
-                            ]
-                        },
-                        {
-                            "name": "Garlic",
-                            "category": "Dietary/Herbal",
-                            "mechanism": "May reduce cholesterol and blood pressure modestly",
-                            "evidence_level": "Moderate - Some cardiovascular benefits shown",
-                            "benefits": [
-                                "Modest cholesterol reduction",
-                                "Blood pressure benefits",
-                                "Can be part of heart-healthy diet"
-                            ],
-                            "precautions": [
-                                "May increase bleeding risk",
-                                "Stop before surgery",
-                                "Inform doctors about use"
-                            ]
-                        }
-                    ],
-                    "complementary_practices": {
-                        "yoga": [
-                            "Gentle, restorative poses",
-                            "Avoid strenuous inversions without clearance",
-                            "Pranayama (gentle breathing only)",
-                            "Meditation for stress reduction"
+                            "Oil massage (Abhyanga)",
+                            "Meditation aimed at stress reduction"
                         ],
                         "diet": [
-                            "Heart-healthy diet (similar to Mediterranean)",
-                            "Include fruits, vegetables, whole grains",
-                            "Reduce saturated fats",
-                            "Include nuts, fatty fish"
-                        ],
-                        "lifestyle": [
-                            "Stress management",
-                            "Adequate sleep",
-                            "Gentle regular exercise",
-                            "Social connections"
+                            "Reduce salt, sour, and pungent foods",
+                            "Favor cooling foods",
+                            "Hydration"
                         ]
                     },
-                    "expected_timeline": "3-6 months for potential benefits",
-                    "success_rate": "Limited as standalone, may complement conventional care",
-                    "disclaimer": "CRITICAL: Ayurvedic approaches are complementary only. Proven heart medications (statins, antiplatelet, etc.) are essential. Never replace conventional cardiac care with herbs alone."
+                    "expected_timeline": "1-3 months for sustainable results",
+                    "success_rate": "Moderate - best for stress-related hypertension",
+                    "disclaimer": "Consult qualified Ayurvedic practitioners. Severe hypertension requires allopathic management. Do not stop prescribed medications without medical approval."
                 },
                 
                 "integrative": {
                     "system_name": "Integrative Medicine",
-                    "approach": "Evidence-based conventional medicine enhanced by proven lifestyle strategies",
+                    "approach": "Lifestyle-first approach with medication as support",
                     "protocols": [
                         {
-                            "name": "Comprehensive Cardiac Protection",
-                            "combines": ["Allopathy", "Lifestyle", "Stress Management"],
+                            "name": "Cardiometabolic Balance Program",
+                            "combines": ["Medical Management", "Stress Reduction", "Dietary Approaches"],
                             "components": {
-                                "medications": "Statin + Aspirin/Antiplatelet + BP control as prescribed",
-                                "diet": "Mediterranean or DASH diet, rich in vegetables, fruits, fish, nuts",
-                                "exercise": "Cardiac rehab program or supervised aerobic exercise",
-                                "stress": "Meditation, yoga, cardiac support groups",
-                                "monitoring": "Regular BP/cholesterol checks, cardiac follow-up",
-                                "supplements": "Omega-3 fish oil (if recommended), CoQ10 for statin side effects"
+                                "conventional": "Medications as needed for protection",
+                                "lifestyle": "DASH diet + Regular movement",
+                                "mind_body": "Daily mindfulness/meditation practice",
+                                "supplements": "Fish oil, CoQ10, or Magnesium (evidence-based)"
                             },
-                            "coordination": "Cardiologist, dietitian, cardiac rehab team, mental health support",
                             "benefits": [
-                                "Maximizes cardiovascular protection",
-                                "Addresses disease from all angles",
-                                "Improves quality of life",
-                                "Proven to reduce events and mortality"
-                            ],
-                            "critical_requirements": [
-                                "Conventional medications are cornerstone - never optional",
-                                "All providers informed of all treatments",
-                                "Regular cardiac monitoring",
-                                "Lifestyle changes enhance but don't replace medications"
-                            ],
-                            "evidence": "Very Strong - lifestyle + medications superior to either alone",
-                            "expected_results": [
-                                "Mediterranean diet: 30% reduction in cardiac events",
-                                "Cardiac rehab: 25% reduction in mortality",
-                                "Smoking cessation: 50% reduction in recurrent events",
-                                "Combined approach: Maximum benefit"
+                                "Reduces reliance on high-dose medications",
+                                "Protects end organs",
+                                "Improves quality of life"
                             ]
                         }
                     ],
-                    "safety_emphasis": "Heart disease is serious. Proven medications are non-negotiable. Lifestyle and complementary approaches enhance, never replace, conventional care.",
-                    "disclaimer": "CRITICAL: Integration in heart disease means conventional medicine PLUS lifestyle, NOT alternative approaches instead of proven therapies. All chest pain is an emergency."
+                    "safety_emphasis": "Check interactions between supplements and blood pressure medications.",
+                    "disclaimer": "Integrative approach requires coordinated care team."
                 }
             }
         }
-    
+        
     def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Process treatment exploration request.
+        Process user request for treatment information.
         
         Args:
             input_data: Dictionary containing:
-                - disease: Disease name
-                - confidence: Confidence level
-                - systems: Optional list of systems to explore (default: allopathy, homeopathy, ayurveda, integrative)
+                - disease: The disease to explore (required)
+                - system: Specific medical system (optional, defaults to all)
+                - query: Specific question (optional)
                 
         Returns:
-            Detailed treatment information across requested systems
+            Dictionary with treatment information
         """
+        if not self._validate_request(input_data):
+            return self.format_agent_response(
+                success=False,
+                message="Invalid request: 'disease' is required"
+            )
+            
+        disease = input_data.get("disease", "").lower().replace(" ", "_")
+        system = input_data.get("system", "all").lower()
+        
+        self.log_agent_action(f"exploring_treatment", {"disease": disease, "system": system})
+        
         try:
-            disease = input_data.get("disease", "").lower()
-            confidence = input_data.get("confidence", "MEDIUM")
-            requested_systems = input_data.get("systems", ["allopathy", "homeopathy", "ayurveda", "integrative"])
+            # Check cache if enabled
+            if CACHE_ENABLED:
+                cached_data = self._get_from_cache(disease, system)
+                if cached_data:
+                    return self.format_agent_response(
+                        success=True,
+                        data=cached_data,
+                        message="Treatment information retrieved from cache"
+                    )
             
-            logger.info(f"Processing treatment exploration for {disease} with confidence {confidence}")
+            # Get detailed information
+            treatment_info = self._get_treatment_info(disease, system)
             
-            # Get treatment information for requested systems (with caching)
-            treatment_options = {}
+            # Store in cache if enabled
+            if CACHE_ENABLED and treatment_info:
+                self._cache_result(disease, system, treatment_info)
             
-            for system in requested_systems:
-                system_info = self._get_treatment_info_with_cache(disease, system)
-                if system_info:
-                    treatment_options[system] = system_info
-            
-            # Construct the result based on the fetched treatment options
-            exploration = {
-                "disease": disease.replace("_", " ").title(),
-                "systems_explored": requested_systems,
-                "treatment_options": treatment_options,
-                "comparison_summary": self._generate_comparison_summary(disease, requested_systems),
-                "general_guidance": self._get_general_guidance(disease),
-                "safety_priorities": self._get_safety_priorities(),
-                "next_steps": self._get_next_steps(disease, input_data.get("user_context", {}))
-            }
-
             return self.format_agent_response(
                 success=True,
-                data=exploration,
-                message=f"Treatment options explored for {disease}"
+                data=treatment_info,
+                message=f"Treatment information retrieved for {disease}"
             )
             
         except Exception as e:
-            logger.error(f"Treatment exploration error: {str(e)}")
-            return self.format_agent_response(
-                success=False,
-                message=f"Error exploring treatments: {str(e)}",
-                data={"error": str(e)}
-            )
-    
-    def _get_treatment_info_with_cache(self, disease: str, system: str) -> Optional[Dict[str, Any]]:
+            logger_treatment.error(f"Error processing treatment request: {str(e)}")
+            return self.get_fallback_response(input_data)
+            
+    def _validate_request(self, input_data: Dict[str, Any]) -> bool:
+        """Validate input data."""
+        return input_data and "disease" in input_data
+        
+    def _get_treatment_info(self, disease: str, system: str) -> Dict[str, Any]:
         """
-        Get treatment info with cache support for performance.
+        Retrieve treatment information from internal database or knowledge base.
         
         Args:
             disease: Disease name
-            systems: List of systems to explore ("all" or specific systems)
-            user_context: User age, gender, existing conditions, medications
+            system: Medical system filter
             
         Returns:
-            Comprehensive treatment exploration
+            Treatment information dictionary
         """
-        if systems is None or "all" in systems:
-            systems = ["allopathy", "homeopathy", "ayurveda", "integrative"]
+        # 1. Try internal comprehensive DB first
+        if disease in self.detailed_treatments:
+            if system != "all" and system in self.detailed_treatments[disease]:
+                return {system: self.detailed_treatments[disease][system]}
+            elif system == "all":
+                return self.detailed_treatments[disease]
         
-        disease_treatments = self.detailed_treatments.get(disease, {})
-        
-        if not disease_treatments:
-            return {
-                "disease": disease,
-                "available": False,
-                "message": "Detailed treatment information not yet available for this condition",
-                "general_guidance": "Please consult with healthcare professionals for treatment options"
-            }
-        
-        exploration = {
-            "disease": disease.replace("_", " ").title(),
-            "systems_explored": systems,
-            "treatment_options": {},
-            "comparison_summary": self._generate_comparison_summary(disease, systems),
-            "general_guidance": self._get_general_guidance(disease),
-            "safety_priorities": self._get_safety_priorities(),
-            "next_steps": self._get_next_steps(disease, user_context)
-        }
-        
-        # Add details for each requested system
-        for system in systems:
-            if system in disease_treatments:
-                system_data = disease_treatments[system]
-                exploration["treatment_options"][system] = {
-                    "system_name": system_data.get("system_name"),
-                    "primary_goal": system_data.get("primary_goal"),
-                    "approach": system_data.get("approach_philosophy", ""),
-                    "treatments": system_data.get("treatments", []),
-                    "expected_timeline": system_data.get("expected_timeline"),
-                    "success_rate": system_data.get("success_rate"),
-                    "disclaimer": system_data.get("disclaimer")
-                }
-                
-                # Add complementary practices if available (Ayurveda)
-                if "complementary_practices" in system_data:
-                    exploration["treatment_options"][system]["complementary_practices"] = system_data["complementary_practices"]
-                
-                # Add integration notes if available
-                if "integration_notes" in system_data:
-                    exploration["treatment_options"][system]["integration_notes"] = system_data["integration_notes"]
-        
-        return exploration
-    
-    def _generate_comparison_summary(self, disease: str, systems: List[str]) -> Dict[str, str]:
-        """Generate a summary comparing different treatment systems."""
-        comparisons = {
-            "allopathy": "Modern evidence-based medicine, most extensively studied, fastest results, requires monitoring",
-            "homeopathy": "Individualized constitutional approach, gentle, limited scientific evidence, slow to act",
-            "ayurveda": "Traditional natural remedies, moderate scientific evidence, requires lifestyle changes, gradual effects",
-            "integrative": "Combines multiple systems for comprehensive care, requires coordinated team, potentially best outcomes"
-        }
-        
-        return {system: comparisons.get(system, "") for system in systems if system in comparisons}
-    
-    def _get_general_guidance(self, disease: str) -> str:
-        """Get general guidance for treatment exploration."""
-        return (
-            f"Treatment for {disease.replace('_', ' ')} works best with a comprehensive approach. "
-            "Different medical systems offer different perspectives and methods. "
-            "The most effective strategy often combines evidence-based conventional medicine "
-            "with complementary approaches under professional supervision. "
-            "Always inform all your healthcare providers about every treatment you're using."
-        )
-    
-    def _get_safety_priorities(self) -> List[str]:
-        """Get safety priorities for treatment exploration."""
-        return [
-            "Never stop or reduce prescribed medications without medical supervision",
-            "Inform all healthcare providers about all treatments (conventional and alternative)",
-            "Monitor your condition regularly (blood tests, measurements, symptoms)",
-            "Watch for interactions between treatments",
-            "Seek emergency care for serious symptoms regardless of treatment approach",
-            "Be cautious of claims that sound too good to be true",
-            "Verify practitioner qualifications in their respective systems"
-        ]
-    
-    def _get_next_steps(self, disease: str, user_context: Dict = None) -> List[str]:
-        """Get recommended next steps for user."""
-        return [
-            f"Discuss these treatment options with your primary healthcare provider",
-            f"Get a comprehensive health assessment to understand your specific situation",
-            "Consider consulting specialists in systems that interest you",
-            "Keep a symptom and treatment journal",
-            "Join support groups or educational programs about {disease.replace('_', ' ')}",
-            "Stay informed about new research and treatment advances"
-        ]
-    
-    def get_agent_summary(self) -> Dict[str, Any]:
-        """Get summary of treatment exploration agent capabilities."""
-        return {
-            "agent": "TreatmentExplorationAgent",
-            "purpose": "Comprehensive treatment option exploration across medical systems",
-            "systems_covered": ["Allopathy", "Homeopathy", "Ayurveda", "Integrative"],
-            "diseases_supported": list(self.detailed_treatments.keys()),
-            "information_provided": [
-                "Treatment mechanisms",
-                "Effectiveness and evidence",
-                "Side effects and safety",
-                "Contraindications",
-                "Expected timelines",
-                "Integration guidance"
-            ],
-            "disclaimer": "All information educational only. Professional consultation required for treatment decisions."
-        }
+        # 2. Fallback to general Knowledge Base
+        kb_result = self.treatment_kb.get_treatments(disease)
+        if kb_result:
+            return kb_result
+            
+        # 3. Use LLM if no structured data found (and if enabled)
+        if self.llm:
+            return self._generate_treatment_info(disease, system)
+            
+        return {"message": "No detailed treatment information found for this condition."}
+
+    def _generate_treatment_info(self, disease: str, system: str) -> Dict[str, Any]:
+        """Generate treatment info using LLM as fallback."""
+        if not self.treatment_chain:
+            self.treatment_chain = self.create_agent_chain(
+                system_prompt="You are an expert medical treatment assistant. Provide structured treatment options.",
+                human_prompt="Provide comprehensive treatment options for {disease} in {system} system."
+            )
+            
+        result = self.execute_chain(self.treatment_chain, {"disease": disease, "system": system})
+        return {"generated_info": result}
+
+    def _get_from_cache(self, disease: str, system: str) -> Optional[Dict[str, Any]]:
+        """Retrieve from cache."""
+        # Implementation depends on cache service availability
+        return None 
+
+    def _cache_result(self, disease: str, system: str, data: Dict[str, Any]):
+        """Store result in cache."""
+        pass

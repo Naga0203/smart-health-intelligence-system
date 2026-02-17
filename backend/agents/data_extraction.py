@@ -1,123 +1,93 @@
-"""
-LangChain-based Data Extraction Agent for AI Health Intelligence System
-
-This agent uses Gemini AI to extract and map user input data to match
-the trained ML model's expected features/columns.
-
-Validates: Requirements 1.1, 1.4
-"""
-
-from typing import Dict, Any, List, Optional
 import logging
 import json
-from agents.base_agent import BaseHealthAgent
+from typing import Dict, Any, Optional, List
+from datetime import datetime
+from backend.agents.base_agent import BaseHealthAgent
 
-logger = logging.getLogger('health_ai.data_extraction')
-
+logger_data = logging.getLogger('health_ai.data_extraction')
 
 class DataExtractionAgent(BaseHealthAgent):
     """
-    LangChain-based agent for extracting and mapping user input to ML model features.
+    Agent responsible for extracting structured data from user input.
     
-    Uses Gemini AI to:
-    - Parse natural language symptom descriptions
-    - Map symptoms to standardized medical terms
-    - Extract relevant features for ML model
-    - Handle missing or ambiguous data
+    Uses LangChain and Gemini for intelligent feature extraction and mapping
+    to disease prediction models.
     """
     
     def __init__(self):
         """Initialize the data extraction agent."""
         super().__init__("DataExtractionAgent")
         
-        # Define expected ML model features for different diseases
+        # Feature mapping for prediction models
         self.model_features = {
             "diabetes": [
-                "age", "gender", "polyuria", "polydipsia", "sudden_weight_loss",
-                "weakness", "polyphagia", "genital_thrush", "visual_blurring",
-                "itching", "irritability", "delayed_healing", "partial_paresis",
-                "muscle_stiffness", "alopecia", "obesity"
+                "pregnancies", "glucose", "blood_pressure", "skin_thickness", 
+                "insulin", "bmi", "diabetes_pedigree_function", "age"
             ],
             "heart_disease": [
-                "age", "gender", "chest_pain_type", "resting_blood_pressure",
-                "cholesterol", "fasting_blood_sugar", "resting_ecg",
-                "max_heart_rate", "exercise_angina", "oldpeak", "slope",
-                "ca", "thal"
+                "age", "sex", "cp", "trestbps", "chol", "fbs", "restecg", 
+                "thalach", "exang", "oldpeak", "slope", "ca", "thal"
             ],
             "hypertension": [
-                "age", "gender", "systolic_bp", "diastolic_bp", "bmi",
-                "smoking", "alcohol", "physical_activity", "stress_level",
-                "family_history", "salt_intake", "sleep_hours"
+                "age", "sex", "cp", "trestbps", "chol", "fbs", "restecg", 
+                "thalach", "exang", "oldpeak", "slope", "ca", "thal" 
             ]
         }
         
-        # Symptom to feature mapping
+        # Mapping from natural language symptoms to features
         self.symptom_mappings = {
-            "increased_thirst": "polydipsia",
-            "excessive_thirst": "polydipsia",
-            "frequent_urination": "polyuria",
-            "excessive_urination": "polyuria",
-            "weight_loss": "sudden_weight_loss",
-            "losing_weight": "sudden_weight_loss",
-            "fatigue": "weakness",
-            "tired": "weakness",
-            "excessive_hunger": "polyphagia",
-            "always_hungry": "polyphagia",
-            "blurred_vision": "visual_blurring",
-            "vision_problems": "visual_blurring",
-            "chest_pain": "chest_pain_type",
-            "chest_discomfort": "chest_pain_type",
-            "shortness_of_breath": "exercise_angina",
-            "breathing_difficulty": "exercise_angina",
-            "headache": "systolic_bp",  # Indicator for hypertension
-            "dizziness": "systolic_bp"
+            # Diabetes mappings
+            "high_blood_sugar": "glucose",
+            "frequent_urination": "glucose",
+            "thirsty": "glucose",
+            "overweight": "bmi",
+            "obese": "bmi",
+            "family_history": "diabetes_pedigree_function",
+            
+            # Heart disease mappings
+            "chest_pain": "cp",
+            "high_blood_pressure": "trestbps",
+            "high_cholesterol": "chol",
+            "fast_heart_rate": "thalach",
+            "exercise_pain": "exang"
         }
         
-        # Create LangChain chain for intelligent data extraction
+        # Create LangChain chain for extraction
         self.extraction_chain = self.create_agent_chain(
-            system_prompt="""You are a medical data extraction agent. Your role is to:
-1. Parse user-provided symptoms and health information
-2. Map symptoms to standardized medical terms
-3. Extract relevant features for disease prediction models
-4. Handle ambiguous or incomplete information
-
-IMPORTANT:
-- Be precise in symptom mapping
-- Ask for clarification when needed
-- Use medical terminology correctly
-- Return structured data in JSON format""",
+            system_prompt="""You are an expert medical data extractor. 
+            Your task is to extract structured feature values from patient symptoms and descriptions.
+            Map the input text to the required features for the specified disease model.
+            Return the result as a JSON object with 'mapped_features' and 'confidence' fields.""",
             
-            human_prompt="""Extract and map the following health information to standardized medical features:
-
-User Input:
-- Symptoms: {symptoms}
-- Age: {age}
-- Gender: {gender}
-- Additional Info: {additional_info}
-
-Target Disease: {disease}
-Required Features: {required_features}
-
-Please extract and map the data to match the required features. Return a JSON object with:
-1. "mapped_features": Dictionary of feature names and values
-2. "confidence": Your confidence in the extraction (0-1)
-3. "missing_features": List of features that couldn't be extracted
-4. "clarifications_needed": List of questions to ask user for better accuracy"""
+            human_prompt="""Extract features for {disease} prediction from:
+            Symptoms: {symptoms}
+            Age: {age}
+            Gender: {gender}
+            Additional Info: {additional_info}
+            
+            Required features to map: {required_features}
+            
+            Return JSON only."""
         )
         
-        logger.info("DataExtractionAgent initialized with LangChain")
+        logger_data.info("DataExtractionAgent initialized")
     
     def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Main processing method for data extraction.
+        Extract and map data for prediction models.
         
         Args:
-            input_data: Raw user input containing symptoms, age, gender, etc.
-            
+            input_data: Input dictionary containing:
+                - symptoms (List[str])
+                - age (int)
+                - gender (str)
+                - disease (str)
+                - additional_info (Dict, optional)
+                
         Returns:
-            Extracted and mapped data ready for ML model
+            Dictionary with extracted features and metadata
         """
-        required_fields = ["symptoms", "age", "gender"]
+        required_fields = ["symptoms", "age", "gender", "disease"]
         validation = self.validate_input(input_data, required_fields)
         
         if not validation["valid"]:
@@ -126,36 +96,32 @@ Please extract and map the data to match the required features. Return a JSON ob
                 message=validation["message"],
                 data=validation
             )
-        
-        self.log_agent_action("extract_data", {
-            "symptoms_count": len(input_data.get("symptoms", [])),
-            "disease": input_data.get("disease", "unknown")
-        })
+            
+        self.log_agent_action("extract_data", {"disease": input_data["disease"]})
         
         try:
-            # Extract and map data
-            extracted_data = self.extract_and_map(
+            extraction_result = self.extract_and_map(
                 symptoms=input_data["symptoms"],
                 age=input_data["age"],
                 gender=input_data["gender"],
-                disease=input_data.get("disease", "diabetes"),
+                disease=input_data["disease"],
                 additional_info=input_data.get("additional_info", {})
             )
             
             return self.format_agent_response(
                 success=True,
-                data=extracted_data,
-                message="Data extraction completed successfully"
+                data=extraction_result,
+                message="Data extracted successfully"
             )
             
         except Exception as e:
-            logger.error(f"Error in data extraction: {str(e)}")
+            logger_data.error(f"Extraction error: {str(e)}")
             return self.get_fallback_response(input_data)
     
-    def extract_and_map(self, symptoms: List[str], age: int, gender: str,
-                       disease: str, additional_info: Dict[str, Any] = None) -> Dict[str, Any]:
+    def extract_and_map(self, symptoms: List[str], age: int, gender: str, 
+                        disease: str, additional_info: Dict[str, Any] = None) -> Dict[str, Any]:
         """
-        Extract and map user data to ML model features using Gemini AI.
+        Extract features and map them to the model requirements.
         
         Args:
             symptoms: List of user symptoms
@@ -167,7 +133,7 @@ Please extract and map the data to match the required features. Return a JSON ob
         Returns:
             Dictionary with mapped features and metadata
         """
-        logger.info(f"Extracting data for {disease} prediction")
+        logger_data.info(f"Extracting data for {disease} prediction")
         
         try:
             # Get required features for the disease
@@ -187,7 +153,7 @@ Please extract and map the data to match the required features. Return a JSON ob
             )
             
         except Exception as e:
-            logger.error(f"Error in extract_and_map: {str(e)}")
+            logger_data.error(f"Error in extract_and_map: {str(e)}")
             return self._get_fallback_extraction(symptoms, age, gender, disease)
     
     def _extract_with_langchain(self, symptoms: List[str], age: int, gender: str,
@@ -229,20 +195,20 @@ Please extract and map the data to match the required features. Return a JSON ob
                         "disease": disease
                     }
                 except json.JSONDecodeError:
-                    logger.warning("Failed to parse LangChain JSON response, using fallback")
+                    logger_data.warning("Failed to parse LangChain JSON response, using fallback")
                     return None
             
             return None
             
         except Exception as e:
-            logger.error(f"LangChain extraction failed: {str(e)}")
+            logger_data.error(f"LangChain extraction failed: {str(e)}")
             return None
     
     def _extract_with_rules(self, symptoms: List[str], age: int, gender: str,
                            disease: str, required_features: List[str],
                            additional_info: Dict[str, Any]) -> Dict[str, Any]:
         """Extract data using rule-based mapping."""
-        logger.info("Using rule-based extraction")
+        logger_data.info("Using rule-based extraction")
         
         features = {}
         
