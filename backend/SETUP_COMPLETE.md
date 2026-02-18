@@ -123,18 +123,9 @@ To test authenticated endpoints, you need a Firebase ID token:
 - **CORS Origins**: http://localhost:3000, http://127.0.0.1:3000
 - **Cache Backend**: Local Memory (LocMemCache)
 - **Database**: SQLite (db.sqlite3)
-- **Firebase**: Connected to major-project-2c7c7
+- **Firebase**: Connected to firebase 
 - **Gemini API**: Configured
 
-### Environment Variables (.env):
-```
-DJANGO_SECRET_KEY=django-insecure-CHANGE-THIS-IN-PRODUCTION-use-random-50-char-string
-DEBUG=True
-ALLOWED_HOSTS=localhost,127.0.0.1
-FIREBASE_CREDENTIALS_PATH=../firebase-credentials.json
-GEMINI_API_KEY=AIzaSyDe9eF_gmXt63hIdagwaOBaqKkx4fv6MMM
-CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
-```
 
 ## Rate Limits
 
