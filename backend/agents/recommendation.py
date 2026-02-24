@@ -1,9 +1,9 @@
 import logging
 from typing import Dict, Any, Optional, List
 from datetime import datetime
-from backend.agents.base_agent import BaseHealthAgent
-from backend.treatment.knowledge_base import TreatmentKnowledgeBase
-from backend.agents.treatment_exploration import TreatmentExplorationAgent
+from .base_agent import BaseHealthAgent
+from treatment.knowledge_base import TreatmentKnowledgeBase
+from .treatment_exploration import TreatmentExplorationAgent
 
 logger_recommendation = logging.getLogger('health_ai.recommendation')
 

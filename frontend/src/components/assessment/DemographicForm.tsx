@@ -93,7 +93,7 @@ export const DemographicForm: React.FC<DemographicFormProps> = ({
         This information helps provide more accurate risk assessments.
       </Typography>
 
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 2.5, sm: 3 } }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 2.5, sm: 3 } }} data-testid="demographic-form">
         {/* Age */}
         <TextField
           label="Age"
@@ -101,7 +101,11 @@ export const DemographicForm: React.FC<DemographicFormProps> = ({
           value={data.age || ''}
           onChange={handleAgeChange}
           required
-          inputProps={{ min: 1, max: 150 }}
+          inputProps={{ 
+            min: 1, 
+            max: 150,
+            'data-testid': 'age-input'
+          }}
           helperText="Enter your age in years"
           fullWidth
           sx={{
@@ -128,6 +132,9 @@ export const DemographicForm: React.FC<DemographicFormProps> = ({
             value={data.gender}
             onChange={handleGenderChange}
             label="Gender"
+            inputProps={{
+              'data-testid': 'gender-select'
+            }}
           >
             <MenuItem value="male">Male</MenuItem>
             <MenuItem value="female">Female</MenuItem>

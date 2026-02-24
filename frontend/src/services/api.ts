@@ -272,10 +272,82 @@ class APIService {
   /**
    * POST /api/predict/symptoms/ - Get symptom-based disease predictions
    */
-  async predictSymptoms(symptoms: string[] | string) {
-    const response = await this.client.post('/api/predict/symptoms/', {
+  async predictSymptoms(
+    symptoms: string[] | string,
+    reportMetadata?: {
+      reportId: string;
+      extractionJobId: string;
+      hasExtractedData: boolean;
+    },
+    extractedData?: any,
+    dataSources?: Record<string, 'manual' | 'extracted'>
+  ) {
+    const payload: any = {
       symptoms,
-    });
+    };
+
+    // Include report data if available
+    if (reportMetadata) {
+      payload.report_metadata = {
+        report_id: reportMetadata.reportId,
+        extraction_job_id: reportMetadata.extractionJobId,
+        has_extracted_data: reportMetadata.hasExtractedData,
+      };
+    }
+
+    if (extractedData) {
+      payload.extracted_data = extractedData;
+    }
+
+    if (dataSources) {
+      payload.data_sources = dataSources;
+    }
+
+    const response = await this.client.post('/api/predict/symptoms/', payload);
+    return response.data;
+  }
+
+  /**
+   * POST /api/predict/ - Full disease prediction (Orchestrator)
+   */
+  async predict(
+    symptoms: string[] | string,
+    reportMetadata?: {
+      reportId: string;
+      extractionJobId: string;
+      hasExtractedData: boolean;
+    },
+    extractedData?: any,
+    dataSources?: Record<string, 'manual' | 'extracted'>,
+    age?: number,
+    gender?: string,
+    additionalInfo?: any
+  ) {
+    const payload: any = {
+      symptoms,
+      age,
+      gender,
+      additional_info: additionalInfo
+    };
+
+    // Include report data if available
+    if (reportMetadata) {
+      payload.report_metadata = {
+        report_id: reportMetadata.reportId,
+        extraction_job_id: reportMetadata.extractionJobId,
+        has_extracted_data: reportMetadata.hasExtractedData,
+      };
+    }
+
+    if (extractedData) {
+      payload.extracted_data = extractedData;
+    }
+
+    if (dataSources) {
+      payload.data_sources = dataSources;
+    }
+
+    const response = await this.client.post('/api/predict/', payload);
     return response.data;
   }
 

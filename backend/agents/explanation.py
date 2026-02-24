@@ -1,7 +1,7 @@
 import logging
 from typing import Dict, Any, Optional, List
 from datetime import datetime
-from backend.agents.base_agent import BaseHealthAgent
+from .base_agent import BaseHealthAgent
 
 logger_explanation = logging.getLogger('health_ai.explanation')
 

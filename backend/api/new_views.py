@@ -341,6 +341,15 @@ class ReportUploadAPIView(APIView):
         Upload medical report file.
         """
         try:
+            # Check if report upload feature is enabled
+            from django.conf import settings
+            if not getattr(settings, 'ENABLE_REPORT_UPLOAD', True):
+                return Response({
+                    "success": False,
+                    "error": "Report upload feature is currently disabled",
+                    "code": "FEATURE_DISABLED"
+                }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            
             user_id = request.user.uid
             logger.info(f"Report upload request from user: {user_id}")
             
@@ -450,6 +459,15 @@ class ReportParseAPIView(APIView):
         Parse medical report using AI.
         """
         try:
+            # Check if report upload feature is enabled
+            from django.conf import settings
+            if not getattr(settings, 'ENABLE_REPORT_UPLOAD', True):
+                return Response({
+                    "success": False,
+                    "error": "Report parsing feature is currently disabled",
+                    "code": "FEATURE_DISABLED"
+                }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            
             user_id = request.user.uid
             logger.info(f"Report parsing request from user: {user_id}")
             

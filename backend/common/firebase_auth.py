@@ -43,6 +43,11 @@ class FirebaseUser:
         """User is active if email is verified."""
         return self.email_verified
 
+    @property
+    def pk(self):
+        """Return uid as primary key."""
+        return self.uid
+
 
 class FirebaseAuthentication(authentication.BaseAuthentication):
     """

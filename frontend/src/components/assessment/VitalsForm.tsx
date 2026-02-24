@@ -2,6 +2,7 @@
 // Vitals Form Component - Responsive Design
 // Collects optional vital signs measurements
 // Mobile-friendly with adaptive grid layout
+// Supports visual indicators for extracted data
 // ============================================================================
 
 import React from 'react';
@@ -12,15 +13,19 @@ import {
   Grid,
   useTheme,
   useMediaQuery,
+  Chip,
+  InputAdornment,
 } from '@mui/material';
+import { Description as DocumentIcon } from '@mui/icons-material';
 import type { VitalsFormData } from './AssessmentStepper';
 
 interface VitalsFormProps {
   data: VitalsFormData;
   onChange: (data: VitalsFormData) => void;
+  isFieldExtracted?: (fieldName: string) => boolean;
 }
 
-export const VitalsForm: React.FC<VitalsFormProps> = ({ data, onChange }) => {
+export const VitalsForm: React.FC<VitalsFormProps> = ({ data, onChange, isFieldExtracted }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm')); // < 600px
 
@@ -35,6 +40,31 @@ export const VitalsForm: React.FC<VitalsFormProps> = ({ data, onChange }) => {
       delete updated[field];
       onChange(updated);
     }
+  };
+
+  const getFieldIndicator = (fieldName: string, testId?: string) => {
+    if (isFieldExtracted && isFieldExtracted(fieldName)) {
+      return (
+        <InputAdornment position="end">
+          <Chip
+            data-testid={testId}
+            icon={<DocumentIcon sx={{ fontSize: '0.875rem' }} />}
+            label="From Report"
+            size="small"
+            color="primary"
+            variant="outlined"
+            sx={{
+              height: 24,
+              fontSize: '0.75rem',
+              '& .MuiChip-icon': {
+                marginLeft: '4px',
+              },
+            }}
+          />
+        </InputAdornment>
+      );
+    }
+    return null;
   };
 
   return (
@@ -63,7 +93,12 @@ export const VitalsForm: React.FC<VitalsFormProps> = ({ data, onChange }) => {
             type="number"
             value={data.temperature || ''}
             onChange={handleChange('temperature')}
-            inputProps={{ min: 90, max: 110, step: 0.1 }}
+            inputProps={{ 
+              min: 90, 
+              max: 110, 
+              step: 0.1,
+              'data-testid': 'temperature-input'
+            }}
             helperText="Normal: 97.0-99.0°F"
             fullWidth
             sx={{
@@ -72,6 +107,9 @@ export const VitalsForm: React.FC<VitalsFormProps> = ({ data, onChange }) => {
               },
             }}
             size={isMobile ? 'medium' : 'medium'}
+            InputProps={{
+              endAdornment: getFieldIndicator('vitals_temperature', 'temp-extracted'),
+            }}
           />
         </Grid>
 
@@ -82,7 +120,11 @@ export const VitalsForm: React.FC<VitalsFormProps> = ({ data, onChange }) => {
             type="number"
             value={data.heart_rate || ''}
             onChange={handleChange('heart_rate')}
-            inputProps={{ min: 30, max: 200 }}
+            inputProps={{ 
+              min: 30, 
+              max: 200,
+              'data-testid': 'heart-rate-input'
+            }}
             helperText="Normal: 60-100 bpm"
             fullWidth
             sx={{
@@ -91,6 +133,9 @@ export const VitalsForm: React.FC<VitalsFormProps> = ({ data, onChange }) => {
               },
             }}
             size={isMobile ? 'medium' : 'medium'}
+            InputProps={{
+              endAdornment: getFieldIndicator('vitals_heart_rate', 'hr-extracted'),
+            }}
           />
         </Grid>
 
@@ -101,7 +146,11 @@ export const VitalsForm: React.FC<VitalsFormProps> = ({ data, onChange }) => {
             type="number"
             value={data.blood_pressure_systolic || ''}
             onChange={handleChange('blood_pressure_systolic')}
-            inputProps={{ min: 70, max: 200 }}
+            inputProps={{ 
+              min: 70, 
+              max: 200,
+              'data-testid': 'bp-systolic-input'
+            }}
             helperText="Normal: 90-120 mmHg"
             fullWidth
             sx={{
@@ -110,6 +159,9 @@ export const VitalsForm: React.FC<VitalsFormProps> = ({ data, onChange }) => {
               },
             }}
             size={isMobile ? 'medium' : 'medium'}
+            InputProps={{
+              endAdornment: getFieldIndicator('vitals_blood_pressure_systolic', 'bp-sys-extracted'),
+            }}
           />
         </Grid>
 
@@ -120,7 +172,11 @@ export const VitalsForm: React.FC<VitalsFormProps> = ({ data, onChange }) => {
             type="number"
             value={data.blood_pressure_diastolic || ''}
             onChange={handleChange('blood_pressure_diastolic')}
-            inputProps={{ min: 40, max: 130 }}
+            inputProps={{ 
+              min: 40, 
+              max: 130,
+              'data-testid': 'bp-diastolic-input'
+            }}
             helperText="Normal: 60-80 mmHg"
             fullWidth
             sx={{
@@ -129,6 +185,9 @@ export const VitalsForm: React.FC<VitalsFormProps> = ({ data, onChange }) => {
               },
             }}
             size={isMobile ? 'medium' : 'medium'}
+            InputProps={{
+              endAdornment: getFieldIndicator('vitals_blood_pressure_diastolic', 'bp-dia-extracted'),
+            }}
           />
         </Grid>
 

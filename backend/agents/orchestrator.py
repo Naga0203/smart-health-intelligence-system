@@ -3,13 +3,13 @@ import uuid
 from typing import Dict, Any, List
 from datetime import datetime
 
-from backend.agents.base_agent import BaseHealthAgent
-from backend.agents.validation import LangChainValidationAgent
-from backend.agents.data_extraction import DataExtractionAgent
-from backend.agents.explanation import LangChainExplanationAgent
-from backend.agents.recommendation import RecommendationAgent
-from backend.agents.lifestyle import LifestyleModificationAgent
-from backend.agents.reflection import ReflectionAgent
+from .base_agent import BaseHealthAgent
+from .validation import LangChainValidationAgent
+from .data_extraction import DataExtractionAgent
+from .explanation import LangChainExplanationAgent
+from .recommendation import RecommendationAgent
+from .lifestyle import LifestyleModificationAgent
+from .reflection import ReflectionAgent
 
 try:
     from backend.prediction.predictor import DiseasePredictor
@@ -97,7 +97,7 @@ class OrchestratorAgent(BaseHealthAgent):
         Execute the complete health assessment pipeline.
         
         Args:
-            user_input: User input data
+            user_input: User input data (may include report_metadata and extracted_data)
             
         Returns:
             Complete assessment result
@@ -119,6 +119,21 @@ class OrchestratorAgent(BaseHealthAgent):
             )
         
         sanitized_input = validation_result["data"]["sanitized_input"]
+        
+        # Step 1.5: Merge extracted and manual data if report data is present
+        report_metadata = user_input.get("report_metadata")
+        extracted_data = user_input.get("extracted_data")
+        data_sources = user_input.get("data_sources", {})
+        
+        if extracted_data and report_metadata and report_metadata.get("has_extracted_data"):
+            self.log_agent_action("step_1.5_data_merging")
+            logger_orchestrator.info(f"Merging extracted data from report: {report_metadata.get('report_id')}")
+            
+            sanitized_input = self._merge_data_sources(
+                manual_data=sanitized_input,
+                extracted_data=extracted_data,
+                data_sources=data_sources
+            )
         
         # Step 2: Extract and Map Data using Gemini AI
         self.log_agent_action("step_2_data_extraction")
@@ -245,7 +260,8 @@ class OrchestratorAgent(BaseHealthAgent):
             prediction_metadata=prediction_metadata,
             explanation_data=explanation_data,
             recommendations=recommendations,
-            lifestyle_recommendations=lifestyle_recommendations
+            lifestyle_recommendations=lifestyle_recommendations,
+            report_metadata=report_metadata
         )
         
         # Step 10: Build Complete Response
@@ -308,6 +324,114 @@ class OrchestratorAgent(BaseHealthAgent):
         logger_orchestrator.info(f"Selected disease: {selected_disease} (scores: {scores})")
         return selected_disease
     
+    def _merge_data_sources(self, manual_data: Dict[str, Any], 
+                           extracted_data: Dict[str, Any],
+                           data_sources: Dict[str, str]) -> Dict[str, Any]:
+        """
+        Merge extracted data from medical reports with manually entered data.
+        User-entered data always takes precedence over extracted data.
+        
+        Args:
+            manual_data: Sanitized manual input from user
+            extracted_data: Data extracted from medical report
+            data_sources: Map indicating source of each field ('manual', 'extracted', 'merged')
+            
+        Returns:
+            Merged data dictionary with user data taking precedence
+        """
+        merged = manual_data.copy()
+        
+        # Merge symptoms - combine both sources if not manually overridden
+        if extracted_data.get("symptoms") and data_sources.get("symptoms") != "manual":
+            manual_symptoms = set(manual_data.get("symptoms", []))
+            extracted_symptoms = set(extracted_data.get("symptoms", []))
+            
+            # If user provided symptoms, prioritize those but add unique extracted ones
+            if manual_symptoms:
+                merged["symptoms"] = list(manual_symptoms | extracted_symptoms)
+                logger_orchestrator.info(f"Merged symptoms: {len(manual_symptoms)} manual + {len(extracted_symptoms - manual_symptoms)} extracted")
+            else:
+                merged["symptoms"] = list(extracted_symptoms)
+                logger_orchestrator.info(f"Using extracted symptoms: {len(extracted_symptoms)}")
+        
+        # Merge vitals - user data takes precedence for each field
+        if extracted_data.get("vitals"):
+            merged_vitals = manual_data.get("additional_info", {}).get("vitals", {}).copy()
+            extracted_vitals = extracted_data.get("vitals", {})
+            
+            for vital_key, vital_value in extracted_vitals.items():
+                # Only use extracted value if manual value is not provided
+                if vital_key not in merged_vitals or not merged_vitals[vital_key]:
+                    if data_sources.get(f"vitals.{vital_key}") != "manual":
+                        merged_vitals[vital_key] = vital_value
+            
+            if "additional_info" not in merged:
+                merged["additional_info"] = {}
+            merged["additional_info"]["vitals"] = merged_vitals
+        
+        # Merge lab results - append extracted to manual unless manually overridden
+        if extracted_data.get("lab_results") and data_sources.get("lab_results") != "manual":
+            manual_labs = manual_data.get("additional_info", {}).get("lab_results", [])
+            extracted_labs = extracted_data.get("lab_results", [])
+            
+            if "additional_info" not in merged:
+                merged["additional_info"] = {}
+            
+            # Combine lab results, avoiding duplicates based on test name
+            all_labs = list(manual_labs)
+            manual_test_names = {lab.get("test_name") for lab in manual_labs}
+            
+            for lab in extracted_labs:
+                if lab.get("test_name") not in manual_test_names:
+                    all_labs.append(lab)
+            
+            merged["additional_info"]["lab_results"] = all_labs
+        
+        # Merge medications - append extracted to manual unless manually overridden
+        if extracted_data.get("medications") and data_sources.get("medications") != "manual":
+            manual_meds = manual_data.get("additional_info", {}).get("medications", [])
+            extracted_meds = extracted_data.get("medications", [])
+            
+            if "additional_info" not in merged:
+                merged["additional_info"] = {}
+            
+            # Combine medications, avoiding duplicates based on name
+            all_meds = list(manual_meds)
+            manual_med_names = {med.get("name") for med in manual_meds}
+            
+            for med in extracted_meds:
+                if med.get("name") not in manual_med_names:
+                    all_meds.append(med)
+            
+            merged["additional_info"]["medications"] = all_meds
+        
+        # Merge diagnoses - append extracted to manual unless manually overridden
+        if extracted_data.get("diagnoses") and data_sources.get("diagnoses") != "manual":
+            manual_diagnoses = manual_data.get("additional_info", {}).get("diagnoses", [])
+            extracted_diagnoses = extracted_data.get("diagnoses", [])
+            
+            if "additional_info" not in merged:
+                merged["additional_info"] = {}
+            
+            # Combine diagnoses, avoiding duplicates based on condition
+            all_diagnoses = list(manual_diagnoses)
+            manual_conditions = {diag.get("condition") for diag in manual_diagnoses}
+            
+            for diag in extracted_diagnoses:
+                if diag.get("condition") not in manual_conditions:
+                    all_diagnoses.append(diag)
+            
+            merged["additional_info"]["diagnoses"] = all_diagnoses
+        
+        # Store confidence scores from extraction
+        if extracted_data.get("confidence_scores"):
+            if "additional_info" not in merged:
+                merged["additional_info"] = {}
+            merged["additional_info"]["extraction_confidence_scores"] = extracted_data["confidence_scores"]
+        
+        logger_orchestrator.info("Data merge completed - user data prioritized")
+        return merged
+    
     def _evaluate_confidence(self, probability: float) -> str:
         """
         Evaluate confidence level based on probability.
@@ -329,9 +453,13 @@ class OrchestratorAgent(BaseHealthAgent):
                           disease: str, probability: float, confidence: str,
                           extraction_data: Dict[str, Any], prediction_metadata: Dict[str, Any],
                           explanation_data: Dict[str, Any], recommendations: Dict[str, Any],
-                          lifestyle_recommendations: Dict[str, Any] = None) -> Dict[str, str]:
+                          lifestyle_recommendations: Dict[str, Any] = None,
+                          report_metadata: Dict[str, Any] = None) -> Dict[str, str]:
         """
         Store complete assessment in Firebase Firestore.
+        
+        Args:
+            report_metadata: Optional metadata about uploaded medical report
         
         Returns:
             Dictionary of storage IDs
@@ -349,10 +477,28 @@ class OrchestratorAgent(BaseHealthAgent):
                 'prediction_metadata': prediction_metadata,
                 'explanation': explanation_data,
                 'recommendations': recommendations,
-                'lifestyle_recommendations': lifestyle_recommendations or  {}
+                'lifestyle_recommendations': lifestyle_recommendations or {}
             }
             
+            # Include report metadata if present
+            if report_metadata:
+                assessment_data['report_metadata'] = {
+                    'report_id': report_metadata.get('report_id'),
+                    'extraction_job_id': report_metadata.get('extraction_job_id'),
+                    'has_extracted_data': report_metadata.get('has_extracted_data', False)
+                }
+                logger_orchestrator.info(f"Assessment linked to report: {report_metadata.get('report_id')}")
+            
             assessment_id = self.db.store_assessment(user_id, assessment_data)
+            
+            # Update report metadata with assessment ID if report was uploaded
+            if report_metadata and report_metadata.get('report_id'):
+                try:
+                    self.db.db.collection('medical_reports').document(report_metadata['report_id']).update({
+                        'associated_assessment_id': assessment_id
+                    })
+                except Exception as e:
+                    logger_orchestrator.warning(f"Could not link report to assessment: {str(e)}")
             
             # Store prediction separately for querying
             prediction_id = self.db.store_prediction(
@@ -379,14 +525,21 @@ class OrchestratorAgent(BaseHealthAgent):
             )
             
             # Store audit log
+            audit_payload = {
+                "disease": disease,
+                "confidence": confidence,
+                "probability": probability
+            }
+            
+            # Include report info in audit log if present
+            if report_metadata:
+                audit_payload["report_id"] = report_metadata.get('report_id')
+                audit_payload["has_extracted_data"] = report_metadata.get('has_extracted_data', False)
+            
             self.db.store_audit_log(
                 event_type="health_assessment_completed",
                 user_id=user_id,
-                payload={
-                    "disease": disease,
-                    "confidence": confidence,
-                    "probability": probability
-                }
+                payload=audit_payload
             )
             
             return {

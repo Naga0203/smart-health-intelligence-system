@@ -19,7 +19,8 @@ from .views import (
     AssessmentDetailAPIView,
     ReportUploadView,
     ExtractionStatusView,
-    ReportMetadataView
+    ReportMetadataView,
+    PredictView
 )
 from .new_views import (
     MedicalHistoryAPIView,
@@ -75,5 +76,8 @@ urlpatterns = [
 
     # Symptom Prediction
     path('predict/symptoms/', SymptomPredictionView.as_view(), name='predict-symptoms'),
+    
+    # Full prediction (Orchestrator)
+    path('predict/', PredictView.as_view(), name='predict'),
 ]
 

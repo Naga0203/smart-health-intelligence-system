@@ -1094,7 +1094,9 @@ class DiseasesListView(APIView):
                 response_only=True
             )
         }
+
     )
+
     def get(self, request):
         """
         GET /api/diseases
@@ -1126,6 +1128,21 @@ class DiseasesListView(APIView):
                 f"Failed to get diseases list: {str(e)}", 
                 logger
             )
+
+
+
+class PredictView(HealthAssessmentView):
+    """
+    Predict disease based on symptoms using the full Orchestrator pipeline.
+    Maps to /api/predict/
+    """
+    @extend_schema(
+        summary="Predict Disease (Orchestrator)", 
+        tags=["Prediction"],
+        description="Predict disease based on symptoms using the full Orchestrator pipeline. Matches existing assess/ flow."
+    )
+    def post(self, request):
+        return super().post(request)
 
 
 @api_view(['GET'])

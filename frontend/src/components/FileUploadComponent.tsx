@@ -5,14 +5,17 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Box, Button, Alert, Typography } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { FileDropzone } from './upload/FileDropzone';
-import { FilePreview } from './upload/FilePreview';
-import { UploadProgress, FileUploadStatus } from './upload/UploadProgress';
+import { FileDropzone, FilePreview, UploadProgress, FileUploadStatus } from './upload';
 import { ExtractedMedicalData, UploadError } from '@/types/medicalReport';
 import { reportService } from '@/services/reportService';
 
 interface FileUploadComponentProps {
-  onUploadComplete: (extractedData: ExtractedMedicalData, jobId: string) => void;
+  onUploadComplete: (extractedData: ExtractedMedicalData, jobId: string, reportMetadata: {
+    reportId: string;
+    fileName: string;
+    fileSize: number;
+    uploadTimestamp: string;
+  }) => void;
   onUploadError: (error: UploadError) => void;
   maxFileSizeMB?: number;
   acceptedFormats?: string[];
@@ -34,10 +37,16 @@ export const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadStatus, setUploadStatus] = useState<FileUploadStatus[]>([]);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const [currentReportMetadata, setCurrentReportMetadata] = useState<{
+    reportId: string;
+    fileName: string;
+    fileSize: number;
+    uploadTimestamp: string;
+  } | null>(null);
   const [extractionError, setExtractionError] = useState<string | null>(null);
   const [isPolling, setIsPolling] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
-  
+
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pollAttemptsRef = useRef<number>(0);
 
@@ -61,7 +70,7 @@ export const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
     setSelectedFiles([file]);
     setExtractionError(null);
     setRetryCount(0);
-    
+
     // Initialize upload status
     setUploadStatus([{
       fileName: file.name,
@@ -96,16 +105,18 @@ export const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
           pollIntervalRef.current = null;
         }
         setIsPolling(false);
-        
+
         setUploadStatus(prev => prev.map(file => ({
           ...file,
           progress: 100,
           status: 'completed',
         })));
 
-        // Call success callback with extracted data
-        onUploadComplete(statusResponse.extracted_data, jobId);
-        
+        // Call success callback with extracted data and report metadata
+        if (currentReportMetadata && statusResponse.extracted_data) {
+          onUploadComplete(statusResponse.extracted_data, jobId, currentReportMetadata);
+        }
+
       } else if (statusResponse.status === 'failed') {
         // Extraction failed
         if (pollIntervalRef.current) {
@@ -113,10 +124,10 @@ export const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
           pollIntervalRef.current = null;
         }
         setIsPolling(false);
-        
+
         const errorMessage = statusResponse.message || 'Extraction failed';
         setExtractionError(errorMessage);
-        
+
         setUploadStatus(prev => prev.map(file => ({
           ...file,
           status: 'error',
@@ -128,7 +139,7 @@ export const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
           message: errorMessage,
           details: statusResponse.partial_data,
         });
-        
+
       } else if (statusResponse.status === 'processing') {
         // Still processing - update progress
         const progress = statusResponse.progress_percent || 50;
@@ -146,10 +157,10 @@ export const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
           pollIntervalRef.current = null;
         }
         setIsPolling(false);
-        
+
         const timeoutError = 'Extraction timeout - processing is taking longer than expected';
         setExtractionError(timeoutError);
-        
+
         setUploadStatus(prev => prev.map(file => ({
           ...file,
           status: 'error',
@@ -161,10 +172,10 @@ export const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
           message: timeoutError,
         });
       }
-      
+
     } catch (error: any) {
       console.error('Error polling extraction status:', error);
-      
+
       // Don't stop polling on network errors - just log and continue
       if (pollAttemptsRef.current >= MAX_POLL_ATTEMPTS) {
         if (pollIntervalRef.current) {
@@ -172,10 +183,10 @@ export const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
           pollIntervalRef.current = null;
         }
         setIsPolling(false);
-        
+
         const errorMessage = error.response?.data?.message || 'Failed to check extraction status';
         setExtractionError(errorMessage);
-        
+
         setUploadStatus(prev => prev.map(file => ({
           ...file,
           status: 'error',
@@ -196,7 +207,7 @@ export const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
   const startPolling = useCallback((jobId: string) => {
     setIsPolling(true);
     pollAttemptsRef.current = 0;
-    
+
     // Clear any existing interval
     if (pollIntervalRef.current) {
       clearInterval(pollIntervalRef.current);
@@ -231,6 +242,14 @@ export const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
       // Upload file
       const uploadResponse = await reportService.uploadReport(file, userId);
 
+      // Store report metadata
+      setCurrentReportMetadata({
+        reportId: uploadResponse.report_id,
+        fileName: uploadResponse.file_name,
+        fileSize: uploadResponse.file_size,
+        uploadTimestamp: uploadResponse.upload_timestamp,
+      });
+
       // Update progress to show upload complete
       setUploadStatus([{
         fileName: file.name,
@@ -244,12 +263,12 @@ export const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
 
     } catch (error: any) {
       console.error('Upload error:', error);
-      
+
       const errorMessage = error.response?.data?.message || 'Upload failed';
       const errorCode = error.response?.data?.error_code || 'upload_failed';
-      
+
       setExtractionError(errorMessage);
-      
+
       setUploadStatus([{
         fileName: file.name,
         progress: 0,
@@ -284,12 +303,13 @@ export const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
       pollIntervalRef.current = null;
     }
     setIsPolling(false);
-    
+
     // Reset state
     setSelectedFiles([]);
     setUploadStatus([]);
     setExtractionError(null);
     setCurrentJobId(null);
+    setCurrentReportMetadata(null);
     setRetryCount(0);
     pollAttemptsRef.current = 0;
   }, []);
@@ -331,8 +351,8 @@ export const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
 
       {/* Error Display with Retry */}
       {hasError && extractionError && (
-        <Alert 
-          severity="error" 
+        <Alert
+          severity="error"
           sx={{ mt: 2 }}
           action={
             <Button

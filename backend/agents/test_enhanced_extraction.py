@@ -8,7 +8,7 @@ and extract structured data.
 import pytest
 from io import BytesIO
 from unittest.mock import Mock, patch, MagicMock
-from backend.agents.enhanced_extraction import EnhancedExtractionAgent
+from .enhanced_extraction import EnhancedExtractionAgent
 
 
 class TestEnhancedExtractionAgent:
@@ -17,7 +17,7 @@ class TestEnhancedExtractionAgent:
     @pytest.fixture
     def agent(self):
         """Create agent instance for testing."""
-        with patch('backend.agents.enhanced_extraction.ChatGoogleGenerativeAI'):
+        with patch('agents.enhanced_extraction.ChatGoogleGenerativeAI'):
             agent = EnhancedExtractionAgent()
             return agent
     
@@ -211,7 +211,7 @@ class TestEnhancedExtractionAgent:
         assert scores['medications'] == 0
         assert scores['diagnoses'] == 0
     
-    @patch('backend.agents.enhanced_extraction.ChatGoogleGenerativeAI')
+    @patch('agents.enhanced_extraction.ChatGoogleGenerativeAI')
     def test_extract_from_report_unsupported_file_type(self, mock_gemini):
         """Test extraction fails gracefully for unsupported file types."""
         agent = EnhancedExtractionAgent()
@@ -223,7 +223,7 @@ class TestEnhancedExtractionAgent:
         assert 'error_code' in result
         assert result['extracted_data'] is None
     
-    @patch('backend.agents.enhanced_extraction.ChatGoogleGenerativeAI')
+    @patch('agents.enhanced_extraction.ChatGoogleGenerativeAI')
     def test_extract_from_report_no_text_extracted(self, mock_gemini):
         """Test extraction handles case when no text is extracted."""
         # Mock Gemini client
@@ -243,7 +243,7 @@ class TestEnhancedExtractionAgent:
         assert 'metadata' in result
         assert result['metadata']['ocr_used'] is False
     
-    @patch('backend.agents.enhanced_extraction.ChatGoogleGenerativeAI')
+    @patch('agents.enhanced_extraction.ChatGoogleGenerativeAI')
     def test_extract_from_report_success_pdf(self, mock_gemini):
         """Test successful extraction from PDF."""
         # Mock Gemini client
@@ -292,7 +292,7 @@ class TestEnhancedExtractionAgent:
         assert result['confidence_scores'] is not None
         assert result['metadata']['ocr_used'] is False
     
-    @patch('backend.agents.enhanced_extraction.ChatGoogleGenerativeAI')
+    @patch('agents.enhanced_extraction.ChatGoogleGenerativeAI')
     def test_extract_from_report_success_image(self, mock_gemini):
         """Test successful extraction from image with OCR."""
         # Mock Gemini client

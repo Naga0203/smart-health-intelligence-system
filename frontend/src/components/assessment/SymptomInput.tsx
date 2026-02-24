@@ -70,13 +70,21 @@ const COMMON_SYMPTOMS = [
 interface SymptomInputProps {
   symptoms: SymptomData[];
   onChange: (symptoms: SymptomData[]) => void;
+  extractedSymptoms?: string[];
 }
 
 export const SymptomInput: React.FC<SymptomInputProps> = ({
   symptoms,
   onChange,
+  extractedSymptoms,
 }) => {
   const [inputValue, setInputValue] = useState('');
+
+  const isSymptomExtracted = (symptomName: string): boolean => {
+    return extractedSymptoms?.some(
+      (extracted) => extracted.toLowerCase() === symptomName.toLowerCase()
+    ) || false;
+  };
 
   const handleAddSymptom = (symptomName: string | null) => {
     if (!symptomName) return;
@@ -183,6 +191,7 @@ export const SymptomInput: React.FC<SymptomInputProps> = ({
               onSeverityChange={(severity) => handleSeverityChange(index, severity)}
               onDurationChange={(duration) => handleDurationChange(index, duration)}
               onRemove={() => handleRemoveSymptom(index)}
+              isExtracted={isSymptomExtracted(symptom.name)}
             />
           ))}
         </Box>

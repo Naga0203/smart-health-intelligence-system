@@ -3,7 +3,7 @@
 // Clean, modern interface matching HealthIntel AI design
 // ============================================================================
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -14,26 +14,38 @@ import {
   Chip,
   Slider,
   LinearProgress,
-  Paper,
   IconButton,
   InputAdornment,
   Alert,
   Fade,
+  ToggleButton,
+  ToggleButtonGroup,
+  Divider,
 } from '@mui/material';
 import {
   AccessTime,
   Thermostat,
-  CloudUpload,
   Lock,
   Mic,
   AutoAwesome,
+  Edit,
+  Description,
 } from '@mui/icons-material';
+import { FileUploadComponent } from '@/components/FileUploadComponent';
+import { ExtractedMedicalData, UploadError } from '@/types/medicalReport';
 
 const COMMON_SYMPTOMS = ['Headache', 'Fever', 'Nausea', 'Fatigue'];
 
 export const NewAssessmentPage: React.FC = () => {
   const navigate = useNavigate();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Check if report upload feature is enabled
+  const isReportUploadEnabled = import.meta.env.VITE_ENABLE_REPORT_UPLOAD === 'true';
+
+  // Entry mode: 'upload' or 'manual'
+  const [entryMode, setEntryMode] = useState<'upload' | 'manual'>(
+    isReportUploadEnabled ? 'upload' : 'manual'
+  );
 
   // Form state
   const [symptomDescription, setSymptomDescription] = useState('');
@@ -41,11 +53,27 @@ export const NewAssessmentPage: React.FC = () => {
   const [duration, setDuration] = useState('');
   const [temperature, setTemperature] = useState('');
   const [painSeverity, setPainSeverity] = useState(4);
-  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
-  const [isDragging, setIsDragging] = useState(false);
+
+  // Extracted data state
+  const [extractedData, setExtractedData] = useState<ExtractedMedicalData | null>(null);
+  const [extractionJobId, setExtractionJobId] = useState<string | null>(null);
+  const [reportMetadata, setReportMetadata] = useState<{
+    reportId: string;
+    fileName: string;
+    fileSize: number;
+    uploadTimestamp: string;
+  } | null>(null);
+  const [uploadError, setUploadError] = useState<UploadError | null>(null);
+
+  // Track data sources for each field (manual vs extracted)
+  const [dataSources, setDataSources] = useState<Map<string, 'manual' | 'extracted'>>(new Map());
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Get user ID from auth context or localStorage
+  // For now, using a placeholder - should be replaced with actual auth
+  const userId = 'user-123'; // TODO: Get from auth context
 
   // Calculate progress (for demo, based on filled fields)
   const calculateProgress = () => {
@@ -54,6 +82,92 @@ export const NewAssessmentPage: React.FC = () => {
     if (selectedSymptoms.length > 0) filled += 1;
     if (duration || temperature || painSeverity !== 4) filled += 1;
     return Math.round((filled / 3) * 100);
+  };
+
+  /**
+   * Handle successful upload and extraction
+   */
+  const handleUploadComplete = (
+    data: ExtractedMedicalData,
+    jobId: string,
+    metadata: {
+      reportId: string;
+      fileName: string;
+      fileSize: number;
+      uploadTimestamp: string;
+    }
+  ) => {
+    setExtractedData(data);
+    setExtractionJobId(jobId);
+    setReportMetadata(metadata);
+    setUploadError(null);
+
+    // Populate form with extracted data and track sources
+    populateFormFromExtractedData(data);
+  };
+
+  /**
+   * Handle upload error
+   */
+  const handleUploadError = (error: UploadError) => {
+    setUploadError(error);
+    setExtractedData(null);
+    setExtractionJobId(null);
+  };
+
+  /**
+   * Populate form fields from extracted data
+   */
+  const populateFormFromExtractedData = (data: ExtractedMedicalData) => {
+    const newDataSources = new Map<string, 'manual' | 'extracted'>();
+
+    // Populate symptoms
+    if (data.symptoms && data.symptoms.length > 0) {
+      const symptomsText = data.symptoms.join(', ');
+      setSymptomDescription(symptomsText);
+      newDataSources.set('symptomDescription', 'extracted');
+
+      // Select matching common symptoms
+      const matchingSymptoms = COMMON_SYMPTOMS.filter(symptom =>
+        symptomsText.toLowerCase().includes(symptom.toLowerCase())
+      );
+      setSelectedSymptoms(matchingSymptoms);
+      if (matchingSymptoms.length > 0) {
+        newDataSources.set('selectedSymptoms', 'extracted');
+      }
+    }
+
+    // Populate vitals
+    if (data.vitals) {
+      if (data.vitals.temperature) {
+        setTemperature(`${data.vitals.temperature} °C`);
+        newDataSources.set('temperature', 'extracted');
+      }
+      // Note: Duration is not in vitals, would need to be extracted from report context
+    }
+
+    // Update data sources
+    setDataSources(newDataSources);
+
+    // Note: Pain severity is subjective and typically not in reports
+    // Lab results, medications, and diagnoses would be displayed separately
+    // in a more comprehensive form (future enhancement)
+  };
+
+  /**
+   * Handle entry mode change
+   */
+  const handleEntryModeChange = (
+    _event: React.MouseEvent<HTMLElement>,
+    newMode: 'upload' | 'manual' | null,
+  ) => {
+    if (newMode !== null) {
+      setEntryMode(newMode);
+      // Clear upload-related state when switching to manual
+      if (newMode === 'manual') {
+        setUploadError(null);
+      }
+    }
   };
 
   // Toggle symptom chip
@@ -93,51 +207,18 @@ export const NewAssessmentPage: React.FC = () => {
     });
   };
 
-  // Handle file upload
-  const handleFiles = (files: FileList | null) => {
-    if (!files) return;
-    setAttachedFiles(prev => [...prev, ...Array.from(files)]);
-  };
 
-  // Drag handlers
-  const handleDragEnter = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-    handleFiles(e.dataTransfer.files);
-  };
-
-  // Handle file browse
-  const handleBrowseClick = () => {
-    fileInputRef.current?.click();
-  };
 
   // Reset form
   const handleReset = () => {
-    setSymptomDescription('');
-    setSelectedSymptoms([]);
     setDuration('');
     setTemperature('');
     setPainSeverity(4);
-    setAttachedFiles([]);
     setSubmitError(null);
+    setExtractedData(null);
+    setExtractionJobId(null);
+    setReportMetadata(null);
+    setDataSources(new Map());
   };
 
   // Submit form
@@ -159,8 +240,35 @@ export const NewAssessmentPage: React.FC = () => {
 
       console.log('Submitting symptoms:', symptomsInput);
 
-      // Call API
-      const response = await import('@/services/api').then(m => m.apiService.predictSymptoms(symptomsInput));
+      // Prepare report metadata if available
+      const reportMetadataPayload = reportMetadata && extractionJobId ? {
+        reportId: reportMetadata.reportId,
+        extractionJobId: extractionJobId,
+        hasExtractedData: extractedData !== null,
+      } : undefined;
+
+      // Convert data sources Map to plain object
+      const dataSourcesObject: Record<string, 'manual' | 'extracted'> = {};
+      dataSources.forEach((value, key) => {
+        dataSourcesObject[key] = value;
+      });
+
+      // Call API with report data
+      const response = await import('@/services/api').then(m =>
+        m.apiService.predict(
+          symptomsInput,
+          reportMetadataPayload,
+          extractedData,
+          Object.keys(dataSourcesObject).length > 0 ? dataSourcesObject : undefined,
+          30, // Default age (should come from form/profile)
+          'male', // Default gender (should come from form/profile)
+          {
+            duration,
+            temperature: temperature ? parseFloat(temperature.replace(/[^\d.]/g, '')) : undefined,
+            pain_severity: painSeverity
+          }
+        )
+      );
 
       console.log('Prediction Response:', response);
 
@@ -257,42 +365,188 @@ export const NewAssessmentPage: React.FC = () => {
             </Typography>
           </Box>
 
+          {/* Entry Mode Toggle - Only show if report upload is enabled */}
+          {isReportUploadEnabled && (
+            <Box sx={{ mb: 4 }}>
+              <ToggleButtonGroup
+                value={entryMode}
+                exclusive
+                onChange={handleEntryModeChange}
+                aria-label="entry mode"
+                fullWidth
+                sx={{
+                  bgcolor: 'white',
+                  borderRadius: 2,
+                  '& .MuiToggleButton-root': {
+                    py: 1.5,
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    fontSize: { xs: '0.875rem', sm: '1rem' },
+                    border: '1px solid #E5E7EB',
+                    color: '#6B7280',
+                    '&.Mui-selected': {
+                      bgcolor: '#EEF2FF',
+                      color: '#2563EB',
+                      borderColor: '#2563EB',
+                      '&:hover': {
+                        bgcolor: '#DBEAFE',
+                      },
+                    },
+                    '&:hover': {
+                      bgcolor: '#F9FAFB',
+                    },
+                  },
+                }}
+              >
+                <ToggleButton value="upload" aria-label="upload report">
+                  <Description sx={{ mr: 1, fontSize: 20 }} />
+                  Upload Medical Report
+                </ToggleButton>
+                <ToggleButton value="manual" aria-label="manual entry">
+                  <Edit sx={{ mr: 1, fontSize: 20 }} />
+                  Manual Entry
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
+          )}
+
+          {/* File Upload Section - Only show if feature is enabled and mode is upload */}
+          {isReportUploadEnabled && entryMode === 'upload' && (
+            <Box sx={{ mb: 4 }}>
+              <Typography
+                variant="subtitle1"
+                sx={{
+                  fontWeight: 600,
+                  color: '#111827',
+                  mb: 1.5,
+                  fontSize: { xs: '0.875rem', sm: '1rem' },
+                }}
+              >
+                Upload Medical Report
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: '#6B7280',
+                  mb: 2,
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                }}
+              >
+                Upload a PDF, JPG, or PNG file (max 10MB). Our AI will extract medical information and pre-fill the form below.
+              </Typography>
+
+              <FileUploadComponent
+                onUploadComplete={handleUploadComplete}
+                onUploadError={handleUploadError}
+                userId={userId}
+                maxFileSizeMB={10}
+                acceptedFormats={['.pdf', '.jpg', '.jpeg', '.png']}
+              />
+
+              {/* Show divider after successful upload */}
+              {extractedData && (
+                <Box sx={{ mt: 4, mb: 4 }}>
+                  <Divider>
+                    <Chip
+                      label="Extracted Data - Review and Edit Below"
+                      sx={{
+                        bgcolor: '#EEF2FF',
+                        color: '#2563EB',
+                        fontWeight: 600,
+                        fontSize: '0.75rem',
+                      }}
+                    />
+                  </Divider>
+                </Box>
+              )}
+            </Box>
+          )}
+
           {submitError && (
             <Alert severity="error" sx={{ mb: 4 }} onClose={() => setSubmitError(null)}>
               {submitError}
             </Alert>
           )}
 
+          {/* Upload Error with Manual Entry Fallback */}
+          {uploadError && entryMode === 'upload' && (
+            <Alert
+              severity="warning"
+              sx={{ mb: 4 }}
+              action={
+                <Button
+                  color="inherit"
+                  size="small"
+                  onClick={() => setEntryMode('manual')}
+                >
+                  Switch to Manual Entry
+                </Button>
+              }
+            >
+              <Typography variant="body2" fontWeight="medium">
+                Report extraction failed: {uploadError.message}
+              </Typography>
+              <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
+                You can switch to manual entry to continue with your assessment.
+              </Typography>
+            </Alert>
+          )}
+
           {/* Symptom Description */}
           <Box sx={{ mb: 4 }}>
-            <Typography
-              variant="subtitle1"
-              sx={{
-                fontWeight: 600,
-                color: '#111827',
-                mb: 1.5,
-                fontSize: { xs: '0.875rem', sm: '1rem' },
-              }}
-            >
-              Symptom Description
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+              <Typography
+                variant="subtitle1"
+                sx={{
+                  fontWeight: 600,
+                  color: '#111827',
+                  fontSize: { xs: '0.875rem', sm: '1rem' },
+                }}
+              >
+                Symptom Description
+              </Typography>
+              {extractedData && symptomDescription && (
+                <Chip
+                  label="Auto-filled from report"
+                  size="small"
+                  icon={<AutoAwesome sx={{ fontSize: 14 }} />}
+                  sx={{
+                    ml: 1.5,
+                    height: 24,
+                    bgcolor: '#ECFDF5',
+                    color: '#059669',
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    '& .MuiChip-icon': {
+                      color: '#059669',
+                    },
+                  }}
+                />
+              )}
+            </Box>
             <TextField
               fullWidth
               multiline
               rows={4}
               value={symptomDescription}
-              onChange={(e) => setSymptomDescription(e.target.value)}
+              onChange={(e) => {
+                setSymptomDescription(e.target.value);
+                // Mark as manual if user edits after extraction
+                if (dataSources.get('symptomDescription') === 'extracted') {
+                  setDataSources(prev => new Map(prev).set('symptomDescription', 'manual'));
+                }
+              }}
               placeholder="Describe your symptoms here (e.g., I've had a throbbing headache and fever for 2 days...). Our AI will assist you."
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  bgcolor: 'white',
+                  bgcolor: extractedData && symptomDescription ? '#F0FDF4' : 'white',
                   borderRadius: 2,
                   fontSize: { xs: '0.875rem', sm: '1rem' },
                   '& fieldset': {
-                    borderColor: '#E5E7EB',
+                    borderColor: extractedData && symptomDescription ? '#86EFAC' : '#E5E7EB',
                   },
                   '&:hover fieldset': {
-                    borderColor: '#D1D5DB',
+                    borderColor: extractedData && symptomDescription ? '#4ADE80' : '#D1D5DB',
                   },
                   '&.Mui-focused fieldset': {
                     borderColor: '#2563EB',
@@ -398,7 +652,13 @@ export const NewAssessmentPage: React.FC = () => {
                 <TextField
                   fullWidth
                   value={duration}
-                  onChange={(e) => setDuration(e.target.value)}
+                  onChange={(e) => {
+                    setDuration(e.target.value);
+                    // Mark as manual when user enters data
+                    if (e.target.value) {
+                      setDataSources(prev => new Map(prev).set('duration', 'manual'));
+                    }
+                  }}
                   placeholder="e.g. 2 days"
                   InputProps={{
                     startAdornment: (
@@ -428,22 +688,52 @@ export const NewAssessmentPage: React.FC = () => {
 
               {/* Temperature */}
               <Box>
-                <Typography
-                  variant="caption"
-                  sx={{
-                    fontWeight: 600,
-                    color: '#6B7280',
-                    mb: 1,
-                    display: 'block',
-                    fontSize: '0.75rem',
-                  }}
-                >
-                  Temperature
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontWeight: 600,
+                      color: '#6B7280',
+                      fontSize: '0.75rem',
+                    }}
+                  >
+                    Temperature
+                  </Typography>
+                  {extractedData && temperature && (
+                    <Chip
+                      label="Auto-filled"
+                      size="small"
+                      icon={<AutoAwesome sx={{ fontSize: 10 }} />}
+                      sx={{
+                        ml: 1,
+                        height: 18,
+                        bgcolor: '#ECFDF5',
+                        color: '#059669',
+                        fontSize: '0.65rem',
+                        fontWeight: 600,
+                        '& .MuiChip-icon': {
+                          color: '#059669',
+                          marginLeft: '4px',
+                        },
+                        '& .MuiChip-label': {
+                          px: 0.5,
+                        },
+                      }}
+                    />
+                  )}
+                </Box>
                 <TextField
                   fullWidth
                   value={temperature}
-                  onChange={(e) => setTemperature(e.target.value)}
+                  onChange={(e) => {
+                    setTemperature(e.target.value);
+                    // Mark as manual if user edits after extraction
+                    if (dataSources.get('temperature') === 'extracted') {
+                      setDataSources(prev => new Map(prev).set('temperature', 'manual'));
+                    } else if (e.target.value) {
+                      setDataSources(prev => new Map(prev).set('temperature', 'manual'));
+                    }
+                  }}
                   placeholder="e.g. 38.5 C"
                   InputProps={{
                     startAdornment: (
@@ -454,14 +744,14 @@ export const NewAssessmentPage: React.FC = () => {
                   }}
                   sx={{
                     '& .MuiOutlinedInput-root': {
-                      bgcolor: 'white',
+                      bgcolor: extractedData && temperature ? '#F0FDF4' : 'white',
                       borderRadius: 2,
                       fontSize: { xs: '0.875rem', sm: '0.875rem' },
                       '& fieldset': {
-                        borderColor: '#E5E7EB',
+                        borderColor: extractedData && temperature ? '#86EFAC' : '#E5E7EB',
                       },
                       '&:hover fieldset': {
-                        borderColor: '#D1D5DB',
+                        borderColor: extractedData && temperature ? '#4ADE80' : '#D1D5DB',
                       },
                       '&.Mui-focused fieldset': {
                         borderColor: '#2563EB',
@@ -497,7 +787,13 @@ export const NewAssessmentPage: React.FC = () => {
                 </Box>
                 <Slider
                   value={painSeverity}
-                  onChange={(_, value) => setPainSeverity(value as number)}
+                  onChange={(_, value) => {
+                    setPainSeverity(value as number);
+                    // Mark as manual when user changes from default
+                    if (value !== 4) {
+                      setDataSources(prev => new Map(prev).set('painSeverity', 'manual'));
+                    }
+                  }}
                   min={0}
                   max={10}
                   step={1}
@@ -523,106 +819,7 @@ export const NewAssessmentPage: React.FC = () => {
             </Box>
           </Box>
 
-          {/* Attachments */}
-          <Box sx={{ mb: 4 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
-              <Typography
-                variant="subtitle1"
-                sx={{
-                  fontWeight: 600,
-                  color: '#111827',
-                  fontSize: { xs: '0.875rem', sm: '1rem' },
-                }}
-              >
-                Attachments
-              </Typography>
-              <Typography
-                variant="caption"
-                sx={{
-                  color: '#9CA3AF',
-                  fontSize: '0.75rem',
-                }}
-              >
-                Optional: Images or PDF reports
-              </Typography>
-            </Box>
 
-            <Paper
-              onDragEnter={handleDragEnter}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onClick={handleBrowseClick}
-              sx={{
-                border: '2px dashed',
-                borderColor: isDragging ? '#2563EB' : '#E5E7EB',
-                borderRadius: 2,
-                bgcolor: isDragging ? '#EEF2FF' : 'white',
-                p: { xs: 3, sm: 4 },
-                textAlign: 'center',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                '&:hover': {
-                  borderColor: '#2563EB',
-                  bgcolor: '#F9FAFB',
-                },
-              }}
-            >
-              <Box
-                sx={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: '50%',
-                  bgcolor: '#EEF2FF',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto',
-                  mb: 1.5,
-                }}
-              >
-                <CloudUpload sx={{ color: '#2563EB', fontSize: 24 }} />
-              </Box>
-              <Typography
-                variant="body2"
-                sx={{
-                  fontWeight: 500,
-                  color: '#111827',
-                  mb: 0.5,
-                  fontSize: { xs: '0.875rem', sm: '0.875rem' },
-                }}
-              >
-                Click to upload or drag and drop
-              </Typography>
-              <Typography
-                variant="caption"
-                sx={{
-                  color: '#9CA3AF',
-                  fontSize: '0.75rem',
-                }}
-              >
-                SVG, PNG, JPG or GIF (max. 800x400px)
-              </Typography>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept="image/*,.pdf"
-                onChange={(e) => handleFiles(e.target.files)}
-                style={{ display: 'none' }}
-              />
-            </Paper>
-
-            {attachedFiles.length > 0 && (
-              <Box sx={{ mt: 2 }}>
-                {attachedFiles.map((file, index) => (
-                  <Typography key={index} variant="caption" sx={{ display: 'block', color: '#6B7280' }}>
-                    {file.name}
-                  </Typography>
-                ))}
-              </Box>
-            )}
-          </Box>
 
           {/* AI Ready Alert */}
           <Alert

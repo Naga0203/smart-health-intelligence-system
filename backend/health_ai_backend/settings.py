@@ -111,8 +111,17 @@ FIREBASE_CREDENTIALS_PATH_RELATIVE = config('FIREBASE_CREDENTIALS_PATH', default
 # Convert to absolute path
 FIREBASE_CREDENTIALS_PATH = os.path.join(BASE_DIR, FIREBASE_CREDENTIALS_PATH_RELATIVE)
 
+# Firebase Storage bucket for medical report uploads
+FIREBASE_STORAGE_BUCKET = config('FIREBASE_STORAGE_BUCKET', default='')
+
 # Google Gemini Configuration
 GEMINI_API_KEY = config('GEMINI_API_KEY', default='')
+GEMINI_MODEL = config('GEMINI_MODEL', default='gemini-1.5-flash')
+
+# Medical Report Upload Feature Flags
+ENABLE_REPORT_UPLOAD = config('ENABLE_REPORT_UPLOAD', default=True, cast=bool)
+MAX_FILE_SIZE_MB = config('MAX_FILE_SIZE_MB', default=10, cast=int)
+ALLOWED_FILE_FORMATS = config('ALLOWED_FILE_FORMATS', default='pdf,jpg,jpeg,png', cast=lambda v: [s.strip() for s in v.split(',')])
 
 # Django REST Framework Configuration
 REST_FRAMEWORK = {

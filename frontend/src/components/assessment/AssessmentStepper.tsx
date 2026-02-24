@@ -4,7 +4,7 @@
 // Mobile-friendly with vertical stepper and proper touch targets
 // ============================================================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Stepper,
@@ -22,6 +22,7 @@ import { SymptomInput } from './SymptomInput';
 import { DemographicForm } from './DemographicForm';
 import { VitalsForm } from './VitalsForm';
 import { ReviewStep } from './ReviewStep';
+import type { ExtractedMedicalData, ReportMetadata } from '../../types/medicalReport';
 
 const steps = ['Symptoms', 'Demographics', 'Vitals', 'Review'];
 
@@ -29,6 +30,8 @@ interface AssessmentStepperProps {
   onSubmit: (data: AssessmentFormData) => void;
   loading?: boolean;
   disabled?: boolean;
+  extractedData?: ExtractedMedicalData;
+  reportMetadata?: ReportMetadata;
 }
 
 export interface SymptomData {
@@ -58,12 +61,16 @@ export interface AssessmentFormData {
   symptoms: SymptomData[];
   demographics: DemographicFormData;
   vitals: VitalsFormData;
+  reportMetadata?: ReportMetadata;
+  dataSources?: Map<string, 'manual' | 'extracted'>;
 }
 
 export const AssessmentStepper: React.FC<AssessmentStepperProps> = ({
   onSubmit,
   loading = false,
   disabled = false,
+  extractedData,
+  reportMetadata,
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md')); // < 900px
@@ -78,7 +85,83 @@ export const AssessmentStepper: React.FC<AssessmentStepperProps> = ({
       medical_history: [],
     },
     vitals: {},
+    reportMetadata,
+    dataSources: new Map(),
   });
+  const [modifiedFields, setModifiedFields] = useState<Set<string>>(new Set());
+
+  // Populate form from extracted data when available
+  useEffect(() => {
+    if (extractedData) {
+      populateFromExtractedData(extractedData);
+    }
+  }, [extractedData]);
+
+  const populateFromExtractedData = (data: ExtractedMedicalData) => {
+    const newDataSources = new Map<string, 'manual' | 'extracted'>();
+
+    // Populate symptoms
+    if (data.symptoms && data.symptoms.length > 0) {
+      const symptomData: SymptomData[] = data.symptoms.map(symptom => ({
+        name: symptom,
+        severity: 5, // Default severity
+        duration: { value: 1, unit: 'days' as const },
+      }));
+
+      setFormData(prev => ({ ...prev, symptoms: symptomData }));
+      data.symptoms.forEach((_, index) => {
+        newDataSources.set(`symptom_${index}`, 'extracted');
+      });
+    }
+
+    // Populate vitals
+    if (data.vitals) {
+      const vitalsData: VitalsFormData = {};
+
+      if (data.vitals.temperature) {
+        vitalsData.temperature = data.vitals.temperature;
+        newDataSources.set('vitals_temperature', 'extracted');
+      }
+
+      if (data.vitals.heartRate) {
+        vitalsData.heart_rate = data.vitals.heartRate;
+        newDataSources.set('vitals_heart_rate', 'extracted');
+      }
+
+      if (data.vitals.bloodPressure) {
+        // Parse blood pressure string like "120/80"
+        const bpParts = data.vitals.bloodPressure.split('/');
+        if (bpParts.length === 2) {
+          vitalsData.blood_pressure_systolic = parseInt(bpParts[0], 10);
+          vitalsData.blood_pressure_diastolic = parseInt(bpParts[1], 10);
+          newDataSources.set('vitals_blood_pressure_systolic', 'extracted');
+          newDataSources.set('vitals_blood_pressure_diastolic', 'extracted');
+        }
+      }
+
+      setFormData(prev => ({ ...prev, vitals: vitalsData }));
+    }
+
+    // Update data sources
+    setFormData(prev => ({ ...prev, dataSources: newDataSources }));
+  };
+
+  const markFieldSource = (fieldName: string, source: 'manual' | 'extracted') => {
+    setFormData(prev => {
+      const newDataSources = new Map(prev.dataSources);
+      newDataSources.set(fieldName, source);
+      return { ...prev, dataSources: newDataSources };
+    });
+  };
+
+  const markFieldAsModified = (fieldName: string) => {
+    setModifiedFields(prev => new Set(prev).add(fieldName));
+    markFieldSource(fieldName, 'manual');
+  };
+
+  const isFieldExtracted = (fieldName: string): boolean => {
+    return formData.dataSources?.get(fieldName) === 'extracted' && !modifiedFields.has(fieldName);
+  };
 
   const handleNext = () => {
     setActiveStep((prevStep) => prevStep + 1);
@@ -90,6 +173,10 @@ export const AssessmentStepper: React.FC<AssessmentStepperProps> = ({
 
   const handleSymptomsChange = (symptoms: SymptomData[]) => {
     setFormData((prev) => ({ ...prev, symptoms }));
+    // Mark symptoms as manually modified
+    symptoms.forEach((_, index) => {
+      markFieldAsModified(`symptom_${index}`);
+    });
   };
 
   const handleDemographicsChange = (demographics: DemographicFormData) => {
@@ -98,6 +185,10 @@ export const AssessmentStepper: React.FC<AssessmentStepperProps> = ({
 
   const handleVitalsChange = (vitals: VitalsFormData) => {
     setFormData((prev) => ({ ...prev, vitals }));
+    // Mark vitals as manually modified
+    Object.keys(vitals).forEach(key => {
+      markFieldAsModified(`vitals_${key}`);
+    });
   };
 
   const handleSubmit = () => {
@@ -111,7 +202,7 @@ export const AssessmentStepper: React.FC<AssessmentStepperProps> = ({
       case 1: // Demographics
         return (
           formData.demographics.age > 0 &&
-          formData.demographics.gender !== ''
+          (formData.demographics.gender as string) !== ''
         );
       case 2: // Vitals (optional)
         return true;
@@ -131,6 +222,7 @@ export const AssessmentStepper: React.FC<AssessmentStepperProps> = ({
           <SymptomInput
             symptoms={formData.symptoms}
             onChange={handleSymptomsChange}
+            extractedSymptoms={extractedData?.symptoms}
           />
         );
       case 1:
@@ -145,6 +237,7 @@ export const AssessmentStepper: React.FC<AssessmentStepperProps> = ({
           <VitalsForm
             data={formData.vitals}
             onChange={handleVitalsChange}
+            isFieldExtracted={isFieldExtracted}
           />
         );
       case 3:

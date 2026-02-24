@@ -2,7 +2,7 @@ import logging
 import json
 from typing import Dict, Any, Optional, List
 from datetime import datetime
-from backend.agents.base_agent import BaseHealthAgent
+from .base_agent import BaseHealthAgent
 
 logger_data = logging.getLogger('health_ai.data_extraction')
 

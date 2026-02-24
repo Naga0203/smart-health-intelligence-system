@@ -14,7 +14,7 @@ from io import BytesIO
 from datetime import datetime
 import time
 
-from backend.agents.data_extraction import DataExtractionAgent
+from .data_extraction import DataExtractionAgent
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
 from django.conf import settings

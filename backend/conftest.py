@@ -13,11 +13,11 @@ sys.path.insert(0, str(backend_dir))
 sys.path.insert(0, str(backend_dir.parent))
 
 # Mock Django before any imports
-mock_settings = MagicMock()
-mock_settings.MAX_FILE_SIZE_MB = 10
-sys.modules['django'] = MagicMock()
-sys.modules['django.conf'] = MagicMock()
-sys.modules['django.conf'].settings = mock_settings
+# mock_settings = MagicMock()
+# mock_settings.MAX_FILE_SIZE_MB = 10
+# sys.modules['django'] = MagicMock()
+# sys.modules['django.conf'] = MagicMock()
+# sys.modules['django.conf'].settings = mock_settings
 
 # Mock Firebase
 sys.modules['firebase_admin'] = MagicMock()

@@ -1,8 +1,8 @@
 import logging
 import json
 from typing import Dict, Any, Optional, List
-from backend.agents.base_agent import BaseHealthAgent
-from backend.treatment.knowledge_base import TreatmentKnowledgeBase
+from .base_agent import BaseHealthAgent
+from treatment.knowledge_base import TreatmentKnowledgeBase
 
 # Cache service import adapted for unified file
 try:

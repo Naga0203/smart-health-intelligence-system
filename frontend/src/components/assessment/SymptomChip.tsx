@@ -22,6 +22,7 @@ import {
   useMediaQuery,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import { Description as DocumentIcon } from '@mui/icons-material';
 
 interface SymptomChipProps {
   symptom: string;
@@ -33,6 +34,7 @@ interface SymptomChipProps {
   onSeverityChange: (severity: number) => void;
   onDurationChange: (duration: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months' }) => void;
   onRemove: () => void;
+  isExtracted?: boolean;
 }
 
 export const SymptomChip: React.FC<SymptomChipProps> = ({
@@ -42,6 +44,7 @@ export const SymptomChip: React.FC<SymptomChipProps> = ({
   onSeverityChange,
   onDurationChange,
   onRemove,
+  isExtracted = false,
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm')); // < 600px
@@ -85,6 +88,20 @@ export const SymptomChip: React.FC<SymptomChipProps> = ({
           >
             {symptom}
           </Typography>
+          {isExtracted && (
+            <Chip
+              icon={<DocumentIcon sx={{ fontSize: '0.875rem' }} />}
+              label="From Report"
+              size="small"
+              color="primary"
+              variant="outlined"
+              sx={{
+                mr: 1,
+                height: 24,
+                fontSize: '0.75rem',
+              }}
+            />
+          )}
           <IconButton
             size="small"
             onClick={onRemove}
