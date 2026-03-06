@@ -1,15 +1,20 @@
 import logging
 import uuid
-from typing import Dict, Any, List
+import asyncio
+from typing import Dict, Any, List, Optional, Callable, Tuple
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FuturesTimeoutError
+import time
 
-from .base_agent import BaseHealthAgent
+from .infrastructure.enhanced_base_agent import EnhancedBaseHealthAgent
+from .infrastructure.config import AgentConfig
 from .validation import LangChainValidationAgent
 from .data_extraction import DataExtractionAgent
-from .explanation import LangChainExplanationAgent
-from .recommendation import RecommendationAgent
 from .lifestyle import LifestyleModificationAgent
 from .reflection import ReflectionAgent
+from .severity import SeverityAgent
+from .explanation import LangChainExplanationAgent
+from .recommendation import RecommendationAgent
 
 try:
     from backend.prediction.predictor import DiseasePredictor
@@ -23,19 +28,28 @@ except ImportError:
 
 logger_orchestrator = logging.getLogger('health_ai.orchestrator')
 
-class OrchestratorAgent(BaseHealthAgent):
+class OrchestratorAgent(EnhancedBaseHealthAgent):
     """
-    Main orchestrator agent coordinating the entire health assessment pipeline.
+    Enhanced autonomous orchestrator agent coordinating the health assessment pipeline.
+    
+    Key Enhancements:
+    - Autonomous agent selection based on input characteristics
+    - Parallel execution of independent agents
+    - Context sharing between agents
+    - Timeout management with graceful degradation
+    - Failure recovery with alternative strategies
+    - Comprehensive monitoring and error handling
     
     Pipeline Flow:
     1. Validate input (ValidationAgent)
-    2. Extract and map data (DataExtractionAgent + Gemini)
-    3. Predict disease (ML Model)
-    4. Evaluate confidence
-    5. Generate explanation (ExplanationAgent + Gemini)
-    6. Generate recommendations (RecommendationAgent)
-    7. Store in MongoDB
-    8. Return complete assessment
+    2. Autonomous agent selection based on input
+    3. Parallel execution of independent agents (extraction, severity)
+    4. Sequential execution of dependent agents (prediction, explanation, recommendations)
+    5. Cross-verification (ReflectionAgent)
+    6. Store in Firebase
+    7. Return complete assessment
+    
+    Requirements: 1.1, 1.2, 1.3, 1.5, 5.1, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 1.6
     """
     
     # Confidence thresholds
@@ -44,23 +58,326 @@ class OrchestratorAgent(BaseHealthAgent):
         "MEDIUM": 0.75
     }
     
-    def __init__(self):
-        """Initialize the orchestrator agent."""
-        super().__init__("OrchestratorAgent")
+    # Agent timeout configuration
+    AGENT_TIMEOUT = 30  # seconds (increased for autonomous operations)
+    PARALLEL_TIMEOUT = 45  # seconds for parallel execution
+    
+    def __init__(self, config: Optional[AgentConfig] = None):
+        """
+        Initialize the enhanced orchestrator agent.
         
-        # Initialize all agents
+        Requirements: 1.1, 1.2, 1.3 - LangChain integration with enhanced capabilities
+        """
+        super().__init__("OrchestratorAgent", config)
+        
+        # Initialize all agents with shared context manager
         self.validation_agent = LangChainValidationAgent()
         self.extraction_agent = DataExtractionAgent()
+        self.severity_agent = SeverityAgent()
         self.prediction_engine = DiseasePredictor()
         self.explanation_agent = LangChainExplanationAgent()
         self.recommendation_agent = RecommendationAgent()
         self.lifestyle_agent = LifestyleModificationAgent()
         self.reflection_agent = ReflectionAgent()
         
+        # Agent registry for autonomous selection
+        self.agent_registry = {
+            'validation': self.validation_agent,
+            'extraction': self.extraction_agent,
+            'severity': self.severity_agent,
+            'explanation': self.explanation_agent,
+            'recommendation': self.recommendation_agent,
+            'lifestyle': self.lifestyle_agent,
+            'reflection': self.reflection_agent
+        }
+        
         # Initialize Firebase database
         self.db = get_firebase_db()
         
-        logger_orchestrator.info("OrchestratorAgent initialized with complete pipeline including reflection agent")
+        # Thread pool for parallel execution
+        self.executor = ThreadPoolExecutor(max_workers=4)
+        
+        logger_orchestrator.info("Enhanced OrchestratorAgent initialized with autonomous capabilities")
+    
+    
+    def _select_agents_for_input(self, input_data: Dict[str, Any]) -> List[str]:
+        """
+        Autonomously select which agents to invoke based on input characteristics.
+        
+        Requirements: 5.1 - Autonomous agent selection based on input
+        
+        Args:
+            input_data: Input data dictionary
+            
+        Returns:
+            List of agent names to invoke
+        """
+        selected_agents = ['validation']  # Always start with validation
+        
+        # Analyze input characteristics
+        has_report = bool(input_data.get('report_metadata') or input_data.get('extracted_data'))
+        has_symptoms = bool(input_data.get('symptoms'))
+        has_vitals = bool(input_data.get('additional_info', {}).get('vitals'))
+        has_lab_results = bool(input_data.get('additional_info', {}).get('lab_results'))
+        
+        # Use decision engine for autonomous selection
+        context = {
+            'has_report': has_report,
+            'has_symptoms': has_symptoms,
+            'has_vitals': has_vitals,
+            'has_lab_results': has_lab_results,
+            'input_keys': list(input_data.keys())
+        }
+        
+        # Always need extraction for feature mapping
+        selected_agents.append('extraction')
+        
+        # Add severity assessment if symptoms present
+        if has_symptoms or has_vitals:
+            selected_agents.append('severity')
+        
+        # Always need explanation and recommendations
+        selected_agents.extend(['explanation', 'recommendation', 'lifestyle'])
+        
+        # Always end with reflection for quality check
+        selected_agents.append('reflection')
+        
+        self.log_agent_action("agent_selection", {
+            "selected_agents": selected_agents,
+            "input_characteristics": context
+        })
+        
+        logger_orchestrator.info(f"Selected {len(selected_agents)} agents for execution: {selected_agents}")
+        
+        return selected_agents
+    
+    def _execute_agents_parallel(
+        self,
+        agents_and_inputs: List[Tuple[str, Any, Dict[str, Any]]],
+        timeout: Optional[float] = None
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        Execute multiple independent agents in parallel.
+        
+        Requirements: 6.7 - Parallel execution of independent agents
+        
+        Args:
+            agents_and_inputs: List of (agent_name, agent_instance, input_data) tuples
+            timeout: Timeout for parallel execution
+            
+        Returns:
+            Dictionary mapping agent names to results
+        """
+        timeout = timeout or self.PARALLEL_TIMEOUT
+        results = {}
+        
+        self.log_agent_action("parallel_execution_start", {
+            "agent_count": len(agents_and_inputs),
+            "timeout": timeout
+        })
+        
+        # Submit all agents to thread pool
+        future_to_agent = {}
+        for agent_name, agent, input_data in agents_and_inputs:
+            future = self.executor.submit(self._execute_single_agent, agent_name, agent, input_data)
+            future_to_agent[future] = agent_name
+        
+        # Collect results with timeout
+        start_time = time.time()
+        for future in as_completed(future_to_agent, timeout=timeout):
+            agent_name = future_to_agent[future]
+            try:
+                result = future.result()
+                results[agent_name] = result
+                
+                # Share result in context for other agents
+                self.context_manager.share_context(agent_name, result)
+                
+                logger_orchestrator.info(f"Parallel agent {agent_name} completed successfully")
+                
+            except Exception as e:
+                logger_orchestrator.error(f"Parallel agent {agent_name} failed: {e}")
+                results[agent_name] = self.format_agent_response(
+                    success=False,
+                    message=f"Agent {agent_name} failed",
+                    data={'error': str(e)}
+                )
+        
+        elapsed = time.time() - start_time
+        self.log_agent_action("parallel_execution_complete", {
+            "elapsed_seconds": elapsed,
+            "successful_agents": sum(1 for r in results.values() if r.get('success', False))
+        })
+        
+        return results
+    
+    def _execute_single_agent(
+        self,
+        agent_name: str,
+        agent: Any,
+        input_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Execute a single agent with timeout and error handling.
+        
+        Requirements: 6.5 - Timeout management, 9.1 - Error handling
+        
+        Args:
+            agent_name: Name of the agent
+            agent: Agent instance
+            input_data: Input data for the agent
+            
+        Returns:
+            Agent result
+        """
+        try:
+            # Execute with timeout using base class method
+            result = self.execute_with_timeout(
+                lambda: agent.process(input_data),
+                timeout=self.AGENT_TIMEOUT
+            )
+            
+            return result
+            
+        except TimeoutError:
+            logger_orchestrator.error(f"{agent_name} timeout after {self.AGENT_TIMEOUT}s")
+            return self.format_agent_response(
+                success=False,
+                message=f"{agent_name} timed out",
+                data={"error": "timeout", "timeout_seconds": self.AGENT_TIMEOUT}
+            )
+            
+        except Exception as e:
+            logger_orchestrator.error(f"{agent_name} crashed: {str(e)}", exc_info=True)
+            return self.format_agent_response(
+                success=False,
+                message=f"{agent_name} encountered an error",
+                data={"error": str(e), "agent": agent_name}
+            )
+    
+    def _handle_agent_failure(
+        self,
+        agent_name: str,
+        error: Exception,
+        input_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Handle agent failure with recovery strategies.
+        
+        Requirements: 6.6 - Failure recovery logic
+        
+        Args:
+            agent_name: Name of failed agent
+            error: Exception that occurred
+            input_data: Original input data
+            
+        Returns:
+            Recovery result or error response
+        """
+        self.log_agent_action("agent_failure", {
+            "agent": agent_name,
+            "error": str(error)
+        })
+        
+        # Use decision engine to determine recovery strategy
+        situation = {
+            'agent_name': agent_name,
+            'error_type': type(error).__name__,
+            'error_message': str(error),
+            'is_timeout': isinstance(error, TimeoutError),
+            'is_critical': agent_name in ['validation', 'extraction']
+        }
+        
+        should_retry = not isinstance(error, TimeoutError)  # Don't retry timeouts
+        
+        if should_retry:
+            logger_orchestrator.info(f"Attempting retry for {agent_name}")
+            try:
+                # Retry with exponential backoff
+                agent = self.agent_registry.get(agent_name)
+                if agent:
+                    result = self.execute_with_retry(
+                        lambda: agent.process(input_data),
+                        max_retries=2
+                    )
+                    logger_orchestrator.info(f"Retry successful for {agent_name}")
+                    return result
+            except Exception as retry_error:
+                logger_orchestrator.error(f"Retry failed for {agent_name}: {retry_error}")
+        
+        # Check if agent is critical
+        if situation['is_critical']:
+            logger_orchestrator.critical(f"Critical agent {agent_name} failed, cannot continue")
+            return self.format_agent_response(
+                success=False,
+                message=f"Critical agent {agent_name} failed",
+                data={'error': str(error), 'recovery': 'failed'}
+            )
+        
+        # For non-critical agents, return degraded response
+        logger_orchestrator.warning(f"Non-critical agent {agent_name} failed, continuing with degraded output")
+        return self.format_agent_response(
+            success=False,
+            message=f"Agent {agent_name} unavailable",
+            data={'error': str(error), 'recovery': 'degraded'}
+        )
+    
+    async def _execute_agent_with_timeout(self, agent, input_data: Dict[str, Any], 
+                                          agent_name: str, timeout: float = None) -> Dict[str, Any]:
+        """
+        Execute agent with timeout and exception handling.
+        
+        Requirements:
+        - 4.3: Timeout cancellation (5 seconds)
+        - 4.5: Handle agent crashes with exception catching
+        
+        Args:
+            agent: Agent instance to execute
+            input_data: Input data for the agent
+            agent_name: Name of the agent for logging
+            timeout: Timeout in seconds (default: AGENT_TIMEOUT)
+            
+        Returns:
+            Agent result or error response
+        """
+        timeout = timeout or self.AGENT_TIMEOUT
+        
+        try:
+            # Run agent with timeout
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            result = loop.run_until_complete(
+                asyncio.wait_for(
+                    self._async_agent_process(agent, input_data),
+                    timeout=timeout
+                )
+            )
+            loop.close()
+            
+            return result
+            
+        except asyncio.TimeoutError:
+            logger_orchestrator.error(f"{agent_name} timeout after {timeout}s")
+            return self.format_agent_response(
+                success=False,
+                message=f"{agent_name} timed out",
+                data={"error": "timeout", "timeout_seconds": timeout}
+            )
+            
+        except Exception as e:
+            logger_orchestrator.error(f"{agent_name} crashed: {str(e)}", exc_info=True)
+            return self.format_agent_response(
+                success=False,
+                message=f"{agent_name} encountered an error",
+                data={"error": str(e), "agent": agent_name}
+            )
+    
+    async def _async_agent_process(self, agent, input_data):
+        """Async wrapper for agent processing."""
+        return await asyncio.get_event_loop().run_in_executor(
+            None, agent.process, input_data
+        )
     
     def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -94,7 +411,15 @@ class OrchestratorAgent(BaseHealthAgent):
     
     def run_pipeline(self, user_input: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Execute the complete health assessment pipeline.
+        Execute the complete health assessment pipeline with autonomous coordination.
+        
+        Requirements:
+        - 5.1: Autonomous agent selection
+        - 6.1: Coordinate multiple agents
+        - 6.2: Determine next agent autonomously
+        - 6.3, 6.4: Share context between agents
+        - 6.7: Parallel execution of independent agents
+        - 6.8: Aggregate results
         
         Args:
             user_input: User input data (may include report_metadata and extracted_data)
@@ -105,11 +430,15 @@ class OrchestratorAgent(BaseHealthAgent):
         pipeline_start = datetime.utcnow()
         user_id = user_input.get("user_id", str(uuid.uuid4()))
         
-        logger_orchestrator.info(f"Starting pipeline for user: {user_id}")
+        # Set session ID for context tracking
+        session_id = f"session_{user_id}_{int(time.time())}"
+        self.context_manager.set_session_id(session_id)
+        
+        logger_orchestrator.info(f"Starting autonomous pipeline for user: {user_id}, session: {session_id}")
         
         # Step 1: Validate Input
         self.log_agent_action("step_1_validation")
-        validation_result = self.validation_agent.process(user_input)
+        validation_result = self._execute_single_agent('validation', self.validation_agent, user_input)
         
         if not validation_result["success"]:
             return self._blocked_response(
@@ -119,6 +448,7 @@ class OrchestratorAgent(BaseHealthAgent):
             )
         
         sanitized_input = validation_result["data"]["sanitized_input"]
+        self.context_manager.add_to_context('sanitized_input', sanitized_input)
         
         # Step 1.5: Merge extracted and manual data if report data is present
         report_metadata = user_input.get("report_metadata")
@@ -134,11 +464,17 @@ class OrchestratorAgent(BaseHealthAgent):
                 extracted_data=extracted_data,
                 data_sources=data_sources
             )
+            self.context_manager.add_to_context('merged_input', sanitized_input)
         
-        # Step 2: Extract and Map Data using Gemini AI
-        self.log_agent_action("step_2_data_extraction")
+        # Step 2: Autonomous Agent Selection
+        self.log_agent_action("step_2_autonomous_agent_selection")
+        selected_agents = self._select_agents_for_input(sanitized_input)
+        
+        # Step 3: Parallel Execution of Independent Agents (extraction + severity)
+        self.log_agent_action("step_3_parallel_execution")
         
         disease = self._select_disease(sanitized_input["symptoms"])
+        self.context_manager.add_to_context('selected_disease', disease)
         
         extraction_input = {
             "symptoms": sanitized_input["symptoms"],
@@ -148,24 +484,62 @@ class OrchestratorAgent(BaseHealthAgent):
             "additional_info": user_input.get("additional_info", {})
         }
         
-        extraction_result = self.extraction_agent.process(extraction_input)
+        severity_input = {
+            "symptoms": sanitized_input["symptoms"],
+            "vitals": sanitized_input.get("additional_info", {}).get("vitals", {}),
+            "disease": disease
+        }
         
-        if not extraction_result["success"]:
-            return self._blocked_response(
-                "extraction_failed",
-                "Failed to extract features from input",
-                extraction_result
+        # Execute extraction and severity in parallel
+        parallel_agents = [
+            ('extraction', self.extraction_agent, extraction_input),
+            ('severity', self.severity_agent, severity_input)
+        ]
+        
+        parallel_results = self._execute_agents_parallel(parallel_agents)
+        
+        extraction_result = parallel_results.get('extraction', {})
+        severity_result = parallel_results.get('severity', {})
+        
+        # Handle extraction failure with recovery
+        if not extraction_result.get("success"):
+            extraction_result = self._handle_agent_failure(
+                'extraction',
+                Exception(extraction_result.get('data', {}).get('error', 'Unknown error')),
+                extraction_input
             )
+            
+            if not extraction_result.get("success"):
+                return self._blocked_response(
+                    "extraction_failed",
+                    "Failed to extract features from input",
+                    extraction_result
+                )
         
         extracted_features = extraction_result["data"]["features"]
         extraction_confidence = extraction_result["data"]["extraction_confidence"]
         
-        # Step 3: ML Prediction
+        # Store severity assessment in context
+        if severity_result.get("success"):
+            self.context_manager.add_to_context('severity_assessment', severity_result["data"])
+        
+        # Step 4: ML Prediction
         self.log_agent_action("step_3_prediction", {"disease": disease})
         
-        probability, prediction_metadata = self.prediction_engine.predict(disease, extracted_features)
+        try:
+            probability, prediction_metadata = self.execute_with_retry(
+                lambda: self.prediction_engine.predict(disease, extracted_features),
+                max_retries=2
+            )
+        except Exception as e:
+            logger_orchestrator.error(f"Prediction failed: {e}")
+            return self._blocked_response(
+                "prediction_failed",
+                f"Prediction engine error: {str(e)}",
+                {"error": str(e)}
+            )
         
-        # Step 4: Evaluate Confidence
+        # Step 5: Evaluate Confidence
         confidence = self._evaluate_confidence(probability)
         
         self.log_agent_action("step_4_confidence_evaluation", {
@@ -173,33 +547,45 @@ class OrchestratorAgent(BaseHealthAgent):
             "confidence": confidence
         })
         
-        # Step 5: Generate Explanation using Gemini
-        self.log_agent_action("step_5_explanation_generation")
+        # Add prediction to context for downstream agents
+        self.context_manager.add_to_context('prediction', {
+            'disease': disease,
+            'probability': probability,
+            'confidence': confidence
+        })
         
+        # Step 6: Sequential Execution of Dependent Agents
+        self.log_agent_action("step_5_sequential_execution")
+        
+        # Generate Explanation
         explanation_input = {
             "disease": disease,
             "probability": probability,
             "confidence": confidence,
-            "symptoms": sanitized_input["symptoms"]
+            "symptoms": sanitized_input["symptoms"],
+            "severity": severity_result.get("data", {}) if severity_result.get("success") else {}
         }
         
-        explanation_result = self.explanation_agent.process(explanation_input)
+        explanation_result = self._execute_single_agent('explanation', self.explanation_agent, explanation_input)
         explanation_data = explanation_result["data"] if explanation_result["success"] else {}
         
-        # Step 6: Generate Recommendations
-        self.log_agent_action("step_6_recommendation_generation")
-        
-        recommendations = self.recommendation_agent.get_recommendations(
-            disease=disease,
-            probability=probability,
-            confidence=confidence,
-            symptoms=sanitized_input["symptoms"],
-            user_context={"age": sanitized_input["age"], "gender": sanitized_input["gender"]}
+        # Generate Recommendations
+        recommendations = self._execute_single_agent(
+            'recommendation',
+            self.recommendation_agent,
+            {
+                "disease": disease,
+                "probability": probability,
+                "confidence": confidence,
+                "symptoms": sanitized_input["symptoms"],
+                "user_context": {"age": sanitized_input["age"], "gender": sanitized_input["gender"]},
+                "severity": severity_result.get("data", {}) if severity_result.get("success") else {}
+            }
         )
         
-        # Step 7: Generate Lifestyle Modifications
-        self.log_agent_action("step_7_lifestyle_modifications")
+        recommendations_data = recommendations.get("data", {}) if recommendations.get("success") else {}
         
+        # Generate Lifestyle Modifications
         lifestyle_input = {
             "disease": disease,
             "confidence": confidence,
@@ -207,11 +593,11 @@ class OrchestratorAgent(BaseHealthAgent):
             "user_context": {"age": sanitized_input["age"], "gender": sanitized_input["gender"]}
         }
         
-        lifestyle_result = self.lifestyle_agent.process(lifestyle_input)
+        lifestyle_result = self._execute_single_agent('lifestyle', self.lifestyle_agent, lifestyle_input)
         lifestyle_recommendations = lifestyle_result["data"] if lifestyle_result["success"] else {}
         
-        # Step 8: Cross-Verification (Hidden Quality Check)
-        self.log_agent_action("step_8_cross_verification")
+        # Step 7: Cross-Verification with Reflection Agent
+        self.log_agent_action("step_6_cross_verification")
         
         # Build complete assessment for verification
         complete_assessment = {
@@ -221,9 +607,10 @@ class OrchestratorAgent(BaseHealthAgent):
                 "confidence": confidence
             },
             "explanation": explanation_data,
-            "recommendations": recommendations,
+            "recommendations": recommendations_data,
             "lifestyle_recommendations": lifestyle_recommendations,
-            "symptoms": sanitized_input["symptoms"]
+            "symptoms": sanitized_input["symptoms"],
+            "severity": severity_result.get("data", {}) if severity_result.get("success") else {}
         }
         
         # Run reflection agent verification
@@ -241,14 +628,14 @@ class OrchestratorAgent(BaseHealthAgent):
             if "prediction" in revised:
                 confidence = revised["prediction"].get("confidence", confidence)
             if "recommendations" in revised:
-                recommendations = revised["recommendations"]
+                recommendations_data = revised["recommendations"]
         
         # Log critical issues for escalation
         if verification_result["severity"] == "critical":
             logger_orchestrator.critical(f"Critical safety issue detected and corrected: {verification_result['issue_count']} issues")
         
-        # Step 9: Store in MongoDB
-        self.log_agent_action("step_9_database_storage")
+        # Step 8: Store in Firebase
+        self.log_agent_action("step_7_database_storage")
         
         storage_ids = self._store_assessment(
             user_id=user_id,
@@ -259,12 +646,13 @@ class OrchestratorAgent(BaseHealthAgent):
             extraction_data=extraction_result["data"],
             prediction_metadata=prediction_metadata,
             explanation_data=explanation_data,
-            recommendations=recommendations,
+            recommendations=recommendations_data,
             lifestyle_recommendations=lifestyle_recommendations,
-            report_metadata=report_metadata
+            report_metadata=report_metadata,
+            severity_data=severity_result.get("data", {}) if severity_result.get("success") else {}
         )
         
-        # Step 10: Build Complete Response
+        # Step 9: Build Complete Response
         pipeline_end = datetime.utcnow()
         processing_time = (pipeline_end - pipeline_start).total_seconds()
         
@@ -275,14 +663,18 @@ class OrchestratorAgent(BaseHealthAgent):
             confidence=confidence,
             extraction_confidence=extraction_confidence,
             explanation=explanation_data,
-            recommendations=recommendations,
+            recommendations=recommendations_data,
             lifestyle_recommendations=lifestyle_recommendations,
             storage_ids=storage_ids,
             processing_time=processing_time,
-            prediction_metadata=prediction_metadata
+            prediction_metadata=prediction_metadata,
+            severity_data=severity_result.get("data", {}) if severity_result.get("success") else {}
         )
         
-        logger_orchestrator.info(f"Pipeline completed for user: {user_id} in {processing_time:.2f}s")
+        # Clear context at end of session
+        self.context_manager.clear_context()
+        
+        logger_orchestrator.info(f"Autonomous pipeline completed for user: {user_id} in {processing_time:.2f}s")
         
         return complete_response
     
@@ -454,12 +846,14 @@ class OrchestratorAgent(BaseHealthAgent):
                           extraction_data: Dict[str, Any], prediction_metadata: Dict[str, Any],
                           explanation_data: Dict[str, Any], recommendations: Dict[str, Any],
                           lifestyle_recommendations: Dict[str, Any] = None,
-                          report_metadata: Dict[str, Any] = None) -> Dict[str, str]:
+                          report_metadata: Dict[str, Any] = None,
+                          severity_data: Dict[str, Any] = None) -> Dict[str, str]:
         """
         Store complete assessment in Firebase Firestore.
         
         Args:
             report_metadata: Optional metadata about uploaded medical report
+            severity_data: Optional severity assessment data
         
         Returns:
             Dictionary of storage IDs
@@ -477,7 +871,8 @@ class OrchestratorAgent(BaseHealthAgent):
                 'prediction_metadata': prediction_metadata,
                 'explanation': explanation_data,
                 'recommendations': recommendations,
-                'lifestyle_recommendations': lifestyle_recommendations or {}
+                'lifestyle_recommendations': lifestyle_recommendations or {},
+                'severity_assessment': severity_data or {}
             }
             
             # Include report metadata if present
@@ -494,9 +889,16 @@ class OrchestratorAgent(BaseHealthAgent):
             # Update report metadata with assessment ID if report was uploaded
             if report_metadata and report_metadata.get('report_id'):
                 try:
-                    self.db.db.collection('medical_reports').document(report_metadata['report_id']).update({
-                        'associated_assessment_id': assessment_id
-                    })
+                    report_ref = self.db.db.collection('medical_reports').document(report_metadata['report_id'])
+                    # Check if report exists before updating
+                    report_doc = report_ref.get()
+                    if report_doc.exists:
+                        report_ref.update({
+                            'associated_assessment_id': assessment_id
+                        })
+                        logger_orchestrator.info(f"Successfully linked report {report_metadata['report_id']} to assessment {assessment_id}")
+                    else:
+                        logger_orchestrator.warning(f"Report {report_metadata['report_id']} not found in Firestore, skipping link")
                 except Exception as e:
                     logger_orchestrator.warning(f"Could not link report to assessment: {str(e)}")
             
@@ -558,11 +960,16 @@ class OrchestratorAgent(BaseHealthAgent):
                         explanation: Dict[str, Any], recommendations: Dict[str, Any],
                         lifestyle_recommendations: Dict[str, Any],
                         storage_ids: Dict[str, str], processing_time: float,
-                        prediction_metadata: Dict[str, Any]) -> Dict[str, Any]:
-        """Build the complete response for the frontend."""
+                        prediction_metadata: Dict[str, Any],
+                        severity_data: Dict[str, Any] = None) -> Dict[str, Any]:
+        """
+        Build the complete response for the frontend.
+        
+        Requirements: 6.8 - Aggregate results from multiple agents
+        """
         return {
             "user_id": user_id,
-            "assessment_id": storage_ids.get("prediction_id"),
+            "assessment_id": storage_ids.get("assessment_id"),
             "prediction": {
                 "disease": disease.replace("_", " ").title(),
                 "probability": round(probability, 4),
@@ -574,6 +981,7 @@ class OrchestratorAgent(BaseHealthAgent):
                 "confidence": extraction_confidence,
                 "method": "gemini_ai_extraction"
             },
+            "severity": severity_data or {},
             "explanation": explanation,
             "recommendations": recommendations,
             "lifestyle_recommendations": lifestyle_recommendations,
@@ -581,7 +989,8 @@ class OrchestratorAgent(BaseHealthAgent):
                 "processing_time_seconds": round(processing_time, 2),
                 "timestamp": datetime.utcnow().isoformat(),
                 "storage_ids": storage_ids,
-                "pipeline_version": "v1.2"
+                "pipeline_version": "v2.0_autonomous",
+                "agents_executed": list(self.context_manager.get_shared_context().keys()) if self.context_manager.get_shared_context() else []
             }
         }
     
@@ -596,15 +1005,31 @@ class OrchestratorAgent(BaseHealthAgent):
         }
     
     def get_pipeline_status(self) -> Dict[str, Any]:
-        """Get status of all pipeline components."""
+        """
+        Get status of all pipeline components.
+        
+        Returns:
+            Complete pipeline status including all agents and infrastructure
+        """
         return {
             "orchestrator": self.get_agent_status(),
-            "validation_agent": self.validation_agent.get_agent_status(),
-            "extraction_agent": self.extraction_agent.get_agent_status(),
-            "explanation_agent": self.explanation_agent.get_agent_status(),
+            "agents": {
+                "validation": self.validation_agent.get_agent_status(),
+                "extraction": self.extraction_agent.get_agent_status(),
+                "severity": self.severity_agent.get_agent_status(),
+                "explanation": self.explanation_agent.get_agent_status(),
+                "recommendation": self.recommendation_agent.get_agent_status(),
+                "lifestyle": self.lifestyle_agent.get_agent_status(),
+                "reflection": self.reflection_agent.get_agent_status()
+            },
             "prediction_engine": {
                 "supported_diseases": self.prediction_engine.get_supported_diseases(),
                 "model_version": self.prediction_engine.model_version
+            },
+            "infrastructure": {
+                "context_manager": self.context_manager.get_status(),
+                "decision_engine": self.decision_engine.get_statistics(),
+                "circuit_breaker": self.circuit_breaker.get_state()
             },
             "database": {
                 "connected": self.db.db is not None

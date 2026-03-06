@@ -4,6 +4,11 @@ LangChain-based Gemini Client for AI Health Intelligence System
 This client provides a LangChain wrapper around Google's Generative AI API 
 for explanation generation with enhanced agent capabilities.
 
+Error Handling (Requirements 4.3, 4.5):
+- Timeout cancellation (5 seconds)
+- Circuit breaker for external services
+- Exception catching for agent crashes
+
 Validates: Requirements 9.1, 9.2, 9.4
 """
 
@@ -15,10 +20,21 @@ from langchain_core.runnables import RunnablePassthrough
 from typing import Dict, Any, Optional, List
 import logging
 import time
+import asyncio
 from datetime import datetime, timedelta
 from django.conf import settings
+from dataclasses import dataclass
 
 logger = logging.getLogger('health_ai.gemini')
+
+
+@dataclass
+class CircuitBreakerState:
+    """Circuit breaker state for Gemini AI service."""
+    failure_count: int = 0
+    last_failure_time: float = 0
+    state: str = "closed"  # closed, open, half_open
+    cooldown_until: float = 0
 
 
 class LangChainGeminiClient:
@@ -43,6 +59,14 @@ class LangChainGeminiClient:
         # Rate limiting
         self.requests_per_minute = 60
         self.request_timestamps = []
+        
+        # Circuit breaker configuration (Requirement 4.5)
+        self.circuit_breaker = CircuitBreakerState()
+        self.circuit_breaker_threshold = 5  # failures before opening
+        self.circuit_breaker_cooldown = 60  # seconds
+        
+        # Timeout configuration (Requirement 4.3)
+        self.request_timeout = 5  # seconds
         
         # Fallback explanations for API failures
         self.fallback_explanations = {
@@ -86,6 +110,10 @@ class LangChainGeminiClient:
         """
         Generate a human-readable explanation for a health risk assessment using LangChain.
         
+        Requirements:
+        - 4.3: Timeout cancellation (5 seconds)
+        - 4.5: Circuit breaker for external services
+        
         Args:
             disease: The disease being assessed
             probability: Risk probability (0.0 to 1.0)
@@ -96,6 +124,11 @@ class LangChainGeminiClient:
             Generated explanation text
         """
         try:
+            # Check circuit breaker (Requirement 4.5)
+            if not self._check_circuit_breaker():
+                logger.warning("Circuit breaker is open, using fallback explanation")
+                return self._get_fallback_explanation(confidence)
+            
             # Check rate limiting
             if not self._check_rate_limit():
                 logger.warning("Rate limit exceeded, using fallback explanation")
@@ -119,20 +152,44 @@ class LangChainGeminiClient:
                 "symptoms": ", ".join(symptoms)
             }
             
-            # Generate explanation using the chain
-            explanation = chain.invoke(input_data)
-            
-            if explanation:
-                explanation = explanation.strip()
-                logger.info(f"Generated explanation for {disease} with {confidence} confidence using LangChain")
-                return explanation
-            else:
-                logger.warning("Empty response from LangChain Gemini")
+            # Generate explanation with timeout (Requirement 4.3)
+            try:
+                # Run with timeout using asyncio
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                explanation = loop.run_until_complete(
+                    asyncio.wait_for(
+                        self._async_invoke_chain(chain, input_data),
+                        timeout=self.request_timeout
+                    )
+                )
+                loop.close()
+                
+                if explanation:
+                    explanation = explanation.strip()
+                    logger.info(f"Generated explanation for {disease} with {confidence} confidence using LangChain")
+                    self._record_success()
+                    return explanation
+                else:
+                    logger.warning("Empty response from LangChain Gemini")
+                    self._record_failure()
+                    return self._get_fallback_explanation(confidence)
+                    
+            except asyncio.TimeoutError:
+                logger.error(f"Gemini API timeout after {self.request_timeout}s")
+                self._record_failure()
                 return self._get_fallback_explanation(confidence)
                 
         except Exception as e:
             logger.error(f"Error generating explanation with LangChain: {str(e)}")
+            self._record_failure()
             return self._get_fallback_explanation(confidence)
+    
+    async def _async_invoke_chain(self, chain, input_data):
+        """Async wrapper for chain invocation."""
+        return await asyncio.get_event_loop().run_in_executor(
+            None, chain.invoke, input_data
+        )
     
     def _create_langchain_prompt_template(self) -> ChatPromptTemplate:
         """Create a LangChain prompt template for explanation generation."""
@@ -249,6 +306,57 @@ Remember: This is for educational purposes only and not a medical diagnosis."""
         self.last_request_time = current_time
         
         return True
+    
+    def _check_circuit_breaker(self) -> bool:
+        """
+        Check if circuit breaker allows operations.
+        
+        Requirement 4.5: Circuit breaker for external services (Gemini AI)
+        
+        Returns:
+            True if operations are allowed, False if circuit is open
+        """
+        current_time = time.time()
+        
+        if self.circuit_breaker.state == "open":
+            # Check if cooldown period has passed
+            if current_time >= self.circuit_breaker.cooldown_until:
+                logger.info("Gemini circuit breaker entering half-open state")
+                self.circuit_breaker.state = "half_open"
+                return True
+            else:
+                remaining = self.circuit_breaker.cooldown_until - current_time
+                logger.warning(f"Gemini circuit breaker is open - {remaining:.1f}s remaining")
+                return False
+        
+        return True
+    
+    def _record_failure(self):
+        """
+        Record a Gemini API failure for circuit breaker.
+        
+        Requirement 4.5: Circuit breaker for external services
+        """
+        self.circuit_breaker.failure_count += 1
+        self.circuit_breaker.last_failure_time = time.time()
+        
+        if self.circuit_breaker.failure_count >= self.circuit_breaker_threshold:
+            self.circuit_breaker.state = "open"
+            self.circuit_breaker.cooldown_until = time.time() + self.circuit_breaker_cooldown
+            logger.critical(
+                f"Gemini circuit breaker opened after {self.circuit_breaker.failure_count} failures. "
+                f"Cooldown: {self.circuit_breaker_cooldown}s"
+            )
+    
+    def _record_success(self):
+        """Record a successful Gemini API operation for circuit breaker."""
+        if self.circuit_breaker.state == "half_open":
+            logger.info("Gemini circuit breaker closing after successful operation")
+            self.circuit_breaker.state = "closed"
+            self.circuit_breaker.failure_count = 0
+        elif self.circuit_breaker.state == "closed":
+            # Gradually reduce failure count on success
+            self.circuit_breaker.failure_count = max(0, self.circuit_breaker.failure_count - 1)
     
     def _get_fallback_explanation(self, confidence: str) -> str:
         """Get fallback explanation when API is unavailable."""

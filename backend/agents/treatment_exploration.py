@@ -1,624 +1,134 @@
+"""
+Treatment Exploration Agent - Migrated to Enhanced Architecture.
+
+Provides comprehensive treatment information across multiple medical systems
+using dynamic retrieval instead of static data.
+
+Requirements: 1.1, 1.2, 1.3, 1.5, 3.1, 3.3, 3.4, 7.1, 7.2, 7.3, 7.4, 7.5, 7.7, 7.8, 1.6
+"""
+
 import logging
-import json
 from typing import Dict, Any, Optional, List
-from .base_agent import BaseHealthAgent
-from treatment.knowledge_base import TreatmentKnowledgeBase
 
-# Cache service import adapted for unified file
-try:
-    from backend.common.cache_service import CacheService
-    CACHE_ENABLED = True
-except ImportError:
-    try:
-        from common.cache_service import CacheService
-        CACHE_ENABLED = True
-    except ImportError:
-        CACHE_ENABLED = False
-        pass
+from .infrastructure.enhanced_base_agent import EnhancedBaseHealthAgent
+from .infrastructure.config import AgentConfig
+from .infrastructure.dynamic_treatment import DynamicTreatmentRetrieval
 
-# Use a specific logger name
-logger_treatment = logging.getLogger('health_ai.treatment_exploration')
+logger = logging.getLogger('health_ai.treatment_exploration')
 
-class TreatmentExplorationAgent(BaseHealthAgent):
+
+class TreatmentExplorationAgent(EnhancedBaseHealthAgent):
     """
     AI agent for exploring detailed treatment options across medical systems.
     
-    Provides comprehensive information about:
-    - Treatment mechanisms (how they work)
-    - Effectiveness and evidence levels
-    - Side effects and safety
-    - Contraindications
-    - Treatment combinations
-    - Expected outcomes
+    Migrated to use:
+    - Enhanced BaseHealthAgent with autonomous capabilities
+    - DynamicTreatmentRetrieval for current treatment information
+    - Web search for latest guidelines
+    - Multi-system treatment search (allopathy, ayurveda, homeopathy)
+    - Drug interaction searches
+    - Evidence level inclusion
+    - Source citations
+    - Safety guardrails
+    
+    Requirements:
+    - 1.1, 1.2, 1.3: LangChain framework with Gemini AI
+    - 1.5: Autonomous decision-making
+    - 1.6: Preserve existing functionality
+    - 3.1, 3.3, 3.4: Replace static data with dynamic retrieval
+    - 7.1: Web search for current treatment guidelines
+    - 7.2: Multi-system treatment search
+    - 7.3: Synthesize information from multiple sources
+    - 7.4: Include evidence levels
+    - 7.5: Drug interaction searches
+    - 7.7: Cite sources
+    - 7.8: Medical disclaimers
     """
     
-    def __init__(self):
-        """Initialize the treatment exploration agent."""
-        super().__init__("TreatmentExplorationAgent")
+    def __init__(self, config: Optional[AgentConfig] = None):
+        """
+        Initialize the treatment exploration agent.
         
-        # Initialize base knowledge
-        self.treatment_kb = TreatmentKnowledgeBase()
+        Args:
+            config: Agent configuration (uses defaults if not provided)
+        """
+        # Initialize with enhanced base agent
+        if config is None:
+            config = AgentConfig(
+                agent_name="TreatmentExplorationAgent",
+                enable_web_search=True,
+                enable_caching=True,
+                monitoring_enabled=True
+            )
         
-        # Initialize detailed treatment databases
-        self._initialize_detailed_treatments()
+        super().__init__("TreatmentExplorationAgent", config)
         
-        logger_treatment.info("TreatmentExplorationAgent initialized")
+        # Initialize dynamic treatment retrieval service
+        self.dynamic_treatment = DynamicTreatmentRetrieval(
+            web_search=self.web_search_tool,
+            llm=self.llm
+        )
+        
+        logger.info("TreatmentExplorationAgent initialized with enhanced architecture")
     
-    def _initialize_detailed_treatments(self):
-        """Initialize comprehensive treatment details for each disease and system."""
-        
-        self.detailed_treatments = {
-            "diabetes": {
-                "allopathy": {
-                    "system_name": "Allopathy (Modern/English Medicine)",
-                    "primary_goal": "Blood sugar control and prevention of complications",
-                    "treatments": [
-                        {
-                            "name": "Metformin",
-                            "category": "Oral Medication - First Line",
-                            "mechanism": "Reduces glucose production in the liver and improves insulin sensitivity in muscles",
-                            "effectiveness": "High - Reduces HbA1c by 1-2% on average",
-                            "evidence_level": "Very High - Extensively studied, decades of clinical use",
-                            "typical_use": "Long-term, often lifelong management",
-                            "administration": "Oral tablet, typically 2-3 times daily with meals",
-                            "onset": "Effects begin within days, full benefit in 2-3 months",
-                            "benefits": [
-                                "Effective blood sugar reduction",
-                                "Weight neutral or modest weight loss",
-                                "Cardiovascular benefits",
-                                "Low risk of hypoglycemia when used alone"
-                            ],
-                            "side_effects": {
-                                "common": ["Nausea", "Diarrhea", "Stomach upset (usually temporary)"],
-                                "rare": ["Lactic acidosis (very rare)", "Vitamin B12 deficiency with long-term use"],
-                                "management": "Start with low dose, take with food, increase gradually"
-                            },
-                            "contraindications": [
-                                "Severe kidney disease (eGFR < 30)",
-                                "Severe liver disease",
-                                "Acute heart failure",
-                                "Metabolic acidosis",
-                                "Alcohol abuse"
-                            ],
-                            "monitoring": [
-                                "Kidney function (eGFR) every 6-12 months",
-                                "Vitamin B12 levels annually",
-                                "Blood glucose regularly",
-                                "HbA1c every 3 months"
-                            ],
-                            "cost": "Low - Generic available",
-                            "availability": "Widely available worldwide"
-                        },
-                        {
-                            "name": "Insulin Therapy",
-                            "category": "Injectable Hormone Replacement",
-                            "mechanism": "Replaces or supplements natural insulin production",
-                            "effectiveness": "Very High - Essential for Type 1, effective for Type 2",
-                            "evidence_level": "Very High - Gold standard for many patients",
-                            "typical_use": "Essential for Type 1, used in Type 2 when other treatments insufficient",
-                            "administration": "Subcutaneous injection, 1-4 times daily depending on type",
-                            "onset": "Rapid-acting works in 15 minutes, long-acting provides 24-hour coverage",
-                            "benefits": [
-                                "Most effective for lowering blood sugar",
-                                "Essential for Type 1 diabetes",
-                                "Flexible dosing options",
-                                "Protects pancreas function"
-                            ],
-                            "side_effects": {
-                                "common": ["Hypoglycemia (low blood sugar)", "Weight gain", "Injection site reactions"],
-                                "rare": ["Severe hypoglycemia", "Lipodystrophy"],
-                                "management": "Careful dosing, regular monitoring, proper injection technique"
-                            },
-                            "contraindications": [
-                                "Hypoglycemia",
-                                "Allergy to insulin (extremely rare)"
-                            ],
-                            "monitoring": [
-                                "Blood glucose monitoring 4-10 times daily",
-                                "HbA1c every 3 months",
-                                "Hypoglycemia awareness",
-                                "Injection site rotation"
-                            ],
-                            "cost": "Moderate to High - varies by type and country",
-                            "availability": "Widely available but cost varies"
-                        }
-                    ],
-                    "lifestyle_component": "Essential - Diet and exercise are foundation",
-                    "expected_timeline": "Initial improvement in weeks, full optimization in 3-6 months",
-                    "success_rate": "High with adherence - Most patients achieve good control",
-                    "disclaimer": "Requires medical supervision. Medication dosages must be prescribed and monitored by qualified physicians. Regular blood glucose monitoring is essential."
-                },
-                
-                "homeopathy": {
-                    "system_name": "Homeopathy",
-                    "primary_goal": "Constitutional healing and metabolic balance",
-                    "approach_philosophy": "Treats individual as a whole, not just disease symptoms",
-                    "treatments": [
-                        {
-                            "name": "Constitutional Remedies",
-                            "category": "Individualized Treatment",
-                            "mechanism": "Stimulates body's vital force to restore metabolic balance",
-                            "selection_basis": "Complete symptom picture including mental, emotional, and physical symptoms",
-                            "effectiveness": "Varies by individual - Some report improvement in symptoms and well-being",
-                            "evidence_level": "Limited - Few rigorous clinical trials, more anecdotal evidence",
-                            "common_remedies": [
-                                "Uranium Nitricum - For high blood sugar with weakness",
-                                "Syzygium Jambolanum - For excessive thirst and urination",
-                                "Phosphoric Acid - For diabetes with weakness and mental fatigue",
-                                "Arsenicum Album - For burning sensations and restlessness"
-                            ],
-                            "typical_use": "Long-term constitutional treatment, remedy changes based on response",
-                            "administration": "Oral pills/drops, typically once daily to once weekly depending on potency",
-                            "onset": "Gradual - May take weeks to months for full effect",
-                            "benefits": [
-                                "Holistic approach to health",
-                                "No known side effects from properly prescribed remedies",
-                                "May improve overall well-being",
-                                "Can be used alongside conventional treatment with proper supervision"
-                            ],
-                            "considerations": [
-                                "Highly individualized - requires expert homeopath",
-                                "Response varies greatly between individuals",
-                                "Not a substitute for insulin in Type 1 diabetes",
-                                "Regular blood sugar monitoring still essential"
-                            ],
-                            "monitoring": [
-                                "Blood glucose monitoring must continue",
-                                "Regular follow-up with homeopath",
-                                "Conventional medical monitoring maintained",
-                                "Symptom journaling"
-                            ]
-                        }
-                    ],
-                    "integration_notes": "Should complement, not replace conventional monitoring and insulin therapy where needed",
-                    "expected_timeline": "Gradual improvement over months, if effective",
-                    "success_rate": "Highly variable - depends on individual response",
-                    "disclaimer": "Requires qualified homeopathic consultation. NOT a replacement for insulin in Type 1 diabetes. Blood sugar monitoring and conventional medical care remain essential. Inform all healthcare providers about all treatments."
-                },
-                
-                "ayurveda": {
-                    "system_name": "Ayurveda (Traditional Indian Medicine)",
-                    "primary_goal": "Restore dosha balance and improve metabolic fire (Agni)",
-                    "approach_philosophy": "Diabetes seen as imbalance of Kapha dosha affecting metabolism",
-                    "treatments": [
-                        {
-                            "name": "Gymnema Sylvestre (Gurmar)",
-                            "category": "Herbal Medicine",
-                            "mechanism": "May reduce sugar absorption in intestines, potentially stimulates insulin production",
-                            "traditional_use": "Called 'sugar destroyer' in Hindi, used for centuries",
-                            "effectiveness": "Moderate - Some clinical studies show blood sugar reduction",
-                            "evidence_level": "Moderate - Several clinical trials with promising results",
-                            "typical_use": "Daily supplement, 3-6 months minimum",
-                            "administration": "Capsules, powder, or tea - 400-600mg daily",
-                            "onset": "Gradual - 2-4 weeks to see effects",
-                            "benefits": [
-                                "May help reduce blood sugar levels",
-                                "May help reduce sugar cravings",
-                                "Generally well tolerated",
-                                "Natural supplement option"
-                            ],
-                            "side_effects": {
-                                "common": ["May cause hypoglycemia if combined with diabetes medications"],
-                                "rare": ["Gastrointestinal upset", "Allergic reactions"],
-                                "precautions": "Start with low dose, monitor blood sugar closely"
-                            },
-                            "contraindications": [
-                                "Already on diabetes medications without doctor supervision",
-                                "Surgery scheduled within 2 weeks",
-                                "Hypoglycemia tendency"
-                            ],
-                            "interactions": [
-                                "May enhance effects of diabetes medications",
-                                "Could interfere with blood sugar control during surgery"
-                            ],
-                            "monitoring": [
-                                "Frequent blood glucose monitoring",
-                                "May need reduction in conventional medication doses",
-                                "Regular consultation with both Ayurvedic and conventional practitioners"
-                            ],
-                            "cost": "Low to Moderate",
-                            "availability": "Widely available as supplement"
-                        },
-                        {
-                            "name": "Bitter Melon (Karela)",
-                            "category": "Herbal Medicine / Dietary",
-                            "mechanism": "Contains compounds that act similar to insulin",
-                            "traditional_use": "Consumed as vegetable or juice in traditional diets",
-                            "effectiveness": "Moderate - Some studies show blood sugar lowering effects",
-                            "evidence_level": "Moderate - Multiple studies but results vary",
-                            "administration": "Fresh juice, cooked vegetable, or capsule supplements",
-                            "benefits": [
-                                "Natural food-based approach",
-                                "May help lower blood sugar",
-                                "Rich in nutrients",
-                                "Can be part of regular diet"
-                            ],
-                            "precautions": [
-                                "Monitor blood sugar - can cause hypoglycemia",
-                                "Start with small amounts",
-                                "Bitter taste may be unpleasant for some"
-                            ]
-                        },
-                        {
-                            "name": "Fenugreek (Methi)",
-                            "category": "Herbal Seed",
-                            "mechanism": "Slows carbohydrate absorption, may improve insulin sensitivity",
-                            "evidence_level": "Moderate - Several positive clinical trials",
-                            "administration": "Seeds soaked overnight and consumed, or powder/capsules",
-                            "benefits": [
-                                "May lower fasting blood sugar",
-                                "May improve cholesterol levels",
-                                "Rich in soluble fiber"
-                            ]
-                        }
-                    ],
-                    "complementary_practices": {
-                        "yoga": [
-                            "Specific asanas for pancreatic stimulation",
-                            "Surya Namaskar (Sun Salutations)",
-                            "Paschimottanasana (Seated Forward Bend)",
-                            "Dhanurasana (Bow Pose)"
-                        ],
-                        "pranayama": [
-                            "Kapalbhati (Skull Shining Breath)",
-                            "Anulom Vilom (Alternate Nostril Breathing)",
-                            "Deep abdominal breathing"
-                        ],
-                        "diet": [
-                            "Avoid excessive sweets and heavy, oily foods",
-                            "Include bitter vegetables",
-                            "Follow regular meal times",
-                            "Prefer whole grains over refined"
-                        ]
-                    },
-                    "expected_timeline": "3-6 months for noticeable effects",
-                    "success_rate": "Variable - works better for some individuals",
-                    "disclaimer": "Consult qualified Ayurvedic practitioners. Should complement, not replace, conventional blood glucose monitoring and insulin therapy where needed. Inform all healthcare providers about all herbs and supplements."
-                },
-                
-                "integrative": {
-                    "system_name": "Integrative Medicine",
-                    "approach": "Combines best of multiple systems under coordinated care",
-                    "protocols": [
-                        {
-                            "name": "Comprehensive Diabetes Management",
-                            "combines": ["Allopathy", "Ayurveda", "Lifestyle"],
-                            "components": {
-                                "conventional": "Metformin or insulin as prescribed by physician",
-                                "herbal": "Gymnema or fenugreek under supervision",
-                                "diet": "Low glycemic diet with bitter vegetables",
-                                "exercise": "Regular aerobic and resistance training",
-                                "mind_body": "Yoga and stress management"
-                            },
-                            "coordination": "Requires team including endocrinologist, Ayurvedic practitioner, nutritionist",
-                            "benefits": [
-                                "Addresses disease from multiple angles",
-                                "May allow lower medication doses over time",
-                                "Improved overall well-being",
-                                "Better long-term outcomes"
-                            ],
-                            "critical_requirements": [
-                                "All practitioners must be informed of all treatments",
-                                "More frequent blood glucose monitoring",
-                                "Regular communication between healthcare team",
-                                "Medication adjustments as herbs take effect"
-                            ],
-                            "evidence": "Growing - integrative approaches gaining clinical support",
-                            "success_factors": [
-                                "Patient commitment to all aspects",
-                                "Good communication between providers",
-                                "Regular monitoring and adjustment",
-                                "Individualized approach"
-                            ]
-                        }
-                    ],
-                    "safety_emphasis": "Integration must be supervised. Never reduce conventional medications without medical guidance.",
-                    "disclaimer": "Integrative approach requires coordinated care team. All practitioners must know about all treatments. Self-directed integration can be dangerous."
-                }
-            },
-            
-            # Add other diseases...
-            "hypertension": {
-                "allopathy": {
-                    "system_name": "Allopathy (Modern/English Medicine)",
-                    "primary_goal": "Blood pressure control and prevention of cardiovascular complications",
-                    "treatments": [
-                        {
-                            "name": "ACE Inhibitors (e.g., Lisinopril, Enalapril)",
-                            "category": "Oral Medication - First Line",
-                            "mechanism": "Blocks enzyme that narrows blood vessels, allowing vessels to relax and widen",
-                            "effectiveness": "High - Reduces systolic BP by 10-15 mmHg on average",
-                            "evidence_level": "Very High - Extensively studied, proven cardiovascular protection",
-                            "typical_use": "Long-term, often lifelong management",
-                            "administration": "Oral tablet, once daily",
-                            "onset": "Full effect in 2-4 weeks",
-                            "benefits": [
-                                "Effective blood pressure reduction",
-                                "Protects kidneys (especially in diabetes)",
-                                "Reduces heart failure risk",
-                                "Once-daily dosing"
-                            ],
-                            "side_effects": {
-                                "common": ["Dry cough (10-20% of patients)", "Dizziness", "Fatigue"],
-                                "rare": ["Angioedema (swelling)", "Elevated potassium", "Kidney function changes"],
-                                "management": "Monitor potassium, kidney function. Switch to ARB if cough troublesome"
-                            },
-                            "contraindications": [
-                                "Pregnancy or planning pregnancy",
-                                "History of angioedema",
-                                "Bilateral renal artery stenosis",
-                                "Severe kidney disease"
-                            ],
-                            "monitoring": [
-                                "Blood pressure regularly",
-                                "Kidney function and potassium within 1-2 weeks, then periodically",
-                                "Regular follow-up visits"
-                            ],
-                            "cost": "Low - Generics widely available",
-                            "availability": "Widely available worldwide"
-                        },
-                        {
-                            "name": "Calcium Channel Blockers (e.g., Amlodipine)",
-                            "category": "Oral Medication",
-                            "mechanism": "Relaxes blood vessels by blocking calcium entry into vessel wall cells",
-                            "effectiveness": "High - Reduces systolic BP by 10-15 mmHg",
-                            "evidence_level": "Very High - Well-studied, proven effective",
-                            "administration": "Oral tablet, once daily",
-                            "onset": "Full effect in 1-2 weeks",
-                            "benefits": [
-                                "Effective BP reduction",
-                                "No dry cough (unlike ACE inhibitors)",
-                                "Safe in kidney disease",
-                                "Once-daily dosing"
-                            ],
-                            "side_effects": {
-                                "common": ["Ankle swelling", "Flushing", "Headache"],
-                                "rare": ["Gum overgrowth", "Rapid heart rate"],
-                                "management": "Leg elevation for swelling, dose adjustment if needed"
-                            },
-                            "contraindications": [
-                                "Severe heart failure",
-                                "Severe aortic stenosis"
-                            ],
-                            "monitoring": [
-                                "Blood pressure regularly",
-                                "Heart rate",
-                                "Watch for ankle swelling"
-                            ],
-                            "cost": "Low - Generic available",
-                            "availability": "Widely available"
-                        },
-                        {
-                            "name": "Diuretics (e.g., Hydrochlorothiazide)",
-                            "category": "Oral Medication - Water Pill",
-                            "mechanism": "Helps kidneys remove excess salt and water, reducing blood volume",
-                            "effectiveness": "Moderate to High - Reduces systolic BP by 8-12 mmHg",
-                            "evidence_level": "Very High - Long history of use, proven benefit",
-                            "administration": "Oral tablet, once daily (morning preferred)",
-                            "benefits": [
-                                "Effective, especially in elderly",
-                                "Reduces heart failure risk",
-                                "Inexpensive",
-                                "Works well in combination"
-                            ],
-                            "side_effects": {
-                                "common": ["Increased urination", "Low potassium", "Increased urination"],
-                                "rare": ["Gout attacks", "Low sodium", "Blood sugar elevation"],
-                                "management": "Potassium monitoring, take in morning to avoid nighttime urination"
-                            },
-                            "contraindications": [
-                                "Severe kidney disease",
-                                "Gout (relative contraindication)"
-                            ],
-                            "monitoring": [
-                                "Blood pressure",
-                                "Potassium and sodium levels",
-                                "Kidney function",
-                                "Uric acid (if gout history)"
-                            ]
-                        }
-                    ],
-                    "lifestyle_component": "Essential - DASH diet, exercise, weight loss, sodium restriction",
-                    "expected_timeline": "Initial BP reduction in 1-4 weeks, full optimization in 2-3 months",
-                    "success_rate": "High with adherence - Most patients achieve target BP with 1-2 medications",
-                    "disclaimer": "Requires medical supervision. Never stop medications abruptly. Regular BP monitoring essential."
-                },
-                
-                "homeopathy": {
-                    "system_name": "Homeopathy",
-                    "primary_goal": "Constitutional balance and stress reduction",
-                    "approach_philosophy": "Treats individual constitution, not just elevated numbers",
-                    "treatments": [
-                        {
-                            "name": "Constitutional Remedies",
-                            "category": "Individualized Treatment",
-                            "mechanism": "Stimulates body's self-regulating mechanisms",
-                            "effectiveness": "Varies by individual - Some report BP improvements",
-                            "evidence_level": "Limited - Few rigorous trials, mixed results",
-                            "common_remedies": [
-                                "Rauwolfia Serpentina - For high BP with headaches",
-                                "Nux Vomica - For stress-related hypertension",
-                                "Argentum Nitricum - For anxiety-related BP elevation",
-                                "Lachesis - For BP issues during menopause",
-                                "Natrum Muriaticum - For BP with fluid retention"
-                            ],
-                            "administration": "Pills/drops, frequency based on potency",
-                            "onset": "Gradual - May take weeks to months",
-                            "benefits": [
-                                "Holistic approach",
-                                "No known side effects from properly prescribed remedies",
-                                "Addresses stress and emotional factors",
-                                "Can complement conventional treatment"
-                            ],
-                            "considerations": [
-                                "Highly individualized",
-                                "Regular BP monitoring still essential",
-                                "Not a substitute for emergency hypertension treatment",
-                                "Works best for mild to moderate cases"
-                            ],
-                            "monitoring": [
-                                "Regular BP monitoring at home and with doctor",
-                                "Symptom tracking",
-                                "Conventional medical monitoring maintained"
-                            ]
-                        }
-                    ],
-                    "integration_notes": "Should complement, not replace BP monitoring and conventional medications when needed",
-                    "expected_timeline": "Gradual improvement over months if effective",
-                    "success_rate": "Highly variable",
-                    "disclaimer": "Requires qualified homeopathic consultation. NOT a replacement for blood pressure medications in moderate to severe hypertension. Regular BP monitoring essential."
-                },
-                
-                "ayurveda": {
-                    "system_name": "Ayurveda (Traditional Indian Medicine)",
-                    "primary_goal": "Balance Vata and Pitta doshas, reduce stress",
-                    "approach_philosophy": "Hypertension as imbalance of Vata (nerve stress) and Pitta (heat)",
-                    "treatments": [
-                        {
-                            "name": "Ashwagandha (Withania Somnifera)",
-                            "category": "Adaptogenic Herb",
-                            "mechanism": "Reduces stress hormones, may improve vascular function",
-                            "traditional_use": "Used for centuries for stress and vitality",
-                            "effectiveness": "Moderate - Some studies show modest BP reduction",
-                            "evidence_level": "Moderate - Several clinical trials with positive results",
-                            "administration": "Powder or capsules, 300-600mg daily",
-                            "onset": "2-4 weeks for stress benefits, longer for BP",
-                            "benefits": [
-                                "Reduces stress and cortisol",
-                                "May help with stress-related BP elevation",
-                                "Improves sleep quality",
-                                "Generally well tolerated"
-                            ],
-                            "side_effects": {
-                                "common": ["Mild GI upset if taken on empty stomach"],
-                                "rare": ["Excessive sedation at high doses"],
-                                "precautions": "Take with food initially"
-                            },
-                            "contraindications": [
-                                "Pregnancy",
-                                "Autoimmune conditions (consult practitioner)",
-                                "Before surgery (may enhance sedation)"
-                            ]
-                        },
-                        {
-                            "name": "Arjuna (Terminalia Arjuna)",
-                            "category": "Cardiovascular Herb",
-                            "mechanism": "May improve heart function and vascular tone",
-                            "traditional_use": "Traditional cardiac tonic in Ayurveda",
-                            "effectiveness": "Moderate - Some evidence for BP and heart health",
-                            "evidence_level": "Moderate - Several positive studies",
-                            "administration": "Powder or capsules, 500mg 2-3 times daily",
-                            "benefits": [
-                                "May support healthy blood pressure",
-                                "Traditional cardiac tonic",
-                                "May improve cholesterol levels",
-                                "Antioxidant properties"
-                            ],
-                            "precautions": [
-                                "Monitor BP if combining with medications",
-                                "May enhance effects of heart medications"
-                            ]
-                        },
-                        {
-                            "name": "Sarpagandha",
-                            "category": "Herbal Medicine (Strong)",
-                            "mechanism": "Original source of Reserpine - lowers BP centrally",
-                            "traditional_use": "Potent herb for high BP and insanity",
-                            "effectiveness": "High - Very effective but significant side effects",
-                            "evidence_level": "High - Basis for modern drugs",
-                            "warning": "Can cause severe depression and nasal congestion. Use ONLY under strict expert supervision.",
-                            "administration": "Strict dosage control required"
-                        }
-                    ],
-                    "complementary_practices": {
-                        "yoga": [
-                            "Shavasana (Corpse Pose) for deep relaxation",
-                            "Chandra Bhedana (Left Nostril Breathing)",
-                            "Gentle stretching"
-                        ],
-                        "lifestyle": [
-                            "Regular sleep schedule",
-                            "Oil massage (Abhyanga)",
-                            "Meditation aimed at stress reduction"
-                        ],
-                        "diet": [
-                            "Reduce salt, sour, and pungent foods",
-                            "Favor cooling foods",
-                            "Hydration"
-                        ]
-                    },
-                    "expected_timeline": "1-3 months for sustainable results",
-                    "success_rate": "Moderate - best for stress-related hypertension",
-                    "disclaimer": "Consult qualified Ayurvedic practitioners. Severe hypertension requires allopathic management. Do not stop prescribed medications without medical approval."
-                },
-                
-                "integrative": {
-                    "system_name": "Integrative Medicine",
-                    "approach": "Lifestyle-first approach with medication as support",
-                    "protocols": [
-                        {
-                            "name": "Cardiometabolic Balance Program",
-                            "combines": ["Medical Management", "Stress Reduction", "Dietary Approaches"],
-                            "components": {
-                                "conventional": "Medications as needed for protection",
-                                "lifestyle": "DASH diet + Regular movement",
-                                "mind_body": "Daily mindfulness/meditation practice",
-                                "supplements": "Fish oil, CoQ10, or Magnesium (evidence-based)"
-                            },
-                            "benefits": [
-                                "Reduces reliance on high-dose medications",
-                                "Protects end organs",
-                                "Improves quality of life"
-                            ]
-                        }
-                    ],
-                    "safety_emphasis": "Check interactions between supplements and blood pressure medications.",
-                    "disclaimer": "Integrative approach requires coordinated care team."
-                }
-            }
-        }
-        
     def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Process user request for treatment information.
+        
+        Requirements: 1.6 - Preserve existing functionality
         
         Args:
             input_data: Dictionary containing:
                 - disease: The disease to explore (required)
                 - system: Specific medical system (optional, defaults to all)
                 - query: Specific question (optional)
+                - medications: List of medications for interaction check (optional)
+                - include_evidence: Whether to include evidence levels (optional, default True)
                 
         Returns:
             Dictionary with treatment information
         """
+        # Validate request
         if not self._validate_request(input_data):
             return self.format_agent_response(
                 success=False,
                 message="Invalid request: 'disease' is required"
             )
-            
-        disease = input_data.get("disease", "").lower().replace(" ", "_")
-        system = input_data.get("system", "all").lower()
         
-        self.log_agent_action(f"exploring_treatment", {"disease": disease, "system": system})
+        disease = input_data.get("disease", "").strip()
+        system = input_data.get("system", "all").lower()
+        medications = input_data.get("medications", [])
+        include_evidence = input_data.get("include_evidence", True)
+        
+        self.log_agent_action(
+            "exploring_treatment",
+            {"disease": disease, "system": system, "medications": medications}
+        )
         
         try:
-            # Check cache if enabled
-            if CACHE_ENABLED:
-                cached_data = self._get_from_cache(disease, system)
-                if cached_data:
-                    return self.format_agent_response(
-                        success=True,
-                        data=cached_data,
-                        message="Treatment information retrieved from cache"
-                    )
+            # Decide whether to search for specific system or all systems
+            if system == "all":
+                # Requirement 7.2: Multi-system treatment search
+                treatment_info = self._get_multi_system_treatment(disease, include_evidence)
+            else:
+                # Single system search
+                treatment_info = self._get_single_system_treatment(
+                    disease, system, include_evidence
+                )
             
-            # Get detailed information
-            treatment_info = self._get_treatment_info(disease, system)
+            # Requirement 7.5: Drug interaction searches
+            if medications:
+                drug_interactions = self._get_drug_interactions(medications)
+                treatment_info['drug_interactions'] = drug_interactions
             
-            # Store in cache if enabled
-            if CACHE_ENABLED and treatment_info:
-                self._cache_result(disease, system, treatment_info)
+            # Requirement 7.7: Cite sources
+            # Sources are already included in treatment_info from dynamic retrieval
+            
+            # Requirement 7.8: Add medical disclaimers
+            treatment_info['disclaimer'] = self._get_medical_disclaimer()
+            
+            # Apply safety guardrails to all text content
+            treatment_info = self._apply_safety_to_treatment_info(treatment_info)
             
             return self.format_agent_response(
                 success=True,
@@ -627,58 +137,283 @@ class TreatmentExplorationAgent(BaseHealthAgent):
             )
             
         except Exception as e:
-            logger_treatment.error(f"Error processing treatment request: {str(e)}")
-            return self.get_fallback_response(input_data)
-            
+            logger.error(f"Error processing treatment request: {e}")
+            return self.format_agent_response(
+                success=False,
+                message=f"Error retrieving treatment information: {e}",
+                metadata={'error': str(e)}
+            )
+    
     def _validate_request(self, input_data: Dict[str, Any]) -> bool:
-        """Validate input data."""
-        return input_data and "disease" in input_data
-        
-    def _get_treatment_info(self, disease: str, system: str) -> Dict[str, Any]:
         """
-        Retrieve treatment information from internal database or knowledge base.
+        Validate input data.
+        
+        Args:
+            input_data: Input dictionary
+            
+        Returns:
+            True if valid, False otherwise
+        """
+        return (
+            input_data is not None and
+            "disease" in input_data and
+            input_data["disease"].strip()
+        )
+    
+    def _get_multi_system_treatment(
+        self,
+        disease: str,
+        include_evidence: bool
+    ) -> Dict[str, Any]:
+        """
+        Get treatment information across all medical systems.
+        
+        Requirements: 7.2 - Multi-system treatment search
         
         Args:
             disease: Disease name
-            system: Medical system filter
+            include_evidence: Whether to include evidence levels
             
         Returns:
-            Treatment information dictionary
+            Treatment information for all systems
         """
-        # 1. Try internal comprehensive DB first
-        if disease in self.detailed_treatments:
-            if system != "all" and system in self.detailed_treatments[disease]:
-                return {system: self.detailed_treatments[disease][system]}
-            elif system == "all":
-                return self.detailed_treatments[disease]
+        logger.info(f"Retrieving multi-system treatment for {disease}")
         
-        # 2. Fallback to general Knowledge Base
-        kb_result = self.treatment_kb.get_treatments(disease)
-        if kb_result:
-            return kb_result
-            
-        # 3. Use LLM if no structured data found (and if enabled)
-        if self.llm:
-            return self._generate_treatment_info(disease, system)
-            
-        return {"message": "No detailed treatment information found for this condition."}
-
-    def _generate_treatment_info(self, disease: str, system: str) -> Dict[str, Any]:
-        """Generate treatment info using LLM as fallback."""
-        if not self.treatment_chain:
-            self.treatment_chain = self.create_agent_chain(
-                system_prompt="You are an expert medical treatment assistant. Provide structured treatment options.",
-                human_prompt="Provide comprehensive treatment options for {disease} in {system} system."
+        # Use dynamic retrieval for multi-system search
+        multi_system_info = self.dynamic_treatment.get_multi_system_treatment(disease)
+        
+        # If evidence levels requested, get evidence-based analysis
+        if include_evidence:
+            # Requirement 7.4: Include evidence levels
+            evidence_info = self.dynamic_treatment.get_evidence_based_treatment(
+                disease,
+                include_evidence_levels=True
             )
+            multi_system_info['evidence_analysis'] = evidence_info.get('evidence_analysis')
+        
+        # Get clinical guidelines
+        # Requirement 7.1: Web search for current treatment guidelines
+        guidelines = self.dynamic_treatment.get_clinical_guidelines(disease)
+        multi_system_info['clinical_guidelines'] = guidelines
+        
+        return multi_system_info
+    
+    def _get_single_system_treatment(
+        self,
+        disease: str,
+        system: str,
+        include_evidence: bool
+    ) -> Dict[str, Any]:
+        """
+        Get treatment information for a specific medical system.
+        
+        Requirements: 3.3, 3.4 - Dynamic retrieval replaces static data
+        
+        Args:
+            disease: Disease name
+            system: Medical system (allopathy, ayurveda, homeopathy)
+            include_evidence: Whether to include evidence levels
             
-        result = self.execute_chain(self.treatment_chain, {"disease": disease, "system": system})
-        return {"generated_info": result}
-
-    def _get_from_cache(self, disease: str, system: str) -> Optional[Dict[str, Any]]:
-        """Retrieve from cache."""
-        # Implementation depends on cache service availability
-        return None 
-
-    def _cache_result(self, disease: str, system: str, data: Dict[str, Any]):
-        """Store result in cache."""
-        pass
+        Returns:
+            Treatment information for specified system
+        """
+        logger.info(f"Retrieving {system} treatment for {disease}")
+        
+        # Use dynamic retrieval instead of static data
+        if include_evidence:
+            # Requirement 7.4: Include evidence levels
+            treatment_info = self.dynamic_treatment.get_evidence_based_treatment(
+                disease,
+                include_evidence_levels=True
+            )
+        else:
+            treatment_info = self.dynamic_treatment.get_treatment_info(disease, system)
+        
+        # Get clinical guidelines
+        # Requirement 7.1: Web search for current treatment guidelines
+        guidelines = self.dynamic_treatment.get_clinical_guidelines(disease)
+        treatment_info['clinical_guidelines'] = guidelines
+        
+        return treatment_info
+    
+    def _get_drug_interactions(self, medications: List[str]) -> Dict[str, Any]:
+        """
+        Get drug interaction information.
+        
+        Requirements: 7.5 - Drug interaction searches
+        
+        Args:
+            medications: List of medication names
+            
+        Returns:
+            Drug interaction information
+        """
+        logger.info(f"Checking drug interactions for {len(medications)} medications")
+        
+        # Use dynamic retrieval for drug interactions
+        interactions = self.dynamic_treatment.get_drug_interactions(medications)
+        
+        # Check for emergency indicators in interactions
+        if interactions.get('success'):
+            interaction_text = str(interactions.get('interactions', ''))
+            if self.safety_guardrails.check_emergency_indicators(interaction_text):
+                interactions['warning'] = (
+                    "IMPORTANT: Potential serious drug interactions detected. "
+                    "Consult a healthcare professional immediately."
+                )
+        
+        return interactions
+    
+    def _get_medical_disclaimer(self) -> str:
+        """
+        Get comprehensive medical disclaimer.
+        
+        Requirements: 7.8 - Medical disclaimers
+        
+        Returns:
+            Medical disclaimer text
+        """
+        return (
+            "MEDICAL DISCLAIMER: This information is for educational purposes only "
+            "and is not a substitute for professional medical advice, diagnosis, or treatment. "
+            "Always seek the advice of your physician or other qualified health provider "
+            "with any questions you may have regarding a medical condition. "
+            "Never disregard professional medical advice or delay in seeking it because "
+            "of information provided here. Treatment decisions should be made in consultation "
+            "with qualified healthcare professionals. Medication dosages must be prescribed "
+            "and monitored by licensed physicians. If you think you may have a medical emergency, "
+            "call your doctor or emergency services immediately."
+        )
+    
+    def _apply_safety_to_treatment_info(
+        self,
+        treatment_info: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Apply safety guardrails to treatment information.
+        
+        Requirements: 17.1, 17.2, 17.4, 17.5 - Safety guardrails
+        
+        Args:
+            treatment_info: Treatment information dictionary
+            
+        Returns:
+            Treatment information with safety guardrails applied
+        """
+        # Apply safety guardrails to text fields
+        def apply_to_text(obj):
+            if isinstance(obj, str):
+                return self.safety_guardrails.apply_all_guardrails(obj)
+            elif isinstance(obj, dict):
+                return {k: apply_to_text(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [apply_to_text(item) for item in obj]
+            else:
+                return obj
+        
+        return apply_to_text(treatment_info)
+    
+    def get_treatment_comparison(
+        self,
+        disease: str,
+        systems: List[str]
+    ) -> Dict[str, Any]:
+        """
+        Compare treatment approaches across specified medical systems.
+        
+        Requirements: 7.2, 7.3 - Multi-system search and synthesis
+        
+        Args:
+            disease: Disease name
+            systems: List of medical systems to compare
+            
+        Returns:
+            Comparison of treatment approaches
+        """
+        logger.info(f"Comparing treatment approaches for {disease} across {systems}")
+        
+        comparison = {
+            'disease': disease,
+            'systems_compared': systems,
+            'treatments': {}
+        }
+        
+        # Get treatment info for each system
+        for system in systems:
+            treatment_info = self.dynamic_treatment.get_treatment_info(disease, system)
+            comparison['treatments'][system] = treatment_info
+        
+        # Use LLM to synthesize comparison if available
+        if self.llm:
+            try:
+                from langchain_core.prompts import ChatPromptTemplate
+                from langchain_core.output_parsers import StrOutputParser
+                
+                prompt = ChatPromptTemplate.from_messages([
+                    ("system", "You are a medical information synthesis assistant. "
+                              "Compare treatment approaches across different medical systems "
+                              "objectively, noting similarities, differences, and evidence levels."),
+                    ("human", "Compare these treatment approaches for {disease}:\n\n{treatments}\n\n"
+                             "Provide an objective comparison highlighting key differences and similarities.")
+                ])
+                
+                chain = prompt | self.llm | StrOutputParser()
+                
+                treatments_text = "\n\n".join([
+                    f"{system}: {info.get('treatment_info', 'N/A')}"
+                    for system, info in comparison['treatments'].items()
+                ])
+                
+                comparison['synthesis'] = chain.invoke({
+                    'disease': disease,
+                    'treatments': treatments_text
+                })
+                
+            except Exception as e:
+                logger.error(f"Error synthesizing comparison: {e}")
+                comparison['synthesis'] = "Comparison synthesis unavailable"
+        
+        # Apply safety guardrails
+        comparison = self._apply_safety_to_treatment_info(comparison)
+        comparison['disclaimer'] = self._get_medical_disclaimer()
+        
+        return comparison
+    
+    def search_treatment_guidelines(
+        self,
+        condition: str,
+        guideline_type: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Search for specific treatment guidelines.
+        
+        Requirements: 7.1 - Web search for current treatment guidelines
+        
+        Args:
+            condition: Medical condition
+            guideline_type: Type of guidelines (e.g., 'clinical', 'emergency')
+            
+        Returns:
+            Treatment guidelines with citations
+        """
+        logger.info(f"Searching treatment guidelines for {condition}")
+        
+        # Get clinical guidelines
+        guidelines = self.dynamic_treatment.get_clinical_guidelines(condition)
+        
+        # If specific guideline type requested, refine search
+        if guideline_type:
+            query = f"{condition} {guideline_type} treatment guidelines"
+            search_results = self.search_web(query)
+            
+            if search_results:
+                # Synthesize guideline-specific information
+                synthesized = self.dynamic_treatment.synthesize_treatment_info(search_results)
+                guidelines['specific_guidelines'] = synthesized
+                guidelines['sources'].extend([r.get_citation() for r in search_results])
+        
+        # Apply safety guardrails
+        guidelines = self._apply_safety_to_treatment_info(guidelines)
+        guidelines['disclaimer'] = self._get_medical_disclaimer()
+        
+        return guidelines

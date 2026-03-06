@@ -2,6 +2,11 @@
 Custom throttling classes for API rate limiting.
 
 Implements rate limiting to prevent abuse of the health analysis API.
+
+Error Handling (Requirements 6.1, 6.2):
+- Fail-open behavior on Redis unavailability
+- Rate limiter reconnection logic
+
 Validates: Requirements 11.2.3
 """
 
@@ -9,6 +14,9 @@ from rest_framework.throttling import UserRateThrottle, AnonRateThrottle, Simple
 from django.core.cache import cache
 from django.conf import settings
 import time
+import logging
+
+logger = logging.getLogger('health_ai.throttling')
 
 
 class HealthAnalysisRateThrottle(UserRateThrottle):
@@ -18,9 +26,71 @@ class HealthAnalysisRateThrottle(UserRateThrottle):
     Limits authenticated users to prevent abuse of the computationally
     expensive health analysis pipeline.
     
+    Error Handling:
+    - Fail-open on Redis unavailability (Requirement 6.1)
+    - Reconnection logic (Requirement 6.2)
+    
     Default: 10 requests per minute, 100 requests per hour
     """
     scope = 'health_analysis'
+    
+    # Reconnection tracking
+    _cache_unavailable = False
+    _last_reconnect_attempt = 0
+    _reconnect_interval = 30  # seconds
+    
+    def allow_request(self, request, view):
+        """
+        Override to implement fail-open behavior.
+        
+        Requirement 6.1: Fail-open on Redis unavailability
+        """
+        try:
+            # Check if cache is available
+            if self._cache_unavailable:
+                if not self._try_reconnect():
+                    logger.warning("Rate limiter cache unavailable - allowing request (fail-open)")
+                    return True
+                else:
+                    self._cache_unavailable = False
+                    logger.info("Rate limiter cache reconnected")
+            
+            # Normal rate limiting
+            return super().allow_request(request, view)
+            
+        except Exception as e:
+            logger.error(f"Rate limiter error: {e} - allowing request (fail-open)")
+            self._cache_unavailable = True
+            self._last_reconnect_attempt = time.time()
+            return True
+    
+    def _try_reconnect(self) -> bool:
+        """
+        Attempt to reconnect to cache.
+        
+        Requirement 6.2: Rate limiter reconnection logic
+        
+        Returns:
+            True if reconnection successful, False otherwise
+        """
+        current_time = time.time()
+        
+        # Check if it's time to retry
+        if current_time - self._last_reconnect_attempt < self._reconnect_interval:
+            return False
+        
+        self._last_reconnect_attempt = current_time
+        
+        try:
+            # Try a simple cache operation
+            test_key = "rate_limit_health_check"
+            cache.set(test_key, "ok", timeout=10)
+            result = cache.get(test_key)
+            cache.delete(test_key)
+            return result == "ok"
+        except Exception as e:
+            logger.debug(f"Rate limiter reconnection failed: {e}")
+            return False
     
     def get_cache_key(self, request, view):
         """
@@ -47,8 +117,18 @@ class HealthAnalysisBurstRateThrottle(SimpleRateThrottle):
     Prevents rapid-fire requests in short time windows.
     Allows 5 requests per minute to prevent abuse while allowing
     legitimate use cases.
+    
+    Error Handling: Fail-open on cache unavailability
     """
     scope = 'health_analysis_burst'
+    
+    def allow_request(self, request, view):
+        """Override to implement fail-open behavior."""
+        try:
+            return super().allow_request(request, view)
+        except Exception as e:
+            logger.error(f"Burst rate limiter error: {e} - allowing request (fail-open)")
+            return True
     
     def get_cache_key(self, request, view):
         """Generate cache key for burst rate limiting."""
@@ -69,8 +149,18 @@ class AnonymousHealthAnalysisThrottle(AnonRateThrottle):
     
     Anonymous users get lower rate limits to prevent abuse.
     Default: 5 requests per hour
+    
+    Error Handling: Fail-open on cache unavailability
     """
     scope = 'anon_health_analysis'
+    
+    def allow_request(self, request, view):
+        """Override to implement fail-open behavior."""
+        try:
+            return super().allow_request(request, view)
+        except Exception as e:
+            logger.error(f"Anonymous rate limiter error: {e} - allowing request (fail-open)")
+            return True
     
     def get_cache_key(self, request, view):
         """Generate cache key based on IP address for anonymous users."""
@@ -86,8 +176,18 @@ class IPBasedRateThrottle(SimpleRateThrottle):
     
     Limits requests per IP address regardless of authentication status.
     Helps prevent distributed abuse attempts.
+    
+    Error Handling: Fail-open on cache unavailability
     """
     scope = 'ip_based'
+    
+    def allow_request(self, request, view):
+        """Override to implement fail-open behavior."""
+        try:
+            return super().allow_request(request, view)
+        except Exception as e:
+            logger.error(f"IP-based rate limiter error: {e} - allowing request (fail-open)")
+            return True
     
     def get_cache_key(self, request, view):
         """Generate cache key based on IP address."""
@@ -103,8 +203,18 @@ class DailyRateThrottle(SimpleRateThrottle):
     
     Prevents excessive usage over longer time periods.
     Default: 50 requests per day per user
+    
+    Error Handling: Fail-open on cache unavailability
     """
     scope = 'daily_health_analysis'
+    
+    def allow_request(self, request, view):
+        """Override to implement fail-open behavior."""
+        try:
+            return super().allow_request(request, view)
+        except Exception as e:
+            logger.error(f"Daily rate limiter error: {e} - allowing request (fail-open)")
+            return True
     
     def get_cache_key(self, request, view):
         """Generate cache key for daily rate limiting."""
@@ -127,6 +237,8 @@ class AdaptiveRateThrottle(SimpleRateThrottle):
     - Current system load
     - User tier/subscription level
     - Historical usage patterns
+    
+    Error Handling: Fail-open on cache unavailability
     """
     scope = 'adaptive'
     
@@ -142,6 +254,14 @@ class AdaptiveRateThrottle(SimpleRateThrottle):
         """
         # Future enhancement: adjust rate based on system load
         return self.base_rate
+    
+    def allow_request(self, request, view):
+        """Override to implement fail-open behavior."""
+        try:
+            return super().allow_request(request, view)
+        except Exception as e:
+            logger.error(f"Adaptive rate limiter error: {e} - allowing request (fail-open)")
+            return True
     
     def get_cache_key(self, request, view):
         """Generate cache key for adaptive rate limiting."""

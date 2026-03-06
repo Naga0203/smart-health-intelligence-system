@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Container,
   Box,
@@ -36,18 +36,28 @@ const MOCK_PATIENT = {
 export const AssessmentResultsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-
+  const location = useLocation();
 
   const assessmentStore = useAssessmentStore() as any;
   const { currentAssessment, loading, error, fetchAssessmentDetail } = assessmentStore;
 
-  useEffect(() => {
-    if (id) {
-      fetchAssessmentDetail(id);
-    }
-  }, [id, fetchAssessmentDetail]);
+  // Use state data if available (from prediction), otherwise fetch from API
+  const [localAssessment, setLocalAssessment] = useState((location.state as any)?.result || null);
 
-  if (loading) {
+  useEffect(() => {
+    // Only fetch from API if we don't have local data
+    if (id && !localAssessment) {
+      fetchAssessmentDetail(id).catch((err: any) => {
+        // If fetch fails (e.g., not authenticated), keep using local data
+        console.warn('Could not fetch assessment:', err);
+      });
+    }
+  }, [id, localAssessment, fetchAssessmentDetail]);
+
+  // Use local data if available, otherwise use store data
+  const data = localAssessment || currentAssessment || {};
+
+  if (loading && !localAssessment) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
         <CircularProgress />
@@ -55,7 +65,7 @@ export const AssessmentResultsPage: React.FC = () => {
     );
   }
 
-  if (error) {
+  if (error && !localAssessment) {
     return (
       <Container maxWidth="lg" sx={{ py: 4 }}>
         <Alert severity="error">{error}</Alert>
@@ -66,9 +76,8 @@ export const AssessmentResultsPage: React.FC = () => {
     );
   }
 
-  // Use current assessment or fallback to safe defaults if waiting for data
-  // In a real app we might want to show a skeleton loader here if currentAssessment is null
-  const data = currentAssessment || {};
+  // Use local assessment or current assessment from store
+  // In a real app we might want to show a skeleton loader here if both are null
   const prediction = data.prediction || {};
 
   // Extract values with fallbacks
@@ -310,6 +319,10 @@ export const AssessmentResultsPage: React.FC = () => {
                 <Button
                   variant="outlined"
                   startIcon={<FlagIcon />}
+                  onClick={() => {
+                    // TODO: Implement flag for review functionality
+                    console.log('Flag for review clicked');
+                  }}
                   sx={{
                     textTransform: 'none',
                     fontWeight: 600,
@@ -322,6 +335,19 @@ export const AssessmentResultsPage: React.FC = () => {
                 <Button
                   variant="contained"
                   startIcon={<HospitalIcon />}
+                  onClick={() => {
+                    // Navigate to treatment page with disease from prediction
+                    const disease = prediction.disease || 'Diabetes';
+                    // Convert disease name to URL-friendly format (e.g., "Type 2 Diabetes" -> "type-2-diabetes")
+                    const diseaseId = disease.toLowerCase().replace(/\s+/g, '-');
+                    navigate(`/app/diseases/${diseaseId}/treatment`, {
+                      state: { 
+                        disease,
+                        assessmentId: id,
+                        assessmentData: data
+                      }
+                    });
+                  }}
                   sx={{
                     textTransform: 'none',
                     fontWeight: 600,

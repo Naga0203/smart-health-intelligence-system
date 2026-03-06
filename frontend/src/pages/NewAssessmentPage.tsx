@@ -227,18 +227,36 @@ export const NewAssessmentPage: React.FC = () => {
     setSubmitError(null);
     try {
       // Combine description and selected symptoms
-      const symptomsInput = [
-        symptomDescription,
-        ...selectedSymptoms
-      ].filter(Boolean).join(', ');
+      // Build symptoms array - backend expects an array, not a string
+      const symptomsArray: string[] = [];
+      
+      // Add symptom description if provided (split by comma if multiple)
+      if (symptomDescription.trim()) {
+        const descriptionSymptoms = symptomDescription
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean);
+        symptomsArray.push(...descriptionSymptoms);
+      }
+      
+      // Add selected symptoms
+      symptomsArray.push(...selectedSymptoms);
+      
+      // Remove duplicates (case-insensitive)
+      const uniqueSymptoms = Array.from(
+        new Set(symptomsArray.map(s => s.toLowerCase()))
+      ).map(s => {
+        // Find original casing
+        return symptomsArray.find(orig => orig.toLowerCase() === s) || s;
+      });
 
-      if (!symptomsInput) {
+      if (uniqueSymptoms.length === 0) {
         setSubmitError('Please describe your symptoms or select from the list.');
         setIsSubmitting(false);
         return;
       }
 
-      console.log('Submitting symptoms:', symptomsInput);
+      console.log('Submitting symptoms:', uniqueSymptoms);
 
       // Prepare report metadata if available
       const reportMetadataPayload = reportMetadata && extractionJobId ? {
@@ -256,7 +274,7 @@ export const NewAssessmentPage: React.FC = () => {
       // Call API with report data
       const response = await import('@/services/api').then(m =>
         m.apiService.predict(
-          symptomsInput,
+          uniqueSymptoms, // Send as array, not string
           reportMetadataPayload,
           extractedData,
           Object.keys(dataSourcesObject).length > 0 ? dataSourcesObject : undefined,

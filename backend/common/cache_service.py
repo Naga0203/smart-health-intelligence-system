@@ -8,13 +8,21 @@ Provides centralized caching using Redis for:
 - Common Gemini AI responses
 
 Uses Django's cache framework with Redis backend.
+
+Error Handling (Requirements 3.3, 3.4):
+- Graceful degradation on Redis failure
+- Cache reconnection logic (30-second intervals)
+- Serialization error handling
 """
 
 import logging
 import json
 import hashlib
+import time
+import asyncio
 from typing import Any, Optional, Dict, Callable
 from functools import wraps
+from .errors import CacheError
 
 logger = logging.getLogger('health_ai.cache')
 
@@ -33,10 +41,12 @@ class CacheService:
     Centralized caching service with graceful fallback.
     
     Features:
-    - Automatic fallback if Redis is unavailable
+    - Automatic fallback if Redis is unavailable (Requirement 3.3)
     - Configurable TTLs for different data types
     - Cache key versioning
     - Pattern-based invalidation
+    - Reconnection logic (Requirement 3.4)
+    - Serialization error handling (Requirement 3.4)
     """
     
     # Cache TTLs (in seconds)
@@ -50,10 +60,66 @@ class CacheService:
     # Cache key prefix for versioning
     VERSION = "v1"
     
+    # Reconnection configuration (Requirement 3.4)
+    RECONNECT_INTERVAL = 30  # seconds
+    _last_reconnect_attempt = 0
+    _cache_unavailable = False
+    _reconnect_task = None
+    
     @staticmethod
     def _is_available() -> bool:
-        """Check if cache is available."""
-        return CACHE_AVAILABLE and cache is not None
+        """
+        Check if cache is available.
+        
+        Requirement 3.3: Graceful degradation on Redis failure
+        """
+        if not CACHE_AVAILABLE or cache is None:
+            return False
+        
+        # If we know cache is unavailable, check if it's time to retry
+        if CacheService._cache_unavailable:
+            current_time = time.time()
+            if current_time - CacheService._last_reconnect_attempt >= CacheService.RECONNECT_INTERVAL:
+                # Try to reconnect
+                if CacheService._try_reconnect():
+                    CacheService._cache_unavailable = False
+                    logger.info("Cache reconnected successfully")
+                    return True
+                else:
+                    CacheService._last_reconnect_attempt = current_time
+                    return False
+            return False
+        
+        return True
+    
+    @staticmethod
+    def _try_reconnect() -> bool:
+        """
+        Attempt to reconnect to cache.
+        
+        Requirement 3.4: Cache reconnection logic (30-second intervals)
+        
+        Returns:
+            True if reconnection successful, False otherwise
+        """
+        try:
+            # Try a simple operation to test connection
+            test_key = CacheService._make_key("_health_check")
+            cache.set(test_key, "ok", timeout=10)
+            result = cache.get(test_key)
+            cache.delete(test_key)
+            return result == "ok"
+        except Exception as e:
+            logger.debug(f"Cache reconnection failed: {e}")
+            return False
+    
+    @staticmethod
+    def _mark_unavailable():
+        """Mark cache as unavailable and schedule reconnection attempts."""
+        if not CacheService._cache_unavailable:
+            CacheService._cache_unavailable = True
+            CacheService._last_reconnect_attempt = time.time()
+            logger.warning("Cache marked as unavailable - will retry every 30s")
     
     @staticmethod
     def _make_key(*parts: str) -> str:
@@ -72,7 +138,9 @@ class CacheService:
     @staticmethod
     def get(key: str, default: Any = None) -> Any:
         """
-        Get value from cache.
+        Get value from cache with graceful degradation.
+        
+        Requirement 3.3: Graceful degradation on Redis failure
         
         Args:
             key: Cache key
@@ -82,6 +150,7 @@ class CacheService:
             Cached value or default
         """
         if not CacheService._is_available():
+            logger.debug(f"Cache unavailable, returning default for: {key}")
             return default
         
         try:
@@ -93,12 +162,15 @@ class CacheService:
             return value
         except Exception as e:
             logger.warning(f"Cache get error for key '{key}': {str(e)}")
+            CacheService._mark_unavailable()
             return default
     
     @staticmethod
     def set(key: str, value: Any, ttl: Optional[int] = None) -> bool:
         """
-        Set value in cache.
+        Set value in cache with serialization error handling.
+        
+        Requirement 3.4: Handle serialization errors
         
         Args:
             key: Cache key
@@ -109,20 +181,27 @@ class CacheService:
             True if successful, False otherwise
         """
         if not CacheService._is_available():
+            logger.debug(f"Cache unavailable, skipping set for: {key}")
             return False
         
         try:
             cache.set(key, value, ttl)
             logger.debug(f"Cache SET: {key} (TTL: {ttl}s)")
             return True
+        except (TypeError, ValueError) as e:
+            # Serialization error
+            logger.warning(f"Cache serialization error for key '{key}': {str(e)}")
+            logger.debug(f"Problematic value type: {type(value)}")
+            return False
         except Exception as e:
             logger.warning(f"Cache set error for key '{key}': {str(e)}")
+            CacheService._mark_unavailable()
             return False
     
     @staticmethod
     def delete(key: str) -> bool:
         """
-        Delete value from cache.
+        Delete value from cache with graceful degradation.
         
         Args:
             key: Cache key
@@ -131,6 +210,7 @@ class CacheService:
             True if successful, False otherwise
         """
         if not CacheService._is_available():
+            logger.debug(f"Cache unavailable, skipping delete for: {key}")
             return False
         
         try:
@@ -139,12 +219,13 @@ class CacheService:
             return True
         except Exception as e:
             logger.warning(f"Cache delete error for key '{key}': {str(e)}")
+            CacheService._mark_unavailable()
             return False
     
     @staticmethod
     def delete_pattern(pattern: str) -> bool:
         """
-        Delete all keys matching pattern.
+        Delete all keys matching pattern with graceful degradation.
         
         Args:
             pattern: Key pattern (e.g., "treatment:*")
@@ -153,6 +234,7 @@ class CacheService:
             True if successful, False otherwise
         """
         if not CacheService._is_available():
+            logger.debug(f"Cache unavailable, skipping delete_pattern for: {pattern}")
             return False
         
         try:
@@ -166,6 +248,7 @@ class CacheService:
                 return False
         except Exception as e:
             logger.warning(f"Cache delete_pattern error for '{pattern}': {str(e)}")
+            CacheService._mark_unavailable()
             return False
     
     # Domain-specific caching methods

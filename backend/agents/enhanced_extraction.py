@@ -1,10 +1,10 @@
 """
 Enhanced Extraction Agent for Medical Report Processing
 
-Extends DataExtractionAgent to handle medical report files (PDF, images)
-and extract structured medical data using Google Gemini AI with OCR capabilities.
+Uses GeminiOCRService for vision-based extraction and inherits from
+EnhancedBaseHealthAgent for autonomous capabilities.
 
-Validates: Requirements 3.1, 3.2, 3.5, 3.6
+Validates: Requirements 1.1, 1.2, 1.3, 4.1, 4.2, 4.3, 4.4, 4.6, 14.2, 14.3, 14.4, 14.6, 14.7, 14.8, 1.6
 """
 
 import logging
@@ -14,7 +14,9 @@ from io import BytesIO
 from datetime import datetime
 import time
 
-from .data_extraction import DataExtractionAgent
+from .infrastructure.enhanced_base_agent import EnhancedBaseHealthAgent
+from .infrastructure.gemini_ocr import GeminiOCRService
+from .infrastructure.config import AgentConfig
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
 from django.conf import settings
@@ -22,59 +24,68 @@ from django.conf import settings
 logger = logging.getLogger('health_ai.enhanced_extraction')
 
 
-class EnhancedExtractionAgent(DataExtractionAgent):
+class EnhancedExtractionAgent(EnhancedBaseHealthAgent):
     """
     Enhanced agent for extracting structured medical data from report files.
     
-    Extends DataExtractionAgent with capabilities for:
-    - PDF text extraction using Gemini
-    - Image OCR using Gemini Vision
-    - Medical terminology parsing and standardization
+    Uses GeminiOCRService for vision-based extraction with capabilities for:
+    - PDF and image text extraction using Gemini Vision
+    - Image analysis (charts, graphs, diagrams)
+    - Table extraction with structure preservation
+    - Report type identification
+    - Header extraction (dates, patient IDs, provider info)
+    - Handwriting recognition
     - Structured data extraction with confidence scoring
+    
+    Requirements: 1.1, 1.2, 1.3, 4.1, 4.2, 4.3, 4.4, 4.6, 14.2, 14.3, 14.4, 14.6, 14.7, 14.8, 1.6
     """
     
-    def __init__(self):
+    def __init__(self, config: Optional[AgentConfig] = None):
         """Initialize the enhanced extraction agent."""
-        super().__init__()
-        self.agent_name = "EnhancedExtractionAgent"
+        super().__init__(agent_name="EnhancedExtractionAgent", config=config)
         
-        # Initialize Gemini Vision client for document processing
-        self.gemini_vision_client = self._initialize_vision_client()
+        # Initialize GeminiOCRService for vision-based extraction
+        api_key = getattr(settings, 'GEMINI_API_KEY', None)
+        self.ocr_service = GeminiOCRService(api_key=api_key)
         
         # Load extraction prompt template
         self.extraction_prompt_template = self._load_extraction_prompt()
         
-        # Medical terminology mappings for standardization
-        self.medical_term_mappings = {
-            'bp': 'blood_pressure',
-            'blood pressure': 'blood_pressure',
-            'temp': 'temperature',
-            'temperature': 'temperature',
-            'hr': 'heart_rate',
-            'heart rate': 'heart_rate',
-            'pulse': 'heart_rate',
-            'wt': 'weight',
-            'weight': 'weight',
-            'ht': 'height',
-            'height': 'height',
-            'bmi': 'bmi',
-            'glucose': 'glucose',
-            'blood sugar': 'glucose',
-            'cholesterol': 'cholesterol',
-            'chol': 'cholesterol'
-        }
+        logger.info("EnhancedExtractionAgent initialized with GeminiOCRService")
+    
+    def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Main processing method for enhanced extraction.
         
-        logger.info("EnhancedExtractionAgent initialized")
+        Args:
+            input_data: Dictionary with:
+                - file_stream: BinaryIO file stream
+                - file_type: MIME type of file
+                
+        Returns:
+            Dictionary with extraction results
+        """
+        file_stream = input_data.get('file_stream')
+        file_type = input_data.get('file_type')
+        
+        if not file_stream or not file_type:
+            return {
+                'success': False,
+                'error_code': 'missing_input',
+                'message': 'file_stream and file_type are required'
+            }
+        
+        return self.extract_from_report(file_stream, file_type)
     
     def _initialize_vision_client(self) -> Optional[ChatGoogleGenerativeAI]:
-        """Initialize Gemini Vision client for document processing."""
+        """Initialize Gemini Vision client for structured data parsing."""
         try:
             api_key = getattr(settings, 'GEMINI_API_KEY', None)
             if not api_key:
                 logger.warning("Gemini API key not configured")
                 return None
             
-            # Use Gemini 1.5 Pro for vision capabilities
+            # Use Gemini 1.5 Pro for structured data parsing
             vision_client = ChatGoogleGenerativeAI(
                 model="gemini-1.5-pro",
                 google_api_key=api_key,
@@ -82,11 +93,11 @@ class EnhancedExtractionAgent(DataExtractionAgent):
                 max_output_tokens=2048
             )
             
-            logger.info("Gemini Vision client initialized")
+            logger.info("Gemini client initialized for structured parsing")
             return vision_client
             
         except Exception as e:
-            logger.error(f"Failed to initialize Gemini Vision client: {e}")
+            logger.error(f"Failed to initialize Gemini client: {e}")
             return None
     
     def _load_extraction_prompt(self) -> str:
@@ -160,7 +171,9 @@ Return ONLY the JSON object, no additional text."""
     
     def extract_from_report(self, file_stream: BinaryIO, file_type: str) -> Dict[str, Any]:
         """
-        Extract medical data from report file.
+        Extract medical data from report file using GeminiOCRService.
+        
+        Requirements: 4.1, 4.2, 4.3, 4.4, 4.6, 14.2, 14.3, 14.4, 14.6, 14.7, 14.8
         
         Args:
             file_stream: File content as stream
@@ -172,21 +185,36 @@ Return ONLY the JSON object, no additional text."""
                 - extracted_data: ExtractedMedicalData dict
                 - confidence_scores: Dict[str, float]
                 - metadata: ExtractionMetadata dict
+                - report_type: str (Requirement 14.6)
+                - chart_analysis: Dict (Requirement 14.2)
+                - table_data: List (Requirement 14.4)
+                - header_info: Dict (Requirement 14.7)
         """
         start_time = time.time()
         
         try:
             logger.info(f"Starting extraction for file type: {file_type}")
             
-            # Step 1: Extract text from file
-            if file_type == 'application/pdf':
-                raw_text = self._process_pdf(file_stream)
-            elif file_type in ['image/jpeg', 'image/png']:
-                raw_text = self._process_image(file_stream)
-            else:
-                raise ValueError(f"Unsupported file type: {file_type}")
+            # Read file bytes
+            file_bytes = file_stream.read()
+            if hasattr(file_stream, 'seek'):
+                file_stream.seek(0)
             
-            if not raw_text or len(raw_text.strip()) < 10:
+            # Determine image format from MIME type
+            image_format = self._get_image_format(file_type)
+            
+            # Step 1: Identify report type (Requirement 14.6)
+            report_type = self.ocr_service.identify_report_type(file_bytes)
+            logger.info(f"Report type identified: {report_type}")
+            
+            # Step 2: Extract header information (Requirement 14.7)
+            header_info = self.ocr_service.extract_report_headers(file_bytes)
+            logger.info("Report headers extracted")
+            
+            # Step 3: Extract text using GeminiOCRService (Requirements 4.1, 4.2)
+            ocr_result = self.ocr_service.extract_text(file_bytes, image_format)
+            
+            if not ocr_result.text or len(ocr_result.text.strip()) < 10:
                 return {
                     'success': False,
                     'error_code': 'no_text_extracted',
@@ -195,16 +223,41 @@ Return ONLY the JSON object, no additional text."""
                     'confidence_scores': None,
                     'metadata': {
                         'extraction_time_seconds': time.time() - start_time,
-                        'ocr_used': file_type.startswith('image/'),
+                        'ocr_used': True,
                         'pages_processed': 1,
-                        'gemini_model': 'gemini-1.5-pro'
+                        'gemini_model': 'gemini-1.5-pro-vision',
+                        'report_type': report_type
                     }
                 }
             
-            # Step 2: Parse medical text into structured data
-            extracted_data = self._parse_medical_text(raw_text)
+            # Step 4: Extract structured data (Requirement 4.7, 8.2)
+            structured_data = self.ocr_service.extract_structured_data(file_bytes)
             
-            # Step 3: Validate extracted data
+            # Step 5: Extract table data if present (Requirement 14.4)
+            table_data = self.ocr_service.extract_from_table(file_bytes)
+            logger.info(f"Extracted {len(table_data)} tables")
+            
+            # Step 6: Extract chart/graph data if present (Requirement 14.2)
+            chart_analysis = self.ocr_service.extract_from_chart(file_bytes)
+            logger.info("Chart analysis completed")
+            
+            # Step 7: Handle handwriting if present (Requirement 14.5)
+            handwritten_text = self.ocr_service.handle_handwriting(file_bytes)
+            if handwritten_text:
+                logger.info("Handwritten text extracted")
+            
+            # Step 8: Parse medical text into structured data
+            extracted_data = self._parse_medical_text(ocr_result.text)
+            
+            # Merge structured data from OCR service
+            if structured_data and 'raw_response' in structured_data:
+                extracted_data['ocr_structured_data'] = structured_data
+            
+            # Add handwritten text if extracted
+            if handwritten_text:
+                extracted_data['handwritten_notes'] = handwritten_text
+            
+            # Step 9: Validate extracted data
             validation_result = self._validate_extracted_data(extracted_data)
             
             if not validation_result['valid']:
@@ -217,20 +270,28 @@ Return ONLY the JSON object, no additional text."""
             if validation_result.get('low_confidence_fields'):
                 logger.info(f"Low confidence fields: {validation_result['low_confidence_fields']}")
             
-            # Step 4: Calculate confidence scores
-            confidence_scores = self._calculate_confidence_scores(extracted_data, raw_text)
+            # Step 10: Calculate confidence scores (Requirement 4.6, 14.8)
+            confidence_scores = self._calculate_confidence_scores(extracted_data, ocr_result.text)
+            
+            # Include OCR confidence in overall score
+            if ocr_result.confidence:
+                confidence_scores['ocr_confidence'] = ocr_result.confidence
             
             extraction_time = time.time() - start_time
             
             metadata = {
                 'extraction_time_seconds': round(extraction_time, 2),
-                'ocr_used': file_type.startswith('image/'),
+                'ocr_used': True,
                 'pages_processed': 1,
-                'gemini_model': 'gemini-1.5-pro',
-                'text_length': len(raw_text),
+                'gemini_model': 'gemini-1.5-pro-vision',
+                'text_length': len(ocr_result.text),
                 'validation_passed': validation_result['valid'],
                 'flagged_fields': validation_result.get('flagged_fields', []),
-                'low_confidence_fields': validation_result.get('low_confidence_fields', [])
+                'low_confidence_fields': validation_result.get('low_confidence_fields', []),
+                'report_type': report_type,
+                'has_tables': len(table_data) > 0,
+                'has_charts': bool(chart_analysis and 'analysis' in chart_analysis),
+                'has_handwriting': bool(handwritten_text)
             }
             
             logger.info(f"Extraction completed in {extraction_time:.2f}s")
@@ -240,7 +301,11 @@ Return ONLY the JSON object, no additional text."""
                 'extracted_data': extracted_data,
                 'confidence_scores': confidence_scores,
                 'metadata': metadata,
-                'validation_result': validation_result
+                'validation_result': validation_result,
+                'report_type': report_type,
+                'chart_analysis': chart_analysis,
+                'table_data': table_data,
+                'header_info': header_info
             }
             
         except Exception as e:
@@ -253,105 +318,24 @@ Return ONLY the JSON object, no additional text."""
                 'confidence_scores': None,
                 'metadata': {
                     'extraction_time_seconds': time.time() - start_time,
-                    'ocr_used': file_type.startswith('image/') if file_type else False,
+                    'ocr_used': True,
                     'pages_processed': 0,
-                    'gemini_model': 'gemini-1.5-pro'
+                    'gemini_model': 'gemini-1.5-pro-vision'
                 }
             }
     
-    def _process_pdf(self, file_stream: BinaryIO) -> str:
-        """
-        Extract text from PDF using Gemini.
-        
-        Args:
-            file_stream: PDF file stream
-            
-        Returns:
-            Extracted text content
-        """
-        try:
-            if not self.gemini_vision_client:
-                raise Exception("Gemini Vision client not initialized")
-            
-            # Read PDF bytes
-            pdf_bytes = file_stream.read()
-            if hasattr(file_stream, 'seek'):
-                file_stream.seek(0)
-            
-            # Use Gemini to extract text from PDF
-            import base64
-            pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
-            
-            message = HumanMessage(
-                content=[
-                    {
-                        "type": "text",
-                        "text": "Extract all text content from this medical report PDF. Return only the text, preserving structure and formatting."
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": f"data:application/pdf;base64,{pdf_base64}"
-                    }
-                ]
-            )
-            
-            response = self.gemini_vision_client.invoke([message])
-            extracted_text = response.content
-            
-            logger.info(f"Extracted {len(extracted_text)} characters from PDF")
-            
-            return extracted_text
-            
-        except Exception as e:
-            logger.error(f"PDF processing failed: {e}")
-            raise Exception(f"Failed to process PDF: {str(e)}")
-    
-    def _process_image(self, file_stream: BinaryIO) -> str:
-        """
-        Extract text from image using Gemini OCR.
-        
-        Args:
-            file_stream: Image file stream
-            
-        Returns:
-            Extracted text content via OCR
-        """
-        try:
-            if not self.gemini_vision_client:
-                raise Exception("Gemini Vision client not initialized")
-            
-            # Read image bytes
-            image_bytes = file_stream.read()
-            if hasattr(file_stream, 'seek'):
-                file_stream.seek(0)
-            
-            # Use Gemini Vision for OCR
-            import base64
-            image_base64 = base64.b64encode(image_bytes).decode('utf-8')
-            
-            message = HumanMessage(
-                content=[
-                    {
-                        "type": "text",
-                        "text": "Extract all text content from this medical report image using OCR. Return only the text, preserving structure and formatting."
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": f"data:image/jpeg;base64,{image_base64}"
-                    }
-                ]
-            )
-            
-            response = self.gemini_vision_client.invoke([message])
-            extracted_text = response.content
-            
-            logger.info(f"Extracted {len(extracted_text)} characters from image via OCR")
-            
-            return extracted_text
-            
-        except Exception as e:
-            logger.error(f"Image OCR processing failed: {e}")
-            raise Exception(f"Failed to process image: {str(e)}")
+    def _get_image_format(self, mime_type: str) -> str:
+        """Convert MIME type to image format."""
+        mime_to_format = {
+            'application/pdf': 'pdf',
+            'image/jpeg': 'jpeg',
+            'image/jpg': 'jpeg',
+            'image/png': 'png',
+            'image/tiff': 'tiff',
+            'image/tif': 'tiff',
+            'image/webp': 'webp'
+        }
+        return mime_to_format.get(mime_type, 'jpeg')
     
     def _parse_medical_text(self, text: str) -> Dict[str, Any]:
         """
@@ -364,15 +348,16 @@ Return ONLY the JSON object, no additional text."""
             Structured medical data dictionary
         """
         try:
-            if not self.gemini_vision_client:
-                raise Exception("Gemini client not initialized")
+            # Use LLM from base class for parsing
+            if not self.llm:
+                raise Exception("LLM not initialized")
             
             # Format prompt with extracted text
             prompt = self.extraction_prompt_template.format(report_text=text)
             
             # Use Gemini to parse medical data
             message = HumanMessage(content=prompt)
-            response = self.gemini_vision_client.invoke([message])
+            response = self.llm.invoke([message])
             
             # Parse JSON response
             response_text = response.content.strip()

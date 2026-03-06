@@ -33,6 +33,23 @@ class HealthAssessmentInputSerializer(serializers.Serializer):
         required=False,
         help_text="Optional additional health information (e.g., {'weight': 70, 'height': 175})"
     )
+    
+    def to_internal_value(self, data):
+        """
+        Convert input data to internal representation.
+        Handles backward compatibility for symptoms as string.
+        """
+        # Make a mutable copy of the data
+        data = data.copy() if hasattr(data, 'copy') else dict(data)
+        
+        # Handle symptoms as string (backward compatibility)
+        if 'symptoms' in data and isinstance(data['symptoms'], str):
+            # Split by comma and clean up
+            symptoms_str = data['symptoms']
+            symptoms_list = [s.strip() for s in symptoms_str.split(',') if s.strip()]
+            data['symptoms'] = symptoms_list
+        
+        return super().to_internal_value(data)
 
 
 class PredictionSerializer(serializers.Serializer):
@@ -106,6 +123,23 @@ class TopPredictionsInputSerializer(serializers.Serializer):
         default=5,
         help_text="Number of top predictions to return"
     )
+    
+    def to_internal_value(self, data):
+        """
+        Convert input data to internal representation.
+        Handles backward compatibility for symptoms as string.
+        """
+        # Make a mutable copy of the data
+        data = data.copy() if hasattr(data, 'copy') else dict(data)
+        
+        # Handle symptoms as string (backward compatibility)
+        if 'symptoms' in data and isinstance(data['symptoms'], str):
+            # Split by comma and clean up
+            symptoms_str = data['symptoms']
+            symptoms_list = [s.strip() for s in symptoms_str.split(',') if s.strip()]
+            data['symptoms'] = symptoms_list
+        
+        return super().to_internal_value(data)
 
 
 class DiseaseInfoSerializer(serializers.Serializer):

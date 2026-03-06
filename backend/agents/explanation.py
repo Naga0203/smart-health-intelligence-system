@@ -1,11 +1,12 @@
 import logging
 from typing import Dict, Any, Optional, List
 from datetime import datetime
-from .base_agent import BaseHealthAgent
+from .infrastructure.enhanced_base_agent import EnhancedBaseHealthAgent
+from .infrastructure.config import AgentConfig
 
 logger_explanation = logging.getLogger('health_ai.explanation')
 
-class LangChainExplanationAgent(BaseHealthAgent):
+class LangChainExplanationAgent(EnhancedBaseHealthAgent):
     """
     LangChain-based explanation agent for health risk assessments.
     
@@ -14,11 +15,14 @@ class LangChainExplanationAgent(BaseHealthAgent):
     - Provide confidence reasoning
     - Add appropriate medical disclaimers
     - Maintain educational focus (never diagnostic)
+    - Search web for medical explanations and terminology when needed
+    - Cite sources for all medical information
+    - Apply safety guardrails to all outputs
     """
     
-    def __init__(self):
+    def __init__(self, config: Optional[AgentConfig] = None):
         """Initialize the LangChain explanation agent."""
-        super().__init__("ExplanationAgent")
+        super().__init__("ExplanationAgent", config)
         
         # Confidence level explanations
         self.confidence_explanations = {
@@ -63,6 +67,8 @@ CRITICAL REQUIREMENTS:
 - List warning signs requiring immediate attention
 - Provide confidence reasoning
 - Keep tone professional yet accessible
+- When web context is provided, integrate it naturally into your explanation
+- Cite sources when using information from web context
 
 RESPONSE STRUCTURE:
 Your explanation should cover:
@@ -83,11 +89,13 @@ Risk probability: {probability_percent}%
 Confidence level: {confidence}
 Patient's symptoms: {symptoms}
 
+{web_context}
+
 Provide a detailed, structured explanation that includes:
 1. **Summary**: Brief 2-3 sentence overview in simple language
 2. **What is {disease}**: Explain the condition in non-technical terms
 3. **Symptom Correlation**: How these specific symptoms ({symptoms}) relate to {disease}
-4. **Risk Factors**: List 35 key risk factors for {disease}
+4. **Risk Factors**: List 3-5 key risk factors for {disease}
 5. **Warning Signs**: List 3-5 serious symptoms requiring immediate medical attention
 6. **Next Steps**: Clear guidance on what to do next based on {confidence} confidence
 7. **Confidence Reasoning**: Why the confidence level is {confidence}
@@ -101,7 +109,19 @@ IMPORTANT: This is for educational purposes only and not a medical diagnosis."""
     
     def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Main processing method for explanation generation.
+        Main processing method for explanation generation with monitoring and error handling.
+        
+        Args:
+            input_data: Contains disease, probability, confidence, symptoms, etc.
+            
+        Returns:
+            Comprehensive explanation result with citations and safety guardrails applied
+        """
+        return self.process_with_monitoring(input_data)
+    
+    def _process_internal(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Internal processing method called by process_with_monitoring.
         
         Args:
             input_data: Contains disease, probability, confidence, symptoms, etc.
@@ -126,12 +146,14 @@ IMPORTANT: This is for educational purposes only and not a medical diagnosis."""
         })
         
         try:
-            explanation_data = self.explain(
-                disease=input_data["disease"],
-                probability=input_data["probability"],
-                confidence=input_data["confidence"],
-                symptoms=input_data["symptoms"],
-                additional_context=input_data.get("additional_context")
+            explanation_data = self.execute_with_retry(
+                lambda: self.explain(
+                    disease=input_data["disease"],
+                    probability=input_data["probability"],
+                    confidence=input_data["confidence"],
+                    symptoms=input_data["symptoms"],
+                    additional_context=input_data.get("additional_context")
+                )
             )
             
             return self.format_agent_response(
@@ -157,32 +179,42 @@ IMPORTANT: This is for educational purposes only and not a medical diagnosis."""
             additional_context: Optional additional context for explanation
             
         Returns:
-            Dictionary containing explanation components
+            Dictionary containing explanation components with citations and safety guardrails
         """
         logger_explanation.info(f"Generating explanation for {disease} with {confidence} confidence using LangChain")
         
         try:
-            # Generate the main explanation using LangChain
+            # Search web for medical explanations and terminology if needed
+            web_sources = []
+            if self.config.enable_web_search:
+                search_results = self._search_medical_explanations(disease, symptoms)
+                web_sources = search_results
+            
+            # Generate the main explanation using LangChain with web context
             main_explanation = self._generate_langchain_explanation(
-                disease, probability, confidence, symptoms
+                disease, probability, confidence, symptoms, web_sources
             )
             
-            # Build comprehensive explanation structure
+            # Apply safety guardrails to the explanation
+            safe_explanation = self.apply_safety_guardrails(main_explanation)
+            
+            # Build comprehensive explanation structure with citations
             explanation_data = {
                 "summary": f"Risk assessment for {disease.replace('_', ' ').title()}",
                 "probability_percent": round(probability * 100, 2),
                 "confidence": confidence,
-                "main_explanation": main_explanation,
+                "main_explanation": safe_explanation,
                 "confidence_reasoning": self._get_confidence_reasoning(confidence),
                 "contributing_factors": self._analyze_contributing_factors(symptoms, disease),
                 "educational_content": self._get_educational_content(disease),
+                "sources": self._format_citations(web_sources) if web_sources else [],
                 "disclaimer": self.medical_disclaimer,
                 "generated_at": datetime.utcnow().isoformat(),
-                "generated_by": "langchain_gemini_ai",
+                "generated_by": "langchain_gemini_ai_enhanced",
                 "agent": "LangChainExplanationAgent"
             }
             
-            logger_explanation.info("LangChain explanation generated successfully")
+            logger_explanation.info("LangChain explanation generated successfully with citations")
             return explanation_data
             
         except Exception as e:
@@ -190,15 +222,16 @@ IMPORTANT: This is for educational purposes only and not a medical diagnosis."""
             return self._get_fallback_explanation(disease, probability, confidence)
     
     def _generate_langchain_explanation(self, disease: str, probability: float, 
-                                      confidence: str, symptoms: list) -> str:
+                                      confidence: str, symptoms: list, web_sources: List[Dict] = None) -> str:
         """
-        Generate explanation using LangChain chain.
+        Generate explanation using LangChain chain with web context.
         
         Args:
             disease: Disease being assessed
             probability: Risk probability
             confidence: Confidence level
             symptoms: List of symptoms
+            web_sources: Optional web search results for additional context
             
         Returns:
             Generated explanation text
@@ -207,16 +240,26 @@ IMPORTANT: This is for educational purposes only and not a medical diagnosis."""
             if not self.explanation_chain:
                 return self._get_simple_explanation(disease, probability, confidence)
             
+            # Prepare web context if available
+            web_context = ""
+            if web_sources:
+                web_context = "\n\nAdditional medical context from reliable sources:\n"
+                for source in web_sources[:3]:  # Use top 3 sources
+                    web_context += f"- {source.get('snippet', '')} (Source: {source.get('source_domain', 'medical database')})\n"
+            
             # Prepare input for LangChain
             chain_input = {
                 "disease": disease.replace('_', ' ').title(),
                 "probability_percent": round(probability * 100, 1),
                 "confidence": confidence,
-                "symptoms": ", ".join(symptoms)
+                "symptoms": ", ".join(symptoms),
+                "web_context": web_context
             }
             
-            # Execute LangChain chain
-            explanation = self.execute_chain(self.explanation_chain, chain_input)
+            # Execute LangChain chain with circuit breaker
+            explanation = self.execute_with_circuit_breaker(
+                lambda: self.execute_chain(self.explanation_chain, chain_input)
+            )
             
             if explanation:
                 return explanation
@@ -226,6 +269,59 @@ IMPORTANT: This is for educational purposes only and not a medical diagnosis."""
         except Exception as e:
             logger_explanation.error(f"LangChain explanation generation failed: {str(e)}")
             return self._get_simple_explanation(disease, probability, confidence)
+    
+    def _search_medical_explanations(self, disease: str, symptoms: list) -> List[Dict]:
+        """
+        Search web for medical explanations and terminology.
+        
+        Args:
+            disease: Disease being explained
+            symptoms: List of symptoms
+            
+        Returns:
+            List of search results from reliable medical sources
+        """
+        try:
+            # Search for disease explanation
+            disease_query = f"{disease.replace('_', ' ')} medical explanation symptoms causes"
+            search_results = self.search_web(
+                query=disease_query,
+                filters={"source_types": ["medical_literature", "clinical_guidelines"]}
+            )
+            
+            self.log_agent_action("web_search_explanation", {
+                "disease": disease,
+                "results_count": len(search_results)
+            })
+            
+            return search_results
+            
+        except Exception as e:
+            logger_explanation.error(f"Web search for explanations failed: {str(e)}")
+            return []
+    
+    def _format_citations(self, web_sources: List[Dict]) -> List[Dict[str, str]]:
+        """
+        Format web sources into proper citations.
+        
+        Args:
+            web_sources: List of search results
+            
+        Returns:
+            List of formatted citations
+        """
+        citations = []
+        for idx, source in enumerate(web_sources[:5], 1):  # Limit to top 5 sources
+            citation = {
+                "number": idx,
+                "title": source.get("title", "Medical Source"),
+                "url": source.get("url", ""),
+                "source": source.get("source_domain", ""),
+                "accessed": datetime.utcnow().strftime("%Y-%m-%d")
+            }
+            citations.append(citation)
+        
+        return citations
     
     def _get_simple_explanation(self, disease: str, probability: float, confidence: str) -> str:
         """Get simple explanation when LangChain is unavailable."""

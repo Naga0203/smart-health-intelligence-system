@@ -4,6 +4,11 @@ ML Prediction Engine for AI Health Intelligence System
 This module provides disease prediction using machine learning models.
 Currently uses mock models for development; can be replaced with trained models.
 
+Error Handling (Requirements 5.1, 5.3, 5.4):
+- Handle model loading failures (fail startup)
+- Implement GPU fallback to CPU
+- Handle inference failures
+
 Validates: Requirements 7.3, 7.4
 """
 
@@ -24,31 +29,87 @@ class DiseasePredictor:
     - No database access
     - No confidence evaluation (handled by agents)
     - Mathematical prediction only
+    
+    Error Handling:
+    - Model loading failures (Requirement 5.1)
+    - GPU fallback to CPU (Requirement 5.3)
+    - Inference failures (Requirement 5.4)
     """
     
-    def __init__(self):
-        """Initialize the disease predictor with mock models."""
+    def __init__(self, fail_on_load_error: bool = True):
+        """
+        Initialize the disease predictor with mock models.
+        
+        Args:
+            fail_on_load_error: If True, raise exception on model load failure (Requirement 5.1)
+        """
         self.models = {}
         self.model_version = "v1.0_mock"
-        self._initialize_mock_models()
-        logger.info("DiseasePredictor initialized with mock models")
+        self.fail_on_load_error = fail_on_load_error
+        self.use_gpu = False
+        self.gpu_available = False
+        
+        # Detect GPU availability (Requirement 5.3)
+        self._detect_gpu()
+        
+        # Initialize models (Requirement 5.1)
+        try:
+            self._initialize_mock_models()
+            logger.info("DiseasePredictor initialized with mock models")
+        except Exception as e:
+            logger.critical(f"Failed to initialize models: {e}")
+            if self.fail_on_load_error:
+                raise RuntimeError(f"Model loading failed - cannot start: {e}")
+            else:
+                logger.warning("Continuing with empty model set")
+    
+    def _detect_gpu(self):
+        """
+        Detect GPU availability and configure device.
+        
+        Requirement 5.3: GPU fallback to CPU
+        """
+        try:
+            # Try to import torch to check for GPU
+            import torch
+            if torch.cuda.is_available():
+                self.gpu_available = True
+                self.use_gpu = True
+                logger.info(f"GPU detected: {torch.cuda.get_device_name(0)}")
+            else:
+                logger.info("No GPU detected, using CPU")
+        except ImportError:
+            logger.info("PyTorch not available with CUDA, using CPU")
+        except Exception as e:
+            logger.warning(f"Error detecting GPU: {e}, falling back to CPU")
     
     def _initialize_mock_models(self):
-        """Initialize mock ML models for development."""
-        # In production, these would be loaded from .pkl files
-        # For now, we'll use rule-based mock models
+        """
+        Initialize mock ML models for development.
         
-        self.models = {
-            "diabetes": MockDiabetesModel(),
-            "heart_disease": MockHeartDiseaseModel(),
-            "hypertension": MockHypertensionModel()
-        }
-        
-        logger.info(f"Loaded {len(self.models)} mock models")
+        Requirement 5.1: Handle model loading failures (fail startup)
+        """
+        try:
+            # In production, these would be loaded from .pkl files
+            # For now, we'll use rule-based mock models
+            
+            self.models = {
+                "diabetes": MockDiabetesModel(use_gpu=self.use_gpu),
+                "heart_disease": MockHeartDiseaseModel(use_gpu=self.use_gpu),
+                "hypertension": MockHypertensionModel(use_gpu=self.use_gpu)
+            }
+            
+            logger.info(f"Loaded {len(self.models)} mock models (GPU: {self.use_gpu})")
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize models: {e}")
+            raise
     
     def predict(self, disease: str, features: Dict[str, Any]) -> Tuple[float, Dict[str, Any]]:
         """
         Pure prediction method - no business logic.
+        
+        Requirement 5.4: Handle inference failures
         
         Args:
             disease: Disease to predict
@@ -64,28 +125,62 @@ class DiseasePredictor:
             model = self.models.get(disease)
             if not model:
                 logger.error(f"No model found for disease: {disease}")
-                return 0.5, {"error": "Model not found", "model_version": self.model_version}
+                return 0.5, {
+                    "error": "Model not found", 
+                    "model_version": self.model_version,
+                    "available_models": list(self.models.keys())
+                }
             
             # Prepare features for the model
             feature_vector = self._prepare_features(features, disease)
             
-            # Get prediction
-            probability = model.predict_proba(feature_vector)
+            # Get prediction with error handling (Requirement 5.4)
+            try:
+                probability = model.predict_proba(feature_vector)
+            except Exception as inference_error:
+                logger.error(f"Inference failed for {disease}: {inference_error}")
+                
+                # Try CPU fallback if GPU was being used (Requirement 5.3)
+                if self.use_gpu:
+                    logger.warning("Attempting CPU fallback for inference")
+                    try:
+                        model.use_gpu = False
+                        probability = model.predict_proba(feature_vector)
+                        logger.info("CPU fallback successful")
+                    except Exception as cpu_error:
+                        logger.error(f"CPU fallback also failed: {cpu_error}")
+                        return 0.5, {
+                            "error": "Inference failed on both GPU and CPU",
+                            "gpu_error": str(inference_error),
+                            "cpu_error": str(cpu_error),
+                            "model_version": self.model_version
+                        }
+                else:
+                    return 0.5, {
+                        "error": "Inference failed",
+                        "details": str(inference_error),
+                        "model_version": self.model_version
+                    }
             
             # Prepare metadata
             metadata = {
                 "model_version": self.model_version,
                 "model_type": model.get_model_type(),
                 "features_used": len(feature_vector),
-                "prediction_timestamp": datetime.utcnow().isoformat()
+                "prediction_timestamp": datetime.utcnow().isoformat(),
+                "device": "GPU" if self.use_gpu else "CPU"
             }
             
-            logger.info(f"Prediction completed: {disease} = {probability:.3f}")
+            logger.info(f"Prediction completed: {disease} = {probability:.3f} (device: {metadata['device']})")
             return probability, metadata
             
         except Exception as e:
-            logger.error(f"Prediction error: {str(e)}")
-            return 0.5, {"error": str(e), "model_version": self.model_version}
+            logger.error(f"Prediction error: {str(e)}", exc_info=True)
+            return 0.5, {
+                "error": str(e), 
+                "model_version": self.model_version,
+                "fallback": True
+            }
     
     def _prepare_features(self, features: Dict[str, Any], disease: str) -> np.ndarray:
         """
@@ -146,7 +241,8 @@ class DiseasePredictor:
 class MockDiabetesModel:
     """Mock diabetes prediction model."""
     
-    def __init__(self):
+    def __init__(self, use_gpu: bool = False):
+        self.use_gpu = use_gpu
         self.feature_names = [
             "age", "gender", "polyuria", "polydipsia", "sudden_weight_loss",
             "weakness", "polyphagia", "genital_thrush", "visual_blurring",
@@ -194,7 +290,8 @@ class MockDiabetesModel:
 class MockHeartDiseaseModel:
     """Mock heart disease prediction model."""
     
-    def __init__(self):
+    def __init__(self, use_gpu: bool = False):
+        self.use_gpu = use_gpu
         self.feature_names = [
             "age", "gender", "chest_pain_type", "resting_blood_pressure",
             "cholesterol", "fasting_blood_sugar", "resting_ecg",
@@ -238,7 +335,8 @@ class MockHeartDiseaseModel:
 class MockHypertensionModel:
     """Mock hypertension prediction model."""
     
-    def __init__(self):
+    def __init__(self, use_gpu: bool = False):
+        self.use_gpu = use_gpu
         self.feature_names = [
             "age", "gender", "systolic_bp", "diastolic_bp", "bmi",
             "smoking", "alcohol", "physical_activity", "stress_level",
