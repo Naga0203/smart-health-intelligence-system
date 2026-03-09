@@ -18,6 +18,21 @@ from .safety_guardrails import SafetyGuardrails
 from .dynamic_treatment import DynamicTreatmentRetrieval
 from .gemini_ocr import GeminiOCRService
 from .feature_flags import FeatureFlags, get_feature_flags, AgentImplementation
+from .api_key_manager import (
+    APIKeyManager,
+    APIKeyType,
+    APIKeyValidationError,
+    get_api_key_manager,
+    validate_api_keys_on_startup
+)
+from .config_manager import (
+    ConfigurationManager,
+    ConfigurationError,
+    get_config_manager,
+    load_agent_config,
+    reload_agent_config
+)
+from .startup import validate_system_startup, log_startup_info
 
 __all__ = [
     # Data models
@@ -49,6 +64,24 @@ __all__ = [
     'FeatureFlags',
     'get_feature_flags',
     'AgentImplementation',
+    
+    # API key management
+    'APIKeyManager',
+    'APIKeyType',
+    'APIKeyValidationError',
+    'get_api_key_manager',
+    'validate_api_keys_on_startup',
+    
+    # Configuration management
+    'ConfigurationManager',
+    'ConfigurationError',
+    'get_config_manager',
+    'load_agent_config',
+    'reload_agent_config',
+    
+    # Startup validation
+    'validate_system_startup',
+    'log_startup_info',
     
     # Exceptions
     'RateLimitExceeded',

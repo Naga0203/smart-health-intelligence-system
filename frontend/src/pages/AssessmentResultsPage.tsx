@@ -43,6 +43,7 @@ export const AssessmentResultsPage: React.FC = () => {
 
   // Use state data if available (from prediction), otherwise fetch from API
   const [localAssessment, setLocalAssessment] = useState((location.state as any)?.result || null);
+  const [showAllFactors, setShowAllFactors] = useState(false);
 
   useEffect(() => {
     // Only fetch from API if we don't have local data
@@ -94,37 +95,58 @@ export const AssessmentResultsPage: React.FC = () => {
 
   const riskLevel = getRiskLevel(probability);
 
-  // Mock Risk Drivers if not present in API response
-  const riskDrivers = [
-    {
-      factor: 'Elevated HbA1c',
-      value: '6.8%',
-      contribution: 85,
-      description: 'Contributes 35% to total risk score.',
-      isPrimary: true
-    },
-    {
-      factor: 'Fasting Glucose Trend',
-      value: '112 mg/dL',
-      contribution: 65,
-      description: 'Consistent increase over last 3 labs.',
-      isPrimary: false
-    },
-    {
-      factor: 'BMI (Body Mass Index)',
-      value: '31.2',
-      contribution: 45,
-      description: 'Currently in Obesity Class I range.',
-      isPrimary: false
-    },
-    {
-      factor: 'Family History',
-      value: 'Yes (Paternal)',
-      contribution: 30,
-      description: 'Static risk factor.',
-      isPrimary: false
+  // Extract explanation data from API response
+  const explanation = data.explanation || {};
+  const contributingFactors = explanation.contributing_factors || {};
+  
+  // Build risk drivers from actual API data
+  const buildRiskDrivers = () => {
+    const drivers = [];
+    
+    // Add primary symptoms as risk drivers
+    if (contributingFactors.primary_symptoms && contributingFactors.primary_symptoms.length > 0) {
+      contributingFactors.primary_symptoms.forEach((symptom: string, index: number) => {
+        drivers.push({
+          factor: symptom.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+          value: 'Present',
+          contribution: 80 - (index * 10),
+          description: 'Primary indicator for this condition.',
+          isPrimary: true
+        });
+      });
     }
-  ];
+    
+    // Add supporting symptoms as risk drivers
+    if (contributingFactors.supporting_symptoms && contributingFactors.supporting_symptoms.length > 0) {
+      contributingFactors.supporting_symptoms.forEach((symptom: string, index: number) => {
+        drivers.push({
+          factor: symptom.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+          value: 'Present',
+          contribution: 60 - (index * 10),
+          description: 'Supporting indicator.',
+          isPrimary: false
+        });
+      });
+    }
+    
+    // Add general symptoms
+    if (contributingFactors.general_symptoms && contributingFactors.general_symptoms.length > 0) {
+      contributingFactors.general_symptoms.forEach((symptom: string, index: number) => {
+        drivers.push({
+          factor: symptom.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+          value: 'Present',
+          contribution: 40 - (index * 10),
+          description: 'General symptom.',
+          isPrimary: false
+        });
+      });
+    }
+    
+    // If no symptoms data, return empty array
+    return drivers;
+  };
+  
+  const riskDrivers = buildRiskDrivers();
 
   return (
     <Box sx={{ bgcolor: '#F9FAFB', minHeight: '100vh', pb: 8 }}>
@@ -243,7 +265,9 @@ export const AssessmentResultsPage: React.FC = () => {
                   <Box sx={{ display: 'flex', gap: 1.5 }}>
                     <LightbulbIcon sx={{ color: '#F59E0B', fontSize: 20, mt: 0.5 }} />
                     <Typography variant="body2" color="#475569" sx={{ lineHeight: 1.6 }}>
-                      The system is highly confident based on 12 matched indicators. Please note that this is a
+                      {explanation.confidence_reasoning?.meaning || 
+                        `The system has ${prediction.confidence?.toLowerCase() || 'moderate'} confidence in this assessment based on the provided symptoms.`}
+                      {' '}Please note that this is a
                       <Box component="span" fontWeight={700} color="#1E293B"> statistical projection </Box>
                       derived from available data, and individual variations may exist.
                     </Typography>
@@ -256,13 +280,15 @@ export const AssessmentResultsPage: React.FC = () => {
                     WHY THIS RESULT?
                   </Typography>
                   <Typography variant="body2" color="#374151" paragraph sx={{ lineHeight: 1.7 }}>
-                    The analysis highlights a correlation between elevated
-                    <Box component="span" fontWeight={600}> HbA1c levels (6.8%) </Box>
-                    and a consistent upward trend in fasting glucose. Historically, this pattern strongly indicates metabolic changes associated with Type 2 Diabetes.
+                    {explanation.main_explanation || 'Analysis based on provided symptoms and medical patterns.'}
                   </Typography>
-                  <Typography variant="body2" color="#374151" sx={{ lineHeight: 1.7, mb: 4 }}>
-                    Secondary factors, such as BMI and activity levels, support this finding but are not the sole drivers.
-                  </Typography>
+                  
+                  {explanation.confidence_reasoning && (
+                    <Typography variant="body2" color="#374151" sx={{ lineHeight: 1.7, mb: 4 }}>
+                      <Box component="span" fontWeight={600}>Confidence Reasoning: </Box>
+                      {explanation.confidence_reasoning.reason || explanation.confidence_reasoning.meaning}
+                    </Typography>
+                  )}
 
                   <Typography variant="caption" color="#9CA3AF" sx={{ fontStyle: 'italic' }}>
                     * This tool provides guidance only and is not a substitute for professional clinical diagnosis.
@@ -280,13 +306,16 @@ export const AssessmentResultsPage: React.FC = () => {
                   <Typography variant="h6" fontWeight={700} color="#111827">
                     Key Risk Drivers
                   </Typography>
-                  <Button sx={{ textTransform: 'none', fontWeight: 600 }}>
-                    View All Factors
+                  <Button 
+                    sx={{ textTransform: 'none', fontWeight: 600 }}
+                    onClick={() => setShowAllFactors(!showAllFactors)}
+                  >
+                    {showAllFactors ? 'Show Key Factors' : 'View All Factors'}
                   </Button>
                 </Box>
 
                 <Box sx={{ mt: 2 }}>
-                  {riskDrivers.map((driver, index) => (
+                  {riskDrivers.slice(0, showAllFactors ? undefined : 3).map((driver, index) => (
                     <RiskDriverItem
                       key={index}
                       factor={driver.factor}

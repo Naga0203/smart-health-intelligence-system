@@ -14,6 +14,9 @@ import logging
 import time
 from datetime import datetime
 
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+
 from common.gemini_client import LangChainGeminiClient
 from .config import AgentConfig
 from .web_search import WebSearchTool
@@ -78,6 +81,93 @@ class EnhancedBaseHealthAgent(ABC):
         }
         
         logger.info(f"EnhancedBaseHealthAgent '{agent_name}' initialized")
+    
+    def create_agent_chain(self, system_prompt: str, human_prompt: str) -> Any:
+        """
+        Create a LangChain processing chain for the agent.
+        
+        Args:
+            system_prompt: System prompt template
+            human_prompt: Human prompt template
+            
+        Returns:
+            LangChain chain or None if LLM unavailable
+        """
+        if not self.llm:
+            logger.warning(f"{self.agent_name} agent: LLM not available, using fallback")
+            return None
+        
+        try:
+            prompt_template = ChatPromptTemplate.from_messages([
+                ("system", system_prompt),
+                ("human", human_prompt)
+            ])
+            
+            chain = prompt_template | self.llm | StrOutputParser()
+            return chain
+            
+        except Exception as e:
+            logger.error(f"{self.agent_name} agent: Error creating chain - {str(e)}")
+            return None
+    
+    def execute_chain(self, chain: Any, input_data: Dict[str, Any]) -> Optional[str]:
+        """
+        Execute a LangChain chain with error handling.
+        
+        Args:
+            chain: LangChain chain to execute
+            input_data: Input data for the chain
+            
+        Returns:
+            Chain output or None if failed
+        """
+        if not chain:
+            return None
+        
+        try:
+            result = chain.invoke(input_data)
+            return result
+        except Exception as e:
+            logger.error(f"{self.agent_name} agent: Error executing chain - {str(e)}")
+            return None
+    
+    def validate_input(self, input_data: Dict[str, Any], required_fields: List[str]) -> Dict[str, Any]:
+        """
+        Validate input data for required fields.
+        
+        Args:
+            input_data: Input data to validate
+            required_fields: List of required field names
+            
+        Returns:
+            Validation result dictionary
+        """
+        missing_fields = [field for field in required_fields if field not in input_data]
+        
+        if missing_fields:
+            return {
+                "valid": False,
+                "missing_fields": missing_fields,
+                "message": f"Missing required fields: {', '.join(missing_fields)}"
+            }
+        
+        return {"valid": True}
+    
+    def get_fallback_response(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Get fallback response when processing fails.
+        
+        Args:
+            input_data: Original input data
+            
+        Returns:
+            Fallback response dictionary
+        """
+        return self.format_agent_response(
+            success=False,
+            message=f"{self.agent_name} agent fallback response",
+            metadata={"fallback_used": True}
+        )
     
     @abstractmethod
     def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -326,7 +416,7 @@ class EnhancedBaseHealthAgent(ABC):
         """
         Process input with monitoring and error handling.
         
-        This wraps the process() method with monitoring, timeouts, and error handling.
+        This wraps the _process_internal() method with monitoring, timeouts, and error handling.
         
         Args:
             input_data: Input data
@@ -338,11 +428,18 @@ class EnhancedBaseHealthAgent(ABC):
         success = False
         
         try:
-            # Execute with timeout
-            result = self.execute_with_timeout(
-                lambda: self.process(input_data),
-                self.config.timeout
-            )
+            # Execute with timeout - call _process_internal if it exists, otherwise process
+            if hasattr(self, '_process_internal'):
+                result = self.execute_with_timeout(
+                    lambda: self._process_internal(input_data),
+                    self.config.timeout
+                )
+            else:
+                # Fallback for agents that don't have _process_internal
+                result = self.execute_with_timeout(
+                    lambda: self.process(input_data),
+                    self.config.timeout
+                )
             
             success = True
             return result

@@ -50,7 +50,15 @@ class LangChainGeminiClient:
     
     def __init__(self):
         """Initialize the LangChain Gemini client with API key and safety settings."""
-        self.api_key = settings.GEMINI_API_KEY
+        # Use secure API key manager
+        from agents.infrastructure.api_key_manager import get_api_key_manager, APIKeyType
+        try:
+            manager = get_api_key_manager()
+            self.api_key = manager.get_api_key(APIKeyType.GEMINI, required=False)
+        except Exception as e:
+            logger.warning(f"Failed to retrieve API key via manager: {e}, falling back to settings")
+            self.api_key = settings.GEMINI_API_KEY
+        
         self.model_name = "gemini-2.5-flash"
         self.llm = None
         self.last_request_time = None

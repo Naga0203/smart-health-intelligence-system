@@ -2,8 +2,8 @@ import logging
 import json
 from typing import Dict, Any, Optional, List
 from datetime import datetime
-from langchain.prompts import ChatPromptTemplate
-from langchain.chains import LLMChain
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 
 from .infrastructure.enhanced_base_agent import EnhancedBaseHealthAgent
 from .infrastructure.config import AgentConfig
@@ -52,12 +52,15 @@ class ReflectionAgent(EnhancedBaseHealthAgent):
         
         logger_reflection.info("ReflectionAgent initialized with enhanced capabilities")
     
-    def _create_critique_chain(self) -> LLMChain:
+    def _create_critique_chain(self):
         """
         Create LangChain chain for critiquing assessments.
         
         Requirements: 1.2 - LangChain chains
         """
+        if not self.llm:
+            return None
+            
         critique_prompt = ChatPromptTemplate.from_messages([
             ("system", """You are a medical AI quality assurance specialist.
 Your job is to review health assessments for safety, consistency, and accuracy.
@@ -86,14 +89,17 @@ Recommendations: {recommendations}
 Provide your assessment as valid JSON only.""")
         ])
         
-        return LLMChain(llm=self.llm, prompt=critique_prompt)
+        return critique_prompt | self.llm | StrOutputParser()
     
-    def _create_quality_assessment_chain(self) -> LLMChain:
+    def _create_quality_assessment_chain(self):
         """
         Create LangChain chain for self-evaluating reflection quality.
         
         Requirements: 5.5 - Self-evaluation capabilities
         """
+        if not self.llm:
+            return None
+            
         quality_prompt = ChatPromptTemplate.from_messages([
             ("system", """You are evaluating the quality of a reflection/critique.
 Assess how thorough and useful the critique is.
@@ -117,7 +123,7 @@ Critique: {critique}
 Provide your quality assessment as valid JSON only.""")
         ])
         
-        return LLMChain(llm=self.llm, prompt=quality_prompt)
+        return quality_prompt | self.llm | StrOutputParser()
         
     def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """

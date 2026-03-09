@@ -22,6 +22,7 @@ from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
 from drf_spectacular.types import OpenApiTypes
 from datetime import datetime
+from django.utils import timezone
 import logging
 import traceback
 
@@ -1565,7 +1566,7 @@ class UserStatisticsAPIView(APIView):
             
             user_data = user_doc.to_dict()
             created_at = user_data.get('created_at')
-            account_age_days = (datetime.utcnow() - created_at).days if created_at else 0
+            account_age_days = (timezone.now() - created_at).days if created_at else 0
             
             # Query assessments
             assessments_ref = db.collection('assessments').where('user_id', '==', user_id)

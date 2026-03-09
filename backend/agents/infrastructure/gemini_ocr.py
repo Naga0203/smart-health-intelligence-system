@@ -36,9 +36,20 @@ class GeminiOCRService:
         Initialize Gemini OCR service.
         
         Args:
-            api_key: Google API key for Gemini
+            api_key: Google API key for Gemini (optional, will use manager if not provided)
         """
-        self.api_key = api_key
+        # Use secure API key manager if no key provided
+        if api_key is None:
+            from agents.infrastructure.api_key_manager import get_api_key_manager, APIKeyType
+            try:
+                manager = get_api_key_manager()
+                self.api_key = manager.get_api_key(APIKeyType.GEMINI, required=False)
+            except Exception as e:
+                logger.warning(f"Failed to retrieve API key via manager: {e}")
+                self.api_key = None
+        else:
+            self.api_key = api_key
+        
         self.vision_model = None
         
         self._initialize_vision_model()

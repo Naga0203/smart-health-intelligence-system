@@ -18,9 +18,9 @@ import {
   InputAdornment,
   Alert,
   Fade,
-  ToggleButton,
-  ToggleButtonGroup,
   Divider,
+  Card,
+  CardActionArea,
 } from '@mui/material';
 import {
   AccessTime,
@@ -39,13 +39,8 @@ const COMMON_SYMPTOMS = ['Headache', 'Fever', 'Nausea', 'Fatigue'];
 export const NewAssessmentPage: React.FC = () => {
   const navigate = useNavigate();
 
-  // Check if report upload feature is enabled
-  const isReportUploadEnabled = import.meta.env.VITE_ENABLE_REPORT_UPLOAD === 'true';
-
   // Entry mode: 'upload' or 'manual'
-  const [entryMode, setEntryMode] = useState<'upload' | 'manual'>(
-    isReportUploadEnabled ? 'upload' : 'manual'
-  );
+  const [entryMode, setEntryMode] = useState<'upload' | 'manual'>('upload');
 
   // Form state
   const [symptomDescription, setSymptomDescription] = useState('');
@@ -383,53 +378,104 @@ export const NewAssessmentPage: React.FC = () => {
             </Typography>
           </Box>
 
-          {/* Entry Mode Toggle - Only show if report upload is enabled */}
-          {isReportUploadEnabled && (
-            <Box sx={{ mb: 4 }}>
-              <ToggleButtonGroup
-                value={entryMode}
-                exclusive
-                onChange={handleEntryModeChange}
-                aria-label="entry mode"
-                fullWidth
-                sx={{
-                  bgcolor: 'white',
-                  borderRadius: 2,
-                  '& .MuiToggleButton-root': {
-                    py: 1.5,
-                    textTransform: 'none',
-                    fontWeight: 600,
-                    fontSize: { xs: '0.875rem', sm: '1rem' },
-                    border: '1px solid #E5E7EB',
-                    color: '#6B7280',
-                    '&.Mui-selected': {
-                      bgcolor: '#EEF2FF',
-                      color: '#2563EB',
-                      borderColor: '#2563EB',
-                      '&:hover': {
-                        bgcolor: '#DBEAFE',
-                      },
-                    },
-                    '&:hover': {
-                      bgcolor: '#F9FAFB',
-                    },
-                  },
-                }}
+          {/* Path Selection Cards */}
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+              gap: 2,
+              mb: 4,
+            }}
+          >
+            {/* Card 1: Medical Reports + Symptoms */}
+            <Card
+              data-testid="path-upload"
+              elevation={0}
+              sx={{
+                border: '2px solid',
+                borderColor: entryMode === 'upload' ? '#2563EB' : '#E5E7EB',
+                borderRadius: 3,
+                transition: 'all 0.2s ease',
+                bgcolor: entryMode === 'upload' ? '#EEF2FF' : 'white',
+                '&:hover': { borderColor: '#2563EB', boxShadow: '0 4px 12px rgba(37,99,235,0.12)' },
+              }}
+            >
+              <CardActionArea
+                onClick={() => setEntryMode('upload')}
+                aria-pressed={entryMode === 'upload'}
+                aria-label="Medical Reports + Symptoms"
+                sx={{ p: 3, height: '100%' }}
               >
-                <ToggleButton value="upload" aria-label="upload report">
-                  <Description sx={{ mr: 1, fontSize: 20 }} />
-                  Upload Medical Report
-                </ToggleButton>
-                <ToggleButton value="manual" aria-label="manual entry">
-                  <Edit sx={{ mr: 1, fontSize: 20 }} />
-                  Manual Entry
-                </ToggleButton>
-              </ToggleButtonGroup>
-            </Box>
-          )}
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <Box sx={{
+                    display: 'flex', alignItems: 'center', gap: 1.5,
+                    color: entryMode === 'upload' ? '#2563EB' : '#6B7280',
+                  }}>
+                    <Description sx={{ fontSize: 28 }} />
+                    <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: 'inherit' }}>
+                      Medical Reports + Symptoms
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" sx={{ color: '#6B7280', fontSize: '0.8rem', lineHeight: 1.5 }}>
+                    Upload a medical report (PDF/image) and our AI will extract your data, then you can review and add symptoms.
+                  </Typography>
+                  {entryMode === 'upload' && (
+                    <Chip
+                      label="Selected"
+                      size="small"
+                      sx={{ alignSelf: 'flex-start', bgcolor: '#2563EB', color: 'white', fontWeight: 600, fontSize: '0.7rem', mt: 0.5 }}
+                    />
+                  )}
+                </Box>
+              </CardActionArea>
+            </Card>
 
-          {/* File Upload Section - Only show if feature is enabled and mode is upload */}
-          {isReportUploadEnabled && entryMode === 'upload' && (
+            {/* Card 2: Symptoms Only */}
+            <Card
+              data-testid="path-manual"
+              elevation={0}
+              sx={{
+                border: '2px solid',
+                borderColor: entryMode === 'manual' ? '#2563EB' : '#E5E7EB',
+                borderRadius: 3,
+                transition: 'all 0.2s ease',
+                bgcolor: entryMode === 'manual' ? '#EEF2FF' : 'white',
+                '&:hover': { borderColor: '#2563EB', boxShadow: '0 4px 12px rgba(37,99,235,0.12)' },
+              }}
+            >
+              <CardActionArea
+                onClick={() => { setEntryMode('manual'); setUploadError(null); }}
+                aria-pressed={entryMode === 'manual'}
+                aria-label="Symptoms Only"
+                sx={{ p: 3, height: '100%' }}
+              >
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <Box sx={{
+                    display: 'flex', alignItems: 'center', gap: 1.5,
+                    color: entryMode === 'manual' ? '#2563EB' : '#6B7280',
+                  }}>
+                    <Edit sx={{ fontSize: 28 }} />
+                    <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: 'inherit' }}>
+                      Symptoms Only
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" sx={{ color: '#6B7280', fontSize: '0.8rem', lineHeight: 1.5 }}>
+                    Describe your symptoms manually. Quick and easy — no report required.
+                  </Typography>
+                  {entryMode === 'manual' && (
+                    <Chip
+                      label="Selected"
+                      size="small"
+                      sx={{ alignSelf: 'flex-start', bgcolor: '#2563EB', color: 'white', fontWeight: 600, fontSize: '0.7rem', mt: 0.5 }}
+                    />
+                  )}
+                </Box>
+              </CardActionArea>
+            </Card>
+          </Box>
+
+          {/* File Upload Section - shown when Medical Reports + Symptoms path is selected */}
+          {entryMode === 'upload' && (
             <Box sx={{ mb: 4 }}>
               <Typography
                 variant="subtitle1"

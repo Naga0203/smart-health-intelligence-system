@@ -1,12 +1,8 @@
 """
 Treatment package for Health Intelligence System
 
-This package contains treatment knowledge base and
-multi-system treatment information.
+This package has been refactored to use dynamic treatment retrieval
+instead of static knowledge bases.
 """
 
-from .knowledge_base import TreatmentKnowledgeBase
-
-__all__ = [
-    'TreatmentKnowledgeBase'
-]
+__all__ = []
