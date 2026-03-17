@@ -11,10 +11,10 @@ interface ProtectedRouteProps {
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { user, loading } = useAuthStore();
+  const { user, loading, initialized } = useAuthStore();
 
-  // Show loading spinner while checking auth
-  if (loading) {
+  // Show loading spinner while Firebase auth state is being determined
+  if (!initialized || loading) {
     return (
       <Box
         display="flex"

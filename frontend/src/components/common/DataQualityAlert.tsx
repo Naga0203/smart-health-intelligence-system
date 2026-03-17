@@ -5,7 +5,7 @@
 // - Display alert when data quality score is below 60%
 // - Suggest additional information to improve quality
 
-import { Alert, AlertTitle, Box, Typography, List, ListItem, ListItemText } from '@mui/material';
+import { Alert, AlertTitle, Typography, List, ListItem, ListItemText } from '@mui/material';
 import { Warning as WarningIcon } from '@mui/icons-material';
 
 interface DataQualityAlertProps {

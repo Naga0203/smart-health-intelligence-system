@@ -1,3 +1,4 @@
+
 // ============================================================================
 // Treatment Exploration Page - Multi-system treatment overview
 // ============================================================================
@@ -23,6 +24,8 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
+    useTheme,
+    alpha,
 } from '@mui/material';
 import {
     ArrowBack as ArrowBackIcon,
@@ -35,8 +38,10 @@ import {
     WaterDrop as DropIcon,
     AccessibilityNew as BodyIcon,
     MenuBook as BookIcon,
-    MonitorHeart as MonitorHeartIcon, // Changed from HeartIcon to MonitorHeartIcon as per instruction
+    MonitorHeart as MonitorHeartIcon,
 } from '@mui/icons-material';
+
+import ClinicalGuidelinesModal from '@/components/ClinicalGuidelinesModal';
 
 // --- Types ---
 
@@ -429,8 +434,10 @@ const SeverityChip = ({ level }: { level: SeverityLevel }) => {
 export default function TreatmentExplorationPage() {
     const { diseaseId } = useParams<{ diseaseId: string }>();
     const navigate = useNavigate();
+    const theme = useTheme();
     const [activeTab, setActiveTab] = useState(0);
     const [selectedAction, setSelectedAction] = useState<{ type: string; treatment: string; disease: string } | null>(null);
+  const [selectedGuideline, setSelectedGuideline] = useState<{ treatment: string; disease: string } | null>(null);
 
     // Normalize disease name for lookup (handle URL-friendly formats)
     const diseaseName = diseaseId || 'Migraine';
@@ -452,12 +459,17 @@ export default function TreatmentExplorationPage() {
     };
 
     const handleActionClick = (actionType: string, treatmentTitle: string) => {
-        // For MVP, open a simple dialog/alert showing the action
-        setSelectedAction({
-            type: actionType,
-            treatment: treatmentTitle,
-            disease: normalizedDiseaseName
-        });
+        if (actionType === 'View Clinical Guidelines') {
+            // Open the Clinical Guidelines modal
+            setSelectedGuideline({ treatment: treatmentTitle, disease: normalizedDiseaseName });
+        } else {
+            // Fallback to generic action dialog
+            setSelectedAction({
+                type: actionType,
+                treatment: treatmentTitle,
+                disease: normalizedDiseaseName
+            });
+        }
     };
 
     const handleCloseDialog = () => {
@@ -465,9 +477,29 @@ export default function TreatmentExplorationPage() {
     };
 
     return (
-        <Box sx={{ minHeight: '100vh', bgcolor: '#f8f9fa', pb: 8 }}>
+        <Box 
+            sx={{ 
+                minHeight: '100vh', 
+                pb: 8,
+                background: `linear-gradient(135deg, ${theme.palette.background.default} 0%, ${theme.palette.background.paper} 100%)`, 
+            }}
+        >
             {/* Header / Nav */}
-            <Paper elevation={0} sx={{ borderBottom: 1, borderColor: 'divider', px: 3, py: 2, bgcolor: 'white' }}>
+            <Paper 
+                elevation={0} 
+                sx={{ 
+                    borderBottom: 1, 
+                    borderColor: alpha(theme.palette.divider, 0.1), 
+                    px: 3, 
+                    py: 2, 
+                    background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.6)} 0%, ${alpha(theme.palette.background.paper, 0.3)} 100%)`,
+                    backdropFilter: 'blur(20px)',
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 10,
+                    boxShadow: `0 4px 30px ${alpha(theme.palette.common.black, 0.05)}`,
+                }}
+            >
                 <Container maxWidth="lg">
                     <Box display="flex" alignItems="center" gap={1}>
                         {/* Simple Header based on design */}
@@ -602,10 +634,27 @@ export default function TreatmentExplorationPage() {
                         </Box>
 
                         {/* Content Grid */}
-                        <Grid container spacing={3}>
+                        <Grid container spacing={4} sx={{ mt: 2 }}>
                             {treatments.map((item) => (
                                 <Grid size={{ xs: 12, md: 6 }} key={item.id}>
-                                    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
+                                    <Card 
+                                        sx={{ 
+                                            height: '100%', 
+                                            display: 'flex', 
+                                            flexDirection: 'column', 
+                                            borderRadius: 4,
+                                            background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.4)} 0%, ${alpha(theme.palette.background.paper, 0.1)} 100%)`,
+                                            backdropFilter: 'blur(10px)',
+                                            border: '1px solid',
+                                            borderColor: alpha(theme.palette.divider, 0.2),
+                                            transition: 'all 0.3s ease-in-out',
+                                            '&:hover': {
+                                                transform: 'translateY(-4px)',
+                                                boxShadow: `0 12px 40px ${alpha(theme.palette.primary.main, 0.15)}`,
+                                                borderColor: alpha(theme.palette.primary.main, 0.3),
+                                            },
+                                        }}
+                                    >
                                         <CardContent sx={{ flexGrow: 1, p: 3 }}>
                                             <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
                                                 <Box
@@ -657,7 +706,18 @@ export default function TreatmentExplorationPage() {
                             <Typography variant="body2" color="text.secondary" gutterBottom>
                                 Would you like to find a specialist who focuses on integrative approaches for {normalizedDiseaseName}?
                             </Typography>
-                            <Button variant="contained" size="large" sx={{ mt: 2, borderRadius: 50, px: 4, textTransform: 'none', fontWeight: 'bold' }}>
+                            <Button 
+                                variant="contained" 
+                                size="large" 
+                                sx={{ 
+                                    mt: 2, 
+                                    borderRadius: 50, 
+                                    px: 4, 
+                                    textTransform: 'none', 
+                                    fontWeight: 'bold',
+                                    boxShadow: `0 8px 24px ${alpha(theme.palette.primary.main, 0.3)}`,
+                                }}
+                            >
                                 Find a Specialist
                             </Button>
                         </Box>
@@ -688,6 +748,14 @@ export default function TreatmentExplorationPage() {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* Clinical Guidelines Modal */}
+            <ClinicalGuidelinesModal
+                open={!!selectedGuideline}
+                onClose={() => setSelectedGuideline(null)}
+                treatmentName={selectedGuideline?.treatment ?? ''}
+                diseaseName={selectedGuideline?.disease ?? ''}
+            />
         </Box>
     );
 }

@@ -8,8 +8,10 @@ import {
   CardContent,
   CardActionArea,
   Typography,
-  Box,
   Chip,
+  Box,
+  useTheme,
+  alpha,
 } from '@mui/material';
 import { format } from 'date-fns';
 
@@ -45,14 +47,23 @@ export const AssessmentCard: React.FC<AssessmentCardProps> = ({
   probability,
   onClick,
 }) => {
+  const theme = useTheme();
   const formattedDate = format(new Date(date), 'MMM dd, yyyy HH:mm');
 
   return (
     <Card
       sx={{
         mb: 2,
+        borderRadius: 4,
+        background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.4)} 0%, ${alpha(theme.palette.background.paper, 0.1)} 100%)`,
+        backdropFilter: 'blur(10px)',
+        border: '1px solid',
+        borderColor: alpha(theme.palette.divider, 0.2),
+        transition: 'all 0.3s ease-in-out',
         '&:hover': {
-          boxShadow: 3,
+          transform: 'translateY(-2px)',
+          boxShadow: `0 8px 24px ${alpha(theme.palette.primary.main, 0.15)}`,
+          borderColor: alpha(theme.palette.primary.main, 0.3),
         },
       }}
     >
@@ -77,19 +88,27 @@ export const AssessmentCard: React.FC<AssessmentCardProps> = ({
             {formattedDate}
           </Typography>
 
-          <Box display="flex" gap={1} mt={2}>
+          <Box display="flex" gap={1} mt={2} flexWrap="wrap">
             <Chip
               label={`Confidence: ${confidence}`}
               size="small"
               sx={{
-                backgroundColor: confidenceColors[confidence],
-                color: '#fff',
+                background: alpha(confidenceColors[confidence], 0.15),
+                color: confidenceColors[confidence],
+                fontWeight: 600,
+                border: '1px solid',
+                borderColor: alpha(confidenceColors[confidence], 0.3),
               }}
             />
             <Chip
               label={`Probability: ${probability.toFixed(1)}%`}
               size="small"
               variant="outlined"
+              sx={{
+                fontWeight: 600,
+                borderColor: alpha(theme.palette.text.primary, 0.2),
+                color: theme.palette.text.primary,
+              }}
             />
           </Box>
         </CardContent>

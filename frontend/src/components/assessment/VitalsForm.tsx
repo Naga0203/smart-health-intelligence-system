@@ -87,7 +87,7 @@ export const VitalsForm: React.FC<VitalsFormProps> = ({ data, onChange, isFieldE
 
       <Grid container spacing={{ xs: 2, sm: 2.5, md: 3 }}>
         {/* Temperature */}
-        <Grid item xs={12} sm={6}>
+        <Grid size={{ xs: 12, sm: 6 }}>
           <TextField
             label="Temperature (°F)"
             type="number"
@@ -114,7 +114,7 @@ export const VitalsForm: React.FC<VitalsFormProps> = ({ data, onChange, isFieldE
         </Grid>
 
         {/* Heart Rate */}
-        <Grid item xs={12} sm={6}>
+        <Grid size={{ xs: 12, sm: 6 }}>
           <TextField
             label="Heart Rate (bpm)"
             type="number"
@@ -140,7 +140,7 @@ export const VitalsForm: React.FC<VitalsFormProps> = ({ data, onChange, isFieldE
         </Grid>
 
         {/* Blood Pressure Systolic */}
-        <Grid item xs={12} sm={6}>
+        <Grid size={{ xs: 12, sm: 6 }}>
           <TextField
             label="Blood Pressure (Systolic)"
             type="number"
@@ -166,7 +166,7 @@ export const VitalsForm: React.FC<VitalsFormProps> = ({ data, onChange, isFieldE
         </Grid>
 
         {/* Blood Pressure Diastolic */}
-        <Grid item xs={12} sm={6}>
+        <Grid size={{ xs: 12, sm: 6 }}>
           <TextField
             label="Blood Pressure (Diastolic)"
             type="number"
@@ -192,7 +192,7 @@ export const VitalsForm: React.FC<VitalsFormProps> = ({ data, onChange, isFieldE
         </Grid>
 
         {/* Respiratory Rate */}
-        <Grid item xs={12} sm={6}>
+        <Grid size={{ xs: 12, sm: 6 }}>
           <TextField
             label="Respiratory Rate (breaths/min)"
             type="number"

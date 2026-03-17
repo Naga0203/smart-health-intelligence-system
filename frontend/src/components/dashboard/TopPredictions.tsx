@@ -12,6 +12,8 @@ import {
   TextField,
   Button,
   Alert,
+  useTheme,
+  alpha,
 } from '@mui/material';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -62,6 +64,19 @@ export default function TopPredictions({
   defaultN = 5 
 }: TopPredictionsProps) {
   const [inputValue, setInputValue] = useState(String(defaultN));
+  const theme = useTheme();
+
+  const glassCardSx = {
+    background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.4)} 0%, ${alpha(
+      theme.palette.background.paper,
+      0.1
+    )} 100%)`,
+    backdropFilter: 'blur(24px)',
+    border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+    borderRadius: 4,
+    boxShadow: `0 8px 32px 0 ${alpha(theme.palette.common.black, 0.05)}`,
+    height: '100%'
+  };
 
   const handleFetch = () => {
     const n = parseInt(inputValue, 10);
@@ -76,9 +91,9 @@ export default function TopPredictions({
 
   if (loading) {
     return (
-      <Card>
+      <Card sx={glassCardSx}>
         <CardContent>
-          <Typography variant="h6" gutterBottom>
+          <Typography variant="h6" gutterBottom fontWeight="600">
             Top Predictions
           </Typography>
           <LoadingSkeleton />
@@ -88,10 +103,10 @@ export default function TopPredictions({
   }
 
   return (
-    <Card>
+    <Card sx={glassCardSx}>
       <CardContent>
         <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-          <Typography variant="h6">
+          <Typography variant="h6" fontWeight="600">
             Top Predictions
           </Typography>
           <Stack direction="row" spacing={1} alignItems="center">
@@ -140,8 +155,7 @@ export default function TopPredictions({
                     flexDirection: 'column', 
                     alignItems: 'stretch',
                     py: 2,
-                    borderBottom: index < predictions.length - 1 ? '1px solid' : 'none',
-                    borderColor: 'divider'
+                    borderBottom: index < predictions.length - 1 ? `1px solid ${alpha(theme.palette.divider, 0.1)}` : 'none',
                   }}
                 >
                   <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>

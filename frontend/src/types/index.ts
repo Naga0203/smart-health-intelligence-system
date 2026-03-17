@@ -261,3 +261,30 @@
  */
 
 export {};
+
+/**
+ * @typedef {Object} ClinicalGuidelinesData
+ * @property {string} treatment_details - Treatment mechanisms and overview
+ * @property {string} disease_protocols - Disease-specific protocols and guidelines
+ * @property {string} research_evidence - Research studies and evidence summary
+ * @property {string} clinical_recommendations - Clinical recommendations for practitioners
+ * @property {string} [dosage_guidelines] - Optional dosage information and administration guidelines
+ * @property {string} contraindications - Contraindications, warnings, and precautions
+ * @property {string[]} sources - Source citations
+ * @property {string} disclaimer - Medical disclaimer text
+ */
+
+/**
+ * @typedef {Object} ClinicalGuidelinesModalProps
+ * @property {boolean} open - Controls modal visibility
+ * @property {() => void} onClose - Callback function to close the modal
+ * @property {string} treatmentName - Name of the treatment to fetch guidelines for
+ * @property {string} diseaseName - Name of the disease to fetch guidelines for
+ */
+
+/**
+ * @typedef {Object} ClinicalGuidelinesModalState
+ * @property {boolean} loading - True while API request is in progress
+ * @property {string|null} error - Error message if request fails, null otherwise
+ * @property {ClinicalGuidelinesData|null} data - Clinical guidelines data, null until loaded
+ */

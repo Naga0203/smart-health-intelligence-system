@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Box } from '@mui/material';
+import { Button } from '@mui/material';
 import { Google as GoogleIcon } from '@mui/icons-material';
 import { useAuthStore } from '@/stores/authStore';
 

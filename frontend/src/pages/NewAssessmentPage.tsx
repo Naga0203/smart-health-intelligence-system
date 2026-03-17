@@ -21,6 +21,8 @@ import {
   Divider,
   Card,
   CardActionArea,
+  useTheme,
+  alpha,
 } from '@mui/material';
 import {
   AccessTime,
@@ -38,6 +40,7 @@ const COMMON_SYMPTOMS = ['Headache', 'Fever', 'Nausea', 'Fatigue'];
 
 export const NewAssessmentPage: React.FC = () => {
   const navigate = useNavigate();
+  const theme = useTheme();
 
   // Entry mode: 'upload' or 'manual'
   const [entryMode, setEntryMode] = useState<'upload' | 'manual'>('upload');
@@ -149,21 +152,7 @@ export const NewAssessmentPage: React.FC = () => {
     // in a more comprehensive form (future enhancement)
   };
 
-  /**
-   * Handle entry mode change
-   */
-  const handleEntryModeChange = (
-    _event: React.MouseEvent<HTMLElement>,
-    newMode: 'upload' | 'manual' | null,
-  ) => {
-    if (newMode !== null) {
-      setEntryMode(newMode);
-      // Clear upload-related state when switching to manual
-      if (newMode === 'manual') {
-        setUploadError(null);
-      }
-    }
-  };
+
 
   // Toggle symptom chip
   // Toggle symptom chip and update description
@@ -306,12 +295,20 @@ export const NewAssessmentPage: React.FC = () => {
 
   return (
     <Fade in={true} timeout={500}>
-      <Box sx={{ bgcolor: '#F9FAFB', minHeight: '100vh', pb: 8 }}>
+      <Box 
+        sx={{ 
+          minHeight: '100vh', 
+          pb: 8,
+          background: `linear-gradient(135deg, ${theme.palette.background.default} 0%, ${theme.palette.background.paper} 100%)`, 
+        }}
+      >
         <Container
           maxWidth="md"
           sx={{
             py: { xs: 3, sm: 4, md: 5 },
             px: { xs: 2, sm: 3 },
+            position: 'relative',
+            zIndex: 1,
           }}
         >
           {/* Progress Indicator */}
@@ -392,38 +389,53 @@ export const NewAssessmentPage: React.FC = () => {
               data-testid="path-upload"
               elevation={0}
               sx={{
-                border: '2px solid',
-                borderColor: entryMode === 'upload' ? '#2563EB' : '#E5E7EB',
-                borderRadius: 3,
-                transition: 'all 0.2s ease',
-                bgcolor: entryMode === 'upload' ? '#EEF2FF' : 'white',
-                '&:hover': { borderColor: '#2563EB', boxShadow: '0 4px 12px rgba(37,99,235,0.12)' },
+                background: entryMode === 'upload' 
+                  ? `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.light, 0.05)} 100%)`
+                  : `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.4)} 0%, ${alpha(theme.palette.background.paper, 0.1)} 100%)`,
+                backdropFilter: 'blur(10px)',
+                border: '1px solid',
+                borderColor: entryMode === 'upload' ? theme.palette.primary.main : alpha(theme.palette.divider, 0.2),
+                borderRadius: 4,
+                transition: 'all 0.3s ease',
+                boxShadow: entryMode === 'upload' ? `0 8px 24px ${alpha(theme.palette.primary.main, 0.15)}` : 'none',
+                '&:hover': { 
+                  borderColor: theme.palette.primary.main,
+                  transform: 'translateY(-4px)',
+                  boxShadow: `0 12px 28px ${alpha(theme.palette.primary.main, 0.1)}`,
+                },
               }}
             >
               <CardActionArea
                 onClick={() => setEntryMode('upload')}
                 aria-pressed={entryMode === 'upload'}
                 aria-label="Medical Reports + Symptoms"
-                sx={{ p: 3, height: '100%' }}
+                sx={{ p: 4, height: '100%' }}
               >
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                   <Box sx={{
                     display: 'flex', alignItems: 'center', gap: 1.5,
-                    color: entryMode === 'upload' ? '#2563EB' : '#6B7280',
+                    color: entryMode === 'upload' ? theme.palette.primary.main : theme.palette.text.secondary,
                   }}>
-                    <Description sx={{ fontSize: 28 }} />
-                    <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: 'inherit' }}>
+                    <Description sx={{ fontSize: 32 }} />
+                    <Typography sx={{ fontWeight: 700, fontSize: '1.1rem', color: theme.palette.text.primary }}>
                       Medical Reports + Symptoms
                     </Typography>
                   </Box>
-                  <Typography variant="body2" sx={{ color: '#6B7280', fontSize: '0.8rem', lineHeight: 1.5 }}>
+                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontSize: '0.9rem', lineHeight: 1.6, mt: 1 }}>
                     Upload a medical report (PDF/image) and our AI will extract your data, then you can review and add symptoms.
                   </Typography>
                   {entryMode === 'upload' && (
                     <Chip
                       label="Selected"
                       size="small"
-                      sx={{ alignSelf: 'flex-start', bgcolor: '#2563EB', color: 'white', fontWeight: 600, fontSize: '0.7rem', mt: 0.5 }}
+                      sx={{ 
+                        alignSelf: 'flex-start', 
+                        bgcolor: theme.palette.primary.main, 
+                        color: 'white', 
+                        fontWeight: 600, 
+                        fontSize: '0.75rem', 
+                        mt: 2 
+                      }}
                     />
                   )}
                 </Box>
@@ -435,38 +447,53 @@ export const NewAssessmentPage: React.FC = () => {
               data-testid="path-manual"
               elevation={0}
               sx={{
-                border: '2px solid',
-                borderColor: entryMode === 'manual' ? '#2563EB' : '#E5E7EB',
-                borderRadius: 3,
-                transition: 'all 0.2s ease',
-                bgcolor: entryMode === 'manual' ? '#EEF2FF' : 'white',
-                '&:hover': { borderColor: '#2563EB', boxShadow: '0 4px 12px rgba(37,99,235,0.12)' },
+                background: entryMode === 'manual' 
+                  ? `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.light, 0.05)} 100%)`
+                  : `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.4)} 0%, ${alpha(theme.palette.background.paper, 0.1)} 100%)`,
+                backdropFilter: 'blur(10px)',
+                border: '1px solid',
+                borderColor: entryMode === 'manual' ? theme.palette.primary.main : alpha(theme.palette.divider, 0.2),
+                borderRadius: 4,
+                transition: 'all 0.3s ease',
+                boxShadow: entryMode === 'manual' ? `0 8px 24px ${alpha(theme.palette.primary.main, 0.15)}` : 'none',
+                '&:hover': { 
+                  borderColor: theme.palette.primary.main,
+                  transform: 'translateY(-4px)',
+                  boxShadow: `0 12px 28px ${alpha(theme.palette.primary.main, 0.1)}`,
+                },
               }}
             >
               <CardActionArea
                 onClick={() => { setEntryMode('manual'); setUploadError(null); }}
                 aria-pressed={entryMode === 'manual'}
                 aria-label="Symptoms Only"
-                sx={{ p: 3, height: '100%' }}
+                sx={{ p: 4, height: '100%' }}
               >
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                   <Box sx={{
                     display: 'flex', alignItems: 'center', gap: 1.5,
-                    color: entryMode === 'manual' ? '#2563EB' : '#6B7280',
+                    color: entryMode === 'manual' ? theme.palette.primary.main : theme.palette.text.secondary,
                   }}>
-                    <Edit sx={{ fontSize: 28 }} />
-                    <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: 'inherit' }}>
+                    <Edit sx={{ fontSize: 32 }} />
+                    <Typography sx={{ fontWeight: 700, fontSize: '1.1rem', color: theme.palette.text.primary }}>
                       Symptoms Only
                     </Typography>
                   </Box>
-                  <Typography variant="body2" sx={{ color: '#6B7280', fontSize: '0.8rem', lineHeight: 1.5 }}>
+                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontSize: '0.9rem', lineHeight: 1.6, mt: 1 }}>
                     Describe your symptoms manually. Quick and easy — no report required.
                   </Typography>
                   {entryMode === 'manual' && (
                     <Chip
                       label="Selected"
                       size="small"
-                      sx={{ alignSelf: 'flex-start', bgcolor: '#2563EB', color: 'white', fontWeight: 600, fontSize: '0.7rem', mt: 0.5 }}
+                      sx={{ 
+                        alignSelf: 'flex-start', 
+                        bgcolor: theme.palette.primary.main, 
+                        color: 'white', 
+                        fontWeight: 600, 
+                        fontSize: '0.75rem', 
+                        mt: 2 
+                      }}
                     />
                   )}
                 </Box>
@@ -603,22 +630,30 @@ export const NewAssessmentPage: React.FC = () => {
               placeholder="Describe your symptoms here (e.g., I've had a throbbing headache and fever for 2 days...). Our AI will assist you."
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  bgcolor: extractedData && symptomDescription ? '#F0FDF4' : 'white',
-                  borderRadius: 2,
+                  background: extractedData && symptomDescription 
+                    ? `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.1)} 0%, ${alpha(theme.palette.success.light, 0.05)} 100%)`
+                    : alpha(theme.palette.background.paper, 0.4),
+                  backdropFilter: 'blur(10px)',
+                  borderRadius: 3,
                   fontSize: { xs: '0.875rem', sm: '1rem' },
+                  color: theme.palette.text.primary,
                   '& fieldset': {
-                    borderColor: extractedData && symptomDescription ? '#86EFAC' : '#E5E7EB',
+                    borderColor: extractedData && symptomDescription 
+                      ? alpha(theme.palette.success.main, 0.4) 
+                      : alpha(theme.palette.divider, 0.2),
                   },
                   '&:hover fieldset': {
-                    borderColor: extractedData && symptomDescription ? '#4ADE80' : '#D1D5DB',
+                    borderColor: extractedData && symptomDescription 
+                      ? theme.palette.success.main 
+                      : alpha(theme.palette.text.primary, 0.3),
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: '#2563EB',
+                    borderColor: theme.palette.primary.main,
                   },
                 },
                 '& .MuiInputBase-input::placeholder': {
-                  color: '#9CA3AF',
-                  opacity: 1,
+                  color: theme.palette.text.secondary,
+                  opacity: 0.7,
                 },
               }}
               InputProps={{
@@ -655,17 +690,24 @@ export const NewAssessmentPage: React.FC = () => {
                   onClick={() => toggleSymptom(symptom)}
                   icon={<Box component="span" sx={{ fontSize: '1rem' }}>+</Box>}
                   sx={{
-                    bgcolor: selectedSymptoms.includes(symptom) ? '#EEF2FF' : 'white',
+                    background: selectedSymptoms.includes(symptom) 
+                      ? alpha(theme.palette.primary.main, 0.15) 
+                      : alpha(theme.palette.background.paper, 0.4),
+                    backdropFilter: 'blur(10px)',
                     border: '1px solid',
-                    borderColor: selectedSymptoms.includes(symptom) ? '#2563EB' : '#E5E7EB',
-                    color: selectedSymptoms.includes(symptom) ? '#2563EB' : '#6B7280',
+                    borderColor: selectedSymptoms.includes(symptom) 
+                      ? theme.palette.primary.main 
+                      : alpha(theme.palette.divider, 0.2),
+                    color: selectedSymptoms.includes(symptom) 
+                      ? theme.palette.primary.main 
+                      : theme.palette.text.secondary,
                     fontWeight: 500,
                     fontSize: { xs: '0.75rem', sm: '0.875rem' },
                     px: 0.5,
                     transition: 'all 0.2s',
                     '&:hover': {
-                      bgcolor: '#EEF2FF',
-                      borderColor: '#2563EB',
+                      background: alpha(theme.palette.primary.main, 0.2),
+                      borderColor: theme.palette.primary.main,
                     },
                     '& .MuiChip-icon': {
                       color: 'inherit',
@@ -733,17 +775,19 @@ export const NewAssessmentPage: React.FC = () => {
                   }}
                   sx={{
                     '& .MuiOutlinedInput-root': {
-                      bgcolor: 'white',
-                      borderRadius: 2,
+                      background: alpha(theme.palette.background.paper, 0.4),
+                      backdropFilter: 'blur(10px)',
+                      borderRadius: 3,
                       fontSize: { xs: '0.875rem', sm: '0.875rem' },
+                      color: theme.palette.text.primary,
                       '& fieldset': {
-                        borderColor: '#E5E7EB',
+                        borderColor: alpha(theme.palette.divider, 0.2),
                       },
                       '&:hover fieldset': {
-                        borderColor: '#D1D5DB',
+                        borderColor: alpha(theme.palette.text.primary, 0.3),
                       },
                       '&.Mui-focused fieldset': {
-                        borderColor: '#2563EB',
+                        borderColor: theme.palette.primary.main,
                       },
                     },
                   }}
@@ -808,17 +852,25 @@ export const NewAssessmentPage: React.FC = () => {
                   }}
                   sx={{
                     '& .MuiOutlinedInput-root': {
-                      bgcolor: extractedData && temperature ? '#F0FDF4' : 'white',
-                      borderRadius: 2,
+                      background: extractedData && temperature
+                        ? `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.1)} 0%, ${alpha(theme.palette.success.light, 0.05)} 100%)`
+                        : alpha(theme.palette.background.paper, 0.4),
+                      backdropFilter: 'blur(10px)',
+                      borderRadius: 3,
                       fontSize: { xs: '0.875rem', sm: '0.875rem' },
+                      color: theme.palette.text.primary,
                       '& fieldset': {
-                        borderColor: extractedData && temperature ? '#86EFAC' : '#E5E7EB',
+                        borderColor: extractedData && temperature 
+                          ? alpha(theme.palette.success.main, 0.4) 
+                          : alpha(theme.palette.divider, 0.2),
                       },
                       '&:hover fieldset': {
-                        borderColor: extractedData && temperature ? '#4ADE80' : '#D1D5DB',
+                        borderColor: extractedData && temperature 
+                          ? theme.palette.success.main 
+                          : alpha(theme.palette.text.primary, 0.3),
                       },
                       '&.Mui-focused fieldset': {
-                        borderColor: '#2563EB',
+                        borderColor: theme.palette.primary.main,
                       },
                     },
                   }}
@@ -862,20 +914,27 @@ export const NewAssessmentPage: React.FC = () => {
                   max={10}
                   step={1}
                   sx={{
-                    color: '#2563EB',
+                    color: theme.palette.primary.main,
                     '& .MuiSlider-thumb': {
-                      width: 20,
-                      height: 20,
-                      bgcolor: '#2563EB',
-                      border: '3px solid white',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                      width: 24,
+                      height: 24,
+                      background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                      border: `2px solid ${alpha(theme.palette.common.white, 0.8)}`,
+                      boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.4)}`,
+                      '&:hover, &.Mui-focusVisible': {
+                        boxShadow: `0 0 0 8px ${alpha(theme.palette.primary.main, 0.16)}`,
+                      },
                     },
                     '& .MuiSlider-track': {
-                      bgcolor: '#2563EB',
+                      background: `linear-gradient(90deg, ${theme.palette.primary.light} 0%, ${theme.palette.primary.main} 100%)`,
                       border: 'none',
+                      height: 8,
+                      borderRadius: 4,
                     },
                     '& .MuiSlider-rail': {
-                      bgcolor: '#E5E7EB',
+                      background: alpha(theme.palette.divider, 0.1),
+                      height: 8,
+                      borderRadius: 4,
                     },
                   }}
                 />
@@ -887,14 +946,15 @@ export const NewAssessmentPage: React.FC = () => {
 
           {/* AI Ready Alert */}
           <Alert
-            icon={<AutoAwesome sx={{ color: '#2563EB' }} />}
+            icon={<AutoAwesome sx={{ color: theme.palette.primary.main }} />}
             sx={{
               mb: 4,
-              bgcolor: '#EEF2FF',
-              border: '1px solid #DBEAFE',
-              borderRadius: 2,
+              background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.light, 0.05)} 100%)`,
+              backdropFilter: 'blur(10px)',
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+              borderRadius: 3,
               '& .MuiAlert-message': {
-                color: '#1E40AF',
+                color: theme.palette.text.primary,
               },
             }}
           >
@@ -928,7 +988,6 @@ export const NewAssessmentPage: React.FC = () => {
                 Your health data is end-to-end encrypted.
               </Typography>
             </Box>
-
             <Box
               sx={{
                 display: 'flex',
@@ -941,48 +1000,53 @@ export const NewAssessmentPage: React.FC = () => {
                 onClick={handleReset}
                 disabled={isSubmitting}
                 sx={{
-                  minHeight: { xs: 44, sm: 40 },
+                  minHeight: { xs: 44, sm: 48 },
                   minWidth: { sm: 120 },
-                  borderRadius: 2,
+                  borderRadius: 3,
                   textTransform: 'none',
                   fontWeight: 600,
-                  fontSize: { xs: '0.875rem', sm: '0.875rem' },
-                  borderColor: '#E5E7EB',
-                  color: '#6B7280',
+                  fontSize: { xs: '0.875rem', sm: '1rem' },
+                  borderColor: alpha(theme.palette.text.primary, 0.5),
+                  color: 'text.primary',
+                  backdropFilter: 'blur(10px)',
+                  background: alpha(theme.palette.background.paper, 0.1),
                   '&:hover': {
-                    borderColor: '#D1D5DB',
-                    bgcolor: '#F9FAFB',
+                    borderColor: 'text.primary',
+                    background: alpha(theme.palette.background.paper, 0.2),
+                    transform: 'translateY(-2px)',
                   },
+                  transition: 'all 0.2s ease-in-out',
                 }}
               >
-                Reset Form
+                Reset
               </Button>
-
               <Button
                 variant="contained"
                 onClick={handleSubmit}
-                disabled={!symptomDescription || isSubmitting}
-                endIcon={!isSubmitting && <Box component="span" sx={{ fontSize: '1.2rem' }}>→</Box>}
+                disabled={isSubmitting}
                 sx={{
-                  minHeight: { xs: 44, sm: 40 },
-                  minWidth: { sm: 160 },
-                  borderRadius: 2,
+                  minHeight: { xs: 44, sm: 48 },
+                  minWidth: { sm: 200 },
+                  bgcolor: 'primary.main',
+                  color: 'white',
+                  borderRadius: 3,
                   textTransform: 'none',
                   fontWeight: 600,
-                  fontSize: { xs: '0.875rem', sm: '0.875rem' },
-                  bgcolor: '#2563EB',
-                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                  fontSize: { xs: '0.875rem', sm: '1rem' },
+                  boxShadow: `0 8px 24px ${alpha(theme.palette.primary.main, 0.4)}`,
                   '&:hover': {
-                    bgcolor: '#1D4ED8',
-                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                    bgcolor: 'primary.dark',
+                    transform: 'translateY(-2px)',
+                    boxShadow: `0 12px 28px ${alpha(theme.palette.primary.main, 0.6)}`,
                   },
-                  '&:disabled': {
-                    bgcolor: '#E5E7EB',
-                    color: '#9CA3AF',
-                  },
+                  transition: 'all 0.2s ease-in-out',
+                  '&.Mui-disabled': {
+                    background: alpha(theme.palette.action.disabledBackground, 0.1),
+                    color: alpha(theme.palette.text.primary, 0.3),
+                  }
                 }}
               >
-                {isSubmitting ? 'Analyzing...' : 'Submit Symptoms'}
+                {isSubmitting ? 'Analyzing...' : 'Analyze Symptoms'}
               </Button>
             </Box>
           </Box>

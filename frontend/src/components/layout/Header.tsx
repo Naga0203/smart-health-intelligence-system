@@ -13,6 +13,7 @@ import {
   Box,
   useMediaQuery,
   useTheme,
+  alpha
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -69,10 +70,14 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
     <>
       <AppBar
         position="fixed"
+        elevation={0}
         sx={{
           zIndex: (theme) => theme.zIndex.drawer + 1,
-          // Responsive height
           height: { xs: 56, sm: 64 },
+          background: alpha(theme.palette.background.paper, 0.4),
+          backdropFilter: 'blur(24px)',
+          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+          color: theme.palette.text.primary,
         }}
       >
         <Toolbar
@@ -81,16 +86,21 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
             px: { xs: 1, sm: 2, md: 3 },
           }}
         >
+          {/* Menu button uses primary color for pop */}
           <IconButton
-            color="inherit"
+            color="primary"
             aria-label="toggle menu"
             edge="start"
             onClick={onMenuClick}
             sx={{
               mr: { xs: 1, sm: 2 },
-              // Ensure proper touch target size on mobile
               minWidth: 44,
               minHeight: 44,
+              backgroundColor: alpha(theme.palette.primary.main, 0.1),
+              borderRadius: 2,
+              '&:hover': {
+                backgroundColor: alpha(theme.palette.primary.main, 0.2),
+              }
             }}
           >
             <MenuIcon />
@@ -99,26 +109,28 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           <Typography
             variant="h6"
             component="div"
+            fontWeight="bold"
             sx={{
               flexGrow: 1,
-              // Responsive font size
               fontSize: { xs: '1rem', sm: '1.25rem' },
-              // Truncate on very small screens
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
               display: 'flex',
               alignItems: 'center',
+              background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`,
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
             }}
           >
-            {/* Logo or Text */}
-            {isMobile ? 'AI Health' : 'AI Health Intelligence'}
+            {isMobile ? 'Health AI' : 'AI Health Intelligence'}
           </Typography>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1 } }}>
             {!isMobile && (
               <Typography
                 variant="body2"
+                fontWeight="500"
                 sx={{
                   maxWidth: { sm: 150, md: 200 },
                   overflow: 'hidden',
@@ -135,19 +147,33 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
               aria-label="user menu"
               color="inherit"
               sx={{
-                // Ensure proper touch target size
                 minWidth: 44,
                 minHeight: 44,
+                ml: 1,
               }}
             >
               {user?.photoURL ? (
                 <Avatar
                   src={user.photoURL}
-                  sx={{ width: { xs: 28, sm: 32 }, height: { xs: 28, sm: 32 } }}
+                  sx={{ 
+                    width: { xs: 32, sm: 36 }, 
+                    height: { xs: 32, sm: 36 },
+                    border: `2px solid ${theme.palette.primary.main}`
+                  }}
                   alt={user?.displayName || 'User avatar'}
                 />
               ) : (
-                <AccountCircle />
+                <Avatar 
+                  sx={{ 
+                    width: { xs: 32, sm: 36 }, 
+                    height: { xs: 32, sm: 36 },
+                    bgcolor: alpha(theme.palette.primary.main, 0.2),
+                    color: theme.palette.primary.main,
+                    border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`
+                  }}
+                >
+                  <AccountCircle />
+                </Avatar>
               )}
             </IconButton>
           </Box>
@@ -164,14 +190,24 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
               vertical: 'top',
               horizontal: 'right',
             }}
+            PaperProps={{
+              sx: {
+                mt: 1.5,
+                background: alpha(theme.palette.background.paper, 0.8),
+                backdropFilter: 'blur(20px)',
+                borderRadius: 2,
+                border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                boxShadow: `0 8px 32px 0 ${alpha(theme.palette.common.black, 0.1)}`,
+              }
+            }}
           >
-            <MenuItem onClick={handleProfile}>
-              <AccountCircle sx={{ mr: 1 }} />
-              Profile
+            <MenuItem onClick={handleProfile} sx={{ py: 1.5, px: 2, borderRadius: 1, mx: 1 }}>
+              <AccountCircle sx={{ mr: 1.5, color: 'text.secondary' }} />
+              <Typography fontWeight="500">Profile</Typography>
             </MenuItem>
-            <MenuItem onClick={handleLogoutClick}>
-              <Logout sx={{ mr: 1 }} />
-              Logout
+            <MenuItem onClick={handleLogoutClick} sx={{ py: 1.5, px: 2, borderRadius: 1, mx: 1, color: 'error.main' }}>
+              <Logout sx={{ mr: 1.5 }} />
+              <Typography fontWeight="500">Logout</Typography>
             </MenuItem>
           </Menu>
         </Toolbar>

@@ -26,11 +26,12 @@ interface AssessmentTimelineProps {
   loading: boolean;
 }
 
-// Helper function to determine risk level from probability
+// Helper function to determine risk level from probability (0-1 scale)
 const getRiskLevel = (probability: number): 'low' | 'medium' | 'elevated' | 'high' => {
-  if (probability < 25) return 'low';
-  if (probability < 50) return 'medium';
-  if (probability < 75) return 'elevated';
+  const pct = probability > 1 ? probability : probability * 100;
+  if (pct < 25) return 'low';
+  if (pct < 50) return 'medium';
+  if (pct < 75) return 'elevated';
   return 'high';
 };
 

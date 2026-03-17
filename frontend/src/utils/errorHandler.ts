@@ -33,7 +33,7 @@ export function handleAPIError(error: unknown): AppError {
   if (error && typeof error === 'object' && 'isAxiosError' in error) {
     const axiosError = error as AxiosError;
     const statusCode = axiosError.response?.status;
-    const message = axiosError.response?.data?.message || axiosError.message;
+    const message = (axiosError.response?.data as any)?.message || axiosError.message;
     const details = axiosError.response?.data;
 
     switch (statusCode) {
@@ -103,7 +103,7 @@ export function handleAPIError(error: unknown): AppError {
 
       default:
         // Network error (no response)
-        if (!error.response) {
+        if (!(error as AxiosError).response) {
           return new AppError(
             'Network error. Please check your connection.',
             'NETWORK_ERROR',

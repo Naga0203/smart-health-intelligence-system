@@ -20,14 +20,11 @@ from .views import (
     ReportUploadView,
     ExtractionStatusView,
     ReportMetadataView,
-    PredictView
-)
-from .new_views import (
+    PredictView,
+    ClinicalGuidelinesView,
     MedicalHistoryAPIView,
     AssessmentExportAPIView,
-    ReportUploadAPIView,
-    ReportUploadAPIView,
-    ReportParseAPIView
+    ReportParseAPIView,
 )
 from prediction.views import SymptomPredictionView
 
@@ -76,6 +73,9 @@ urlpatterns = [
 
     # Symptom Prediction
     path('predict/symptoms/', SymptomPredictionView.as_view(), name='predict-symptoms'),
+    
+    # Clinical Guidelines
+    path('clinical-guidelines/', ClinicalGuidelinesView.as_view(), name='clinical-guidelines'),
     
     # Full prediction (Orchestrator)
     path('predict/', PredictView.as_view(), name='predict'),

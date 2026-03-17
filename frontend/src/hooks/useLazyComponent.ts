@@ -69,7 +69,7 @@ export function useLazyComponent<T extends ComponentType<any>>(
 
     const loadComponent = () => {
       const LazyComponent = lazy(importFunc);
-      setComponent(() => LazyComponent);
+      setComponent(() => LazyComponent as unknown as T);
       setIsLoaded(true);
     };
 

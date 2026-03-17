@@ -1,9 +1,8 @@
 import React from 'react';
 import { Box, Typography, Paper, Alert, List, ListItem, ListItemText, Divider } from '@mui/material';
-import { TreatmentDetail } from '@/types';
 
 interface LifestylePanelProps {
-  treatments: TreatmentDetail[];
+  treatments: any[];
 }
 
 export const LifestylePanel: React.FC<LifestylePanelProps> = ({ treatments }) => {
@@ -44,7 +43,7 @@ export const LifestylePanel: React.FC<LifestylePanelProps> = ({ treatments }) =>
                   Recommendations:
                 </Typography>
                 <List dense>
-                  {treatment.recommendations.map((rec, recIndex) => (
+                  {treatment.recommendations.map((rec: any, recIndex: any) => (
                     <ListItem key={recIndex} sx={{ pl: 0 }}>
                       <ListItemText 
                         primary={rec}

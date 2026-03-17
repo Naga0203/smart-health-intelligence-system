@@ -8,8 +8,10 @@ import {
   TextField,
   MenuItem,
   Button,
-  Stack,
   Paper,
+  Stack,
+  useTheme,
+  alpha,
 } from '@mui/material';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import ClearIcon from '@mui/icons-material/Clear';
@@ -29,6 +31,7 @@ export const HistoryFilters: React.FC<HistoryFiltersProps> = ({
   onFilterChange,
   availableConditions = [],
 }) => {
+  const theme = useTheme();
   const [condition, setCondition] = useState<string>('');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
@@ -55,7 +58,18 @@ export const HistoryFilters: React.FC<HistoryFiltersProps> = ({
   const hasActiveFilters = condition || startDate || endDate;
 
   return (
-    <Paper elevation={1} sx={{ p: 2, mb: 3 }}>
+    <Paper 
+      sx={{ 
+        p: 3, 
+        mb: 3,
+        borderRadius: 4,
+        background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.4)} 0%, ${alpha(theme.palette.background.paper, 0.1)} 100%)`,
+        backdropFilter: 'blur(10px)',
+        border: '1px solid',
+        borderColor: alpha(theme.palette.divider, 0.2),
+        boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.05)}`,
+      }}
+    >
       <Stack spacing={2}>
         <Box display="flex" alignItems="center" gap={1} mb={1}>
           <FilterListIcon color="action" />
@@ -110,12 +124,18 @@ export const HistoryFilters: React.FC<HistoryFiltersProps> = ({
         </Stack>
 
         {/* Action Buttons */}
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" spacing={1.5}>
           <Button
             variant="contained"
             startIcon={<FilterListIcon />}
             onClick={handleApplyFilters}
-            size="small"
+            size="medium"
+            sx={{
+              borderRadius: 3,
+              textTransform: 'none',
+              fontWeight: 600,
+              boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.3)}`,
+            }}
           >
             Apply Filters
           </Button>
@@ -125,7 +145,15 @@ export const HistoryFilters: React.FC<HistoryFiltersProps> = ({
               variant="outlined"
               startIcon={<ClearIcon />}
               onClick={handleClearFilters}
-              size="small"
+              size="medium"
+              sx={{
+                borderRadius: 3,
+                textTransform: 'none',
+                fontWeight: 600,
+                color: theme.palette.text.primary,
+                borderColor: alpha(theme.palette.text.primary, 0.3),
+                backdropFilter: 'blur(10px)',
+              }}
             >
               Clear
             </Button>

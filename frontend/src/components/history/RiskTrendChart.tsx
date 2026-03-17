@@ -4,10 +4,10 @@
 
 import React from 'react';
 import {
-  Box,
   Paper,
   Typography,
   useTheme,
+  alpha,
 } from '@mui/material';
 import {
   LineChart,
@@ -68,10 +68,14 @@ export const RiskTrendChart: React.FC<RiskTrendChartProps> = ({ assessments }) =
       const data = payload[0].payload;
       return (
         <Paper
-          elevation={3}
           sx={{
-            p: 1.5,
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            p: 2,
+            borderRadius: 3,
+            background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.8)} 0%, ${alpha(theme.palette.background.paper, 0.6)} 100%)`,
+            backdropFilter: 'blur(12px)',
+            border: '1px solid',
+            borderColor: alpha(theme.palette.divider, 0.2),
+            boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.1)}`,
           }}
         >
           <Typography variant="body2" fontWeight="bold">
@@ -117,7 +121,17 @@ export const RiskTrendChart: React.FC<RiskTrendChartProps> = ({ assessments }) =
 
   if (chartData.length === 0) {
     return (
-      <Paper elevation={1} sx={{ p: 3, textAlign: 'center' }}>
+      <Paper 
+        sx={{ 
+          p: 3, 
+          textAlign: 'center',
+          borderRadius: 4,
+          background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.4)} 0%, ${alpha(theme.palette.background.paper, 0.1)} 100%)`,
+          backdropFilter: 'blur(10px)',
+          border: '1px solid',
+          borderColor: alpha(theme.palette.divider, 0.2),
+        }}
+      >
         <Typography variant="body1" color="text.secondary">
           No data available for trend visualization
         </Typography>
@@ -126,8 +140,19 @@ export const RiskTrendChart: React.FC<RiskTrendChartProps> = ({ assessments }) =
   }
 
   return (
-    <Paper elevation={1} sx={{ p: 3, mb: 3 }}>
-      <Typography variant="h6" gutterBottom>
+    <Paper 
+      sx={{ 
+        p: { xs: 2, sm: 4 }, 
+        mb: 4,
+        borderRadius: 4,
+        background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.4)} 0%, ${alpha(theme.palette.background.paper, 0.1)} 100%)`,
+        backdropFilter: 'blur(10px)',
+        border: '1px solid',
+        borderColor: alpha(theme.palette.divider, 0.2),
+        boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.05)}`,
+      }}
+    >
+      <Typography variant="h6" gutterBottom sx={{ fontWeight: 700 }}>
         Risk Trend Over Time
       </Typography>
       
@@ -162,13 +187,16 @@ export const RiskTrendChart: React.FC<RiskTrendChartProps> = ({ assessments }) =
           
           <Tooltip content={<CustomTooltip />} />
           
+          {/* Custom legend payload using type casting to bypass strict Recharts types */}
           <Legend
             wrapperStyle={{ fontSize: '12px' }}
-            payload={[
-              { value: 'High Confidence', type: 'circle', color: confidenceColors.HIGH },
-              { value: 'Medium Confidence', type: 'circle', color: confidenceColors.MEDIUM },
-              { value: 'Low Confidence', type: 'circle', color: confidenceColors.LOW },
-            ]}
+            {...({
+              payload: [
+                { value: 'High Confidence', type: 'circle', color: confidenceColors.HIGH },
+                { value: 'Medium Confidence', type: 'circle', color: confidenceColors.MEDIUM },
+                { value: 'Low Confidence', type: 'circle', color: confidenceColors.LOW },
+              ]
+            } as any)}
           />
           
           {/* Reference lines for risk thresholds */}

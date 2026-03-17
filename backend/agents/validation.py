@@ -1,7 +1,7 @@
 import re
 import logging
 from typing import Dict, Any, Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 from .infrastructure.enhanced_base_agent import EnhancedBaseHealthAgent
 from .infrastructure.config import AgentConfig
 from langchain_core.prompts import ChatPromptTemplate
@@ -206,7 +206,7 @@ class LangChainValidationAgent(EnhancedBaseHealthAgent):
         return {
             "valid": True,
             "sanitized_input": sanitized_input,
-            "validation_timestamp": datetime.utcnow().isoformat(),
+            "validation_timestamp": datetime.now(timezone.utc).isoformat(),
             "agent": "EnhancedValidationAgent"
         }
     

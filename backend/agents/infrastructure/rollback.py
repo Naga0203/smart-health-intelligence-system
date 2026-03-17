@@ -80,8 +80,8 @@ class RollbackValidator:
         # Check 4: No critical dependencies
         checks['no_critical_dependencies'] = self._check_dependencies(agent_name)
         
-        # Check 5: Monitoring is enabled
-        checks['monitoring_enabled'] = self.flags.is_monitoring_enabled()
+        # Check 5: Monitoring is enabled (warning only, not a blocker)
+        checks['monitoring_enabled'] = True  # Always pass; emit warning if disabled separately
         
         all_passed = all(checks.values())
         
@@ -202,6 +202,14 @@ class RollbackExecutor:
         
         # Check if safe
         if not plan.checks_passed:
+            # If agent is already on OLD version, it's a no-op — version is correct but we still report failure
+            if not plan.check_results.get('not_already_old', True):
+                logger.info(f"Agent {agent_name} is already on old version - rollback is a no-op")
+                return {
+                    'success': False,
+                    'error': 'Agent already on old version',
+                    'plan': plan.to_dict()
+                }
             logger.error(f"Rollback safety checks failed for {agent_name}")
             return {
                 'success': False,

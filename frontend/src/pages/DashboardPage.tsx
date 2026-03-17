@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Container, Grid, Typography } from '@mui/material';
+import { Container, Grid, Typography, Box, useTheme } from '@mui/material';
 import { useAssessmentStore } from '@/stores/assessmentStore';
 
 import { useUserStore } from '@/stores/userStore';
@@ -17,6 +17,7 @@ import { apiService } from '@/services/api';
  */
 export default function DashboardPage() {
   const { fetchAssessmentHistory, assessmentHistory, loading: assessmentsLoading } = useAssessmentStore();
+  const theme = useTheme();
 
   const { fetchStatistics, statistics, loading: statsLoading } = useUserStore();
 
@@ -70,7 +71,7 @@ export default function DashboardPage() {
       );
 
       setPredictions(result.predictions || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching top predictions:', error);
       setPredictionsError(error.response?.data?.message || 'Failed to fetch predictions');
       setPredictions(null);
@@ -90,43 +91,50 @@ export default function DashboardPage() {
   }
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Dashboard
-      </Typography>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        background: `linear-gradient(135deg, ${theme.palette.background.default} 0%, ${theme.palette.background.paper} 100%)`,
+        py: 4,
+      }}
+    >
+      <Container maxWidth="lg">
+        <Typography variant="h4" component="h1" gutterBottom fontWeight="700">
+          Dashboard
+        </Typography>
 
-      <Grid container spacing={3}>
-        {/* Quick Actions */}
-        <Grid size={{ xs: 12 }}>
-          <QuickActions />
+        <Grid container spacing={4}>
+          {/* Quick Actions */}
+          <Grid size={{ xs: 12 }}>
+            <QuickActions />
+          </Grid>
+
+          {/* User Statistics */}
+          <Grid size={{ xs: 12, md: 6 }}>
+            <UserStatistics statistics={statistics} loading={statsLoading} />
+          </Grid>
+
+          {/* Top Predictions */}
+          <Grid size={{ xs: 12, md: 6 }}>
+            <TopPredictions
+              predictions={predictions}
+              loading={predictionsLoading}
+              error={predictionsError}
+              onFetchPredictions={handleFetchPredictions}
+              defaultN={5}
+            />
+          </Grid>
+
+          {/* Recent Assessments */}
+          <Grid size={{ xs: 12, md: 6 }}>
+            <RecentAssessments
+              assessments={assessmentHistory?.assessments || []}
+              loading={assessmentsLoading}
+            />
+          </Grid>
+
         </Grid>
-
-
-
-        {/* User Statistics */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <UserStatistics statistics={statistics} loading={statsLoading} />
-        </Grid>
-
-        {/* Top Predictions */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <TopPredictions
-            predictions={predictions}
-            loading={predictionsLoading}
-            error={predictionsError}
-            onFetchPredictions={handleFetchPredictions}
-            defaultN={5}
-          />
-        </Grid>
-
-        {/* Recent Assessments */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <RecentAssessments
-            assessments={assessmentHistory?.assessments || []}
-            loading={assessmentsLoading}
-          />
-        </Grid>
-      </Grid>
-    </Container>
+      </Container>
+    </Box>
   );
 }

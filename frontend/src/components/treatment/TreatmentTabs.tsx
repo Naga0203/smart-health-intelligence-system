@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { Box, Tabs, Tab, Paper } from '@mui/material';
-import { TreatmentInfo } from '@/types';
 import { AllopathyPanel } from './AllopathyPanel';
 import { AyurvedaPanel } from './AyurvedaPanel';
 import { HomeopathyPanel } from './HomeopathyPanel';
 import { LifestylePanel } from './LifestylePanel';
 
 interface TreatmentTabsProps {
-  treatmentInfo: TreatmentInfo;
+  treatmentInfo: any;
   confidence: 'LOW' | 'MEDIUM' | 'HIGH';
 }
 
@@ -48,7 +47,7 @@ export const TreatmentTabs: React.FC<TreatmentTabsProps> = ({ treatmentInfo, con
     return null;
   }
 
-  const handleChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleChange = (_event: React.SyntheticEvent | any, newValue: number) => {
     setValue(newValue);
   };
 

@@ -20,10 +20,9 @@ import {
   LinearProgress,
   Breadcrumbs,
   Link,
-  Alert,
   Fade,
   useTheme,
-  useMediaQuery,
+  alpha,
 } from '@mui/material';
 import {
   CloudUpload,
@@ -31,7 +30,6 @@ import {
   Delete,
   CheckCircle,
   Error as ErrorIcon,
-  Warning,
   NavigateNext,
   Lock,
 } from '@mui/icons-material';
@@ -52,7 +50,6 @@ const ALLOWED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png', '.dcm'];
 export const UploadReportPage: React.FC = () => {
   const navigate = useNavigate();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -185,20 +182,6 @@ export const UploadReportPage: React.FC = () => {
     }
   };
 
-  // Get status color
-  const getStatusColor = (status: UploadedFile['status']) => {
-    switch (status) {
-      case 'validated':
-        return 'success.main';
-      case 'error':
-        return 'error.main';
-      case 'uploading':
-        return 'primary.main';
-      default:
-        return 'text.secondary';
-    }
-  };
-
   // Format file size
   const formatFileSize = (bytes: number): string => {
     if (bytes < 1024) return bytes + ' B';
@@ -221,12 +204,20 @@ export const UploadReportPage: React.FC = () => {
 
   return (
     <Fade in={true} timeout={500}>
-      <Box>
+      <Box
+        sx={{
+          minHeight: '100vh',
+          pb: 8,
+          background: `linear-gradient(135deg, ${theme.palette.background.default} 0%, ${theme.palette.background.paper} 100%)`,
+        }}
+      >
         <Container
           maxWidth="lg"
           sx={{
             py: { xs: 2, sm: 3, md: 4 },
             px: { xs: 2, sm: 3 },
+            position: 'relative',
+            zIndex: 1,
           }}
         >
           {/* Breadcrumbs */}
@@ -283,18 +274,24 @@ export const UploadReportPage: React.FC = () => {
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             sx={{
+              background: isDragging 
+                ? `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.light, 0.05)} 100%)`
+                : `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.4)} 0%, ${alpha(theme.palette.background.paper, 0.1)} 100%)`,
+              backdropFilter: 'blur(10px)',
               border: '2px dashed',
-              borderColor: isDragging ? 'primary.main' : 'divider',
-              borderRadius: 2,
-              bgcolor: isDragging ? 'action.hover' : 'background.paper',
+              borderColor: isDragging ? theme.palette.primary.main : alpha(theme.palette.divider, 0.2),
+              borderRadius: 4,
               p: { xs: 4, sm: 6, md: 8 },
               textAlign: 'center',
-              transition: 'all 0.2s ease-in-out',
+              transition: 'all 0.3s ease-in-out',
               cursor: 'pointer',
               mb: { xs: 3, sm: 4 },
+              boxShadow: isDragging ? `0 8px 24px ${alpha(theme.palette.primary.main, 0.15)}` : 'none',
               '&:hover': {
-                borderColor: 'primary.light',
-                bgcolor: 'action.hover',
+                borderColor: theme.palette.primary.main,
+                background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, ${alpha(theme.palette.primary.light, 0.02)} 100%)`,
+                transform: 'translateY(-2px)',
+                boxShadow: `0 8px 24px ${alpha(theme.palette.primary.main, 0.1)}`,
               },
             }}
           >
@@ -348,8 +345,22 @@ export const UploadReportPage: React.FC = () => {
                 onClick={handleBrowseClick}
                 sx={{
                   mt: 1,
-                  minHeight: { xs: 44, sm: 40 },
+                  minHeight: { xs: 44, sm: 48 },
                   px: 4,
+                  borderRadius: 3,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: { xs: '0.875rem', sm: '1rem' },
+                  borderColor: alpha(theme.palette.primary.main, 0.5),
+                  color: 'primary.main',
+                  backdropFilter: 'blur(10px)',
+                  background: alpha(theme.palette.primary.main, 0.05),
+                  '&:hover': {
+                    borderColor: 'primary.main',
+                    background: alpha(theme.palette.primary.main, 0.1),
+                    transform: 'translateY(-2px)',
+                  },
+                  transition: 'all 0.2s ease-in-out',
                 }}
               >
                 Browse Files
@@ -386,13 +397,18 @@ export const UploadReportPage: React.FC = () => {
                   <ListItem
                     key={uploadedFile.id}
                     sx={{
+                      background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.4)} 0%, ${alpha(theme.palette.background.paper, 0.1)} 100%)`,
+                      backdropFilter: 'blur(10px)',
                       border: '1px solid',
-                      borderColor: 'divider',
-                      borderRadius: 1,
-                      mb: 1.5,
-                      transition: 'all 0.2s ease-in-out',
+                      borderColor: alpha(theme.palette.divider, 0.2),
+                      borderRadius: 3,
+                      mb: 2,
+                      transition: 'all 0.3s ease-in-out',
                       '&:hover': {
-                        bgcolor: 'action.hover',
+                        background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, ${alpha(theme.palette.primary.light, 0.02)} 100%)`,
+                        borderColor: alpha(theme.palette.primary.main, 0.3),
+                        transform: 'translateY(-2px)',
+                        boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.08)}`,
                       },
                     }}
                   >
@@ -503,8 +519,22 @@ export const UploadReportPage: React.FC = () => {
                 onClick={handleCancel}
                 disabled={uploadedFiles.length === 0}
                 sx={{
-                  minHeight: { xs: 44, sm: 40 },
+                  minHeight: { xs: 44, sm: 48 },
                   minWidth: { sm: 120 },
+                  borderRadius: 3,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: { xs: '0.875rem', sm: '1rem' },
+                  borderColor: alpha(theme.palette.text.primary, 0.5),
+                  color: 'text.primary',
+                  backdropFilter: 'blur(10px)',
+                  background: alpha(theme.palette.background.paper, 0.1),
+                  '&:hover': {
+                    borderColor: 'text.primary',
+                    background: alpha(theme.palette.background.paper, 0.2),
+                    transform: 'translateY(-2px)',
+                  },
+                  transition: 'all 0.2s ease-in-out',
                 }}
               >
                 Cancel
@@ -515,8 +545,25 @@ export const UploadReportPage: React.FC = () => {
                 onClick={handleProcessReports}
                 disabled={!hasValidFiles}
                 sx={{
-                  minHeight: { xs: 44, sm: 40 },
+                  minHeight: { xs: 44, sm: 48 },
                   minWidth: { sm: 160 },
+                  bgcolor: 'primary.main',
+                  color: 'white',
+                  borderRadius: 3,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: { xs: '0.875rem', sm: '1rem' },
+                  boxShadow: `0 8px 24px ${alpha(theme.palette.primary.main, 0.4)}`,
+                  '&:hover': {
+                    bgcolor: 'primary.dark',
+                    transform: 'translateY(-2px)',
+                    boxShadow: `0 12px 28px ${alpha(theme.palette.primary.main, 0.6)}`,
+                  },
+                  transition: 'all 0.2s ease-in-out',
+                  '&.Mui-disabled': {
+                    background: alpha(theme.palette.action.disabledBackground, 0.1),
+                    color: alpha(theme.palette.text.primary, 0.3),
+                  }
                 }}
               >
                 Process Reports
