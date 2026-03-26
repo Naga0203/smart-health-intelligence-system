@@ -3,7 +3,7 @@
 // Clean, modern interface matching HealthIntel AI design
 // ============================================================================
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -14,6 +14,7 @@ import {
   Chip,
   Slider,
   LinearProgress,
+  CircularProgress,
   IconButton,
   InputAdornment,
   Alert,
@@ -30,7 +31,11 @@ import {
   AutoAwesome,
   Edit,
   Description,
+  CheckCircle,
+  ErrorOutline,
 } from '@mui/icons-material';
+import { useAuthStore } from '@/stores/authStore';
+import { useUserStore } from '@/stores/userStore';
 import { FileUploadComponent } from '@/components/FileUploadComponent';
 import { ExtractedMedicalData, UploadError } from '@/types/medicalReport';
 
@@ -66,9 +71,31 @@ export const NewAssessmentPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Get user ID from auth context or localStorage
-  // For now, using a placeholder - should be replaced with actual auth
-  const userId = 'user-123'; // TODO: Get from auth context
+  // Polling state
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobStatus, setJobStatus] = useState<'pending' | 'processing' | 'complete' | 'error' | null>(null);
+  const [jobProgress, setJobProgress] = useState(0);
+  const [jobResult, setJobResult] = useState<any>(null);
+  const [jobError, setJobError] = useState<string | null>(null);
+  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Clear polling interval on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current !== null) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, []);
+
+  const { user } = useAuthStore();
+  const { profile, fetchProfile } = useUserStore();
+  const userId = user?.uid || 'anonymous';
+
+  // Load profile so age/gender are available for the predict call
+  useEffect(() => {
+    if (user && !profile) fetchProfile().catch(() => {});
+  }, [user]);
 
   // Calculate progress (for demo, based on filled fields)
   const calculateProgress = () => {
@@ -206,6 +233,11 @@ export const NewAssessmentPage: React.FC = () => {
 
   // Reset form
   const handleReset = () => {
+    // Stop any active polling
+    if (pollingIntervalRef.current !== null) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
     setDuration('');
     setTemperature('');
     setPainSeverity(4);
@@ -214,18 +246,27 @@ export const NewAssessmentPage: React.FC = () => {
     setExtractionJobId(null);
     setReportMetadata(null);
     setDataSources(new Map());
+    setJobId(null);
+    setJobStatus(null);
+    setJobProgress(0);
+    setJobResult(null);
+    setJobError(null);
   };
 
   // Submit form
   const handleSubmit = async () => {
     setIsSubmitting(true);
     setSubmitError(null);
+    setJobId(null);
+    setJobStatus(null);
+    setJobProgress(0);
+    setJobResult(null);
+    setJobError(null);
+
     try {
       // Combine description and selected symptoms
-      // Build symptoms array - backend expects an array, not a string
       const symptomsArray: string[] = [];
       
-      // Add symptom description if provided (split by comma if multiple)
       if (symptomDescription.trim()) {
         const descriptionSymptoms = symptomDescription
           .split(',')
@@ -234,16 +275,12 @@ export const NewAssessmentPage: React.FC = () => {
         symptomsArray.push(...descriptionSymptoms);
       }
       
-      // Add selected symptoms
       symptomsArray.push(...selectedSymptoms);
       
       // Remove duplicates (case-insensitive)
       const uniqueSymptoms = Array.from(
         new Set(symptomsArray.map(s => s.toLowerCase()))
-      ).map(s => {
-        // Find original casing
-        return symptomsArray.find(orig => orig.toLowerCase() === s) || s;
-      });
+      ).map(s => symptomsArray.find(orig => orig.toLowerCase() === s) || s);
 
       if (uniqueSymptoms.length === 0) {
         setSubmitError('Please describe your symptoms or select from the list.');
@@ -253,44 +290,70 @@ export const NewAssessmentPage: React.FC = () => {
 
       console.log('Submitting symptoms:', uniqueSymptoms);
 
-      // Prepare report metadata if available
       const reportMetadataPayload = reportMetadata && extractionJobId ? {
         reportId: reportMetadata.reportId,
         extractionJobId: extractionJobId,
         hasExtractedData: extractedData !== null,
       } : undefined;
 
-      // Convert data sources Map to plain object
       const dataSourcesObject: Record<string, 'manual' | 'extracted'> = {};
       dataSources.forEach((value, key) => {
         dataSourcesObject[key] = value;
       });
 
-      // Call API with report data
-      const response = await import('@/services/api').then(m =>
-        m.apiService.predict(
-          uniqueSymptoms, // Send as array, not string
-          reportMetadataPayload,
-          extractedData,
-          Object.keys(dataSourcesObject).length > 0 ? dataSourcesObject : undefined,
-          30, // Default age (should come from form/profile)
-          'male', // Default gender (should come from form/profile)
-          {
-            duration,
-            temperature: temperature ? parseFloat(temperature.replace(/[^\d.]/g, '')) : undefined,
-            pain_severity: painSeverity
-          }
-        )
+      const { apiService } = await import('@/services/api');
+      const response = await apiService.predict(
+        uniqueSymptoms,
+        reportMetadataPayload,
+        extractedData,
+        Object.keys(dataSourcesObject).length > 0 ? dataSourcesObject : undefined,
+        profile?.age || undefined,
+        profile?.gender || undefined,
+        {
+          duration,
+          temperature: temperature ? parseFloat(temperature.replace(/[^\d.]/g, '')) : undefined,
+          pain_severity: painSeverity
+        }
       );
 
       console.log('Prediction Response:', response);
 
-      // Navigate to results
-      // Assuming response contains assessment_id or we use a temporary ID for now
-      // For now, we'll use a placeholder or response ID if available
-      const assessmentId = response.assessment_id || 'new';
+      // HTTP 202 async path — start polling
+      if (response && response.job_id && (response.status === 'pending' || response.status === 'processing')) {
+        setJobId(response.job_id);
+        setJobStatus(response.status);
+        setIsSubmitting(false);
 
-      // Store result in state/store if needed, or pass via state
+        // Start polling every 2 seconds
+        pollingIntervalRef.current = setInterval(async () => {
+          try {
+            const statusResponse = await apiService.pollJobStatus(response.job_id);
+            setJobStatus(statusResponse.status);
+            setJobProgress(statusResponse.progress ?? 0);
+
+            if (statusResponse.status === 'complete') {
+              clearInterval(pollingIntervalRef.current!);
+              pollingIntervalRef.current = null;
+              setJobResult(statusResponse.result);
+              // Navigate to results page
+              const assessmentId = statusResponse.result?.assessment_id || response.job_id;
+              navigate(`/app/assessment/${assessmentId}`, { state: { result: statusResponse.result } });
+            } else if (statusResponse.status === 'error') {
+              clearInterval(pollingIntervalRef.current!);
+              pollingIntervalRef.current = null;
+              setJobError(statusResponse.error || 'The analysis failed. Please try again.');
+            }
+          } catch (pollError: any) {
+            console.error('Polling error:', pollError);
+            // Don't stop polling on transient network errors — let it retry
+          }
+        }, 2000);
+
+        return;
+      }
+
+      // HTTP 200 synchronous path (legacy / fallback)
+      const assessmentId = response.assessment_id || 'new';
       navigate(`/app/assessment/${assessmentId}`, { state: { result: response } });
 
     } catch (error: any) {
@@ -885,6 +948,77 @@ export const NewAssessmentPage: React.FC = () => {
 
 
 
+          {/* Job Polling Status */}
+          {jobId && (
+            <Box sx={{ mb: 4 }}>
+              {/* Polling in progress */}
+              {(jobStatus === 'pending' || jobStatus === 'processing') && (
+                <Alert
+                  icon={<CircularProgress size={20} sx={{ color: '#2563EB' }} />}
+                  sx={{
+                    bgcolor: '#EEF2FF',
+                    border: '1px solid #DBEAFE',
+                    borderRadius: 2,
+                    '& .MuiAlert-message': { color: '#1E40AF', width: '100%' },
+                  }}
+                >
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5, fontSize: '0.875rem' }}>
+                    {jobStatus === 'pending' ? 'Analysis queued…' : 'Analyzing your symptoms…'}
+                  </Typography>
+                  <Typography variant="caption" sx={{ fontSize: '0.75rem', display: 'block', mb: 1 }}>
+                    {jobProgress}% complete
+                  </Typography>
+                  <LinearProgress
+                    variant={jobProgress > 0 ? 'determinate' : 'indeterminate'}
+                    value={jobProgress}
+                    sx={{
+                      height: 6,
+                      borderRadius: 1,
+                      bgcolor: '#DBEAFE',
+                      '& .MuiLinearProgress-bar': { bgcolor: '#2563EB', borderRadius: 1 },
+                    }}
+                  />
+                </Alert>
+              )}
+
+              {/* Complete */}
+              {jobStatus === 'complete' && (
+                <Alert
+                  icon={<CheckCircle sx={{ color: '#059669' }} />}
+                  sx={{
+                    bgcolor: '#ECFDF5',
+                    border: '1px solid #A7F3D0',
+                    borderRadius: 2,
+                    '& .MuiAlert-message': { color: '#065F46' },
+                  }}
+                >
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>
+                    Analysis complete — redirecting to results…
+                  </Typography>
+                </Alert>
+              )}
+
+              {/* Error */}
+              {jobStatus === 'error' && (
+                <Alert
+                  severity="error"
+                  icon={<ErrorOutline />}
+                  sx={{ borderRadius: 2 }}
+                  onClose={() => { setJobId(null); setJobStatus(null); setJobError(null); }}
+                >
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>
+                    Analysis failed
+                  </Typography>
+                  {jobError && (
+                    <Typography variant="caption" sx={{ fontSize: '0.75rem', display: 'block', mt: 0.5 }}>
+                      {jobError}
+                    </Typography>
+                  )}
+                </Alert>
+              )}
+            </Box>
+          )}
+
           {/* AI Ready Alert */}
           <Alert
             icon={<AutoAwesome sx={{ color: '#2563EB' }} />}
@@ -961,8 +1095,8 @@ export const NewAssessmentPage: React.FC = () => {
               <Button
                 variant="contained"
                 onClick={handleSubmit}
-                disabled={!symptomDescription || isSubmitting}
-                endIcon={!isSubmitting && <Box component="span" sx={{ fontSize: '1.2rem' }}>→</Box>}
+                disabled={!symptomDescription || isSubmitting || jobStatus === 'pending' || jobStatus === 'processing'}
+                endIcon={!isSubmitting && !jobStatus && <Box component="span" sx={{ fontSize: '1.2rem' }}>→</Box>}
                 sx={{
                   minHeight: { xs: 44, sm: 40 },
                   minWidth: { sm: 160 },
@@ -982,7 +1116,7 @@ export const NewAssessmentPage: React.FC = () => {
                   },
                 }}
               >
-                {isSubmitting ? 'Analyzing...' : 'Submit Symptoms'}
+                {isSubmitting ? 'Submitting…' : (jobStatus === 'pending' || jobStatus === 'processing') ? 'Analyzing…' : 'Submit Symptoms'}
               </Button>
             </Box>
           </Box>

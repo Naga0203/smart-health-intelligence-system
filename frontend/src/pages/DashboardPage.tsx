@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Container, Grid, Typography } from '@mui/material';
 import { useAssessmentStore } from '@/stores/assessmentStore';
-
 import { useUserStore } from '@/stores/userStore';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import RecentAssessments from '@/components/dashboard/RecentAssessments';
@@ -18,7 +17,7 @@ import { apiService } from '@/services/api';
 export default function DashboardPage() {
   const { fetchAssessmentHistory, assessmentHistory, loading: assessmentsLoading } = useAssessmentStore();
 
-  const { fetchStatistics, statistics, loading: statsLoading } = useUserStore();
+  const { fetchStatistics, statistics, loading: statsLoading, profile } = useUserStore();
 
   // Top predictions state
   const [predictions, setPredictions] = useState(null);
@@ -64,15 +63,15 @@ export default function DashboardPage() {
       // Use data from recent assessment
       const result = await apiService.getTopPredictions(
         recentAssessment.symptoms,
-        30, // Default age if not available
-        'other', // Default gender if not available
+        profile?.age || recentAssessment.age || undefined,
+        profile?.gender || recentAssessment.gender || undefined,
         n
       );
 
       setPredictions(result.predictions || []);
     } catch (error) {
       console.error('Error fetching top predictions:', error);
-      setPredictionsError(error.response?.data?.message || 'Failed to fetch predictions');
+      setPredictionsError((error as any).response?.data?.message || 'Failed to fetch predictions');
       setPredictions(null);
     } finally {
       setPredictionsLoading(false);

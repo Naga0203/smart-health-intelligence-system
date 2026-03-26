@@ -45,13 +45,19 @@ class SearchConfig:
     """
     Configuration for web search behavior.
     
-    Requirements: 12.2
+    Requirements: 12.2, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6
     """
     rate_limit: int = 10  # Requests per minute
     cache_ttl: int = 3600  # Cache time-to-live in seconds (1 hour)
     max_results: int = 10  # Maximum search results to return
     reliable_sources_only: bool = True  # Filter to reliable medical sources only
     timeout: int = 10  # Search request timeout in seconds
+    pubmed_max_results: int = 10  # Max abstracts per PubMed query
+    tavily_max_results: int = 5  # Max results per Tavily query
+    tavily_search_depth: str = "basic"  # "basic" or "advanced"
+    pubmed_enabled: bool = True  # Enable/disable PubMed client
+    wikipedia_enabled: bool = True  # Enable/disable Wikipedia client
+    tavily_enabled: bool = True  # Enable/disable Tavily client
     
     def __post_init__(self):
         """Validate configuration values."""
@@ -70,6 +76,15 @@ class SearchConfig:
         if self.timeout < 1:
             logger.warning(f"Invalid timeout {self.timeout}, using default 10")
             self.timeout = 10
+        
+        if self.pubmed_max_results < 0:
+            raise ValueError(f"pubmed_max_results must be non-negative, got {self.pubmed_max_results}")
+        
+        if self.tavily_max_results < 0:
+            raise ValueError(f"tavily_max_results must be non-negative, got {self.tavily_max_results}")
+        
+        if self.tavily_search_depth not in ("basic", "advanced"):
+            raise ValueError(f"tavily_search_depth must be 'basic' or 'advanced', got {self.tavily_search_depth!r}")
 
 
 @dataclass
@@ -150,6 +165,12 @@ class AgentConfig:
                 max_results=int(os.getenv('SEARCH_MAX_RESULTS', '10')),
                 reliable_sources_only=os.getenv('SEARCH_RELIABLE_SOURCES_ONLY', 'true').lower() == 'true',
                 timeout=int(os.getenv('SEARCH_TIMEOUT', '10')),
+                pubmed_max_results=int(os.getenv('PUBMED_MAX_RESULTS', '10')),
+                tavily_max_results=int(os.getenv('TAVILY_MAX_RESULTS', '5')),
+                tavily_search_depth=os.getenv('TAVILY_SEARCH_DEPTH', 'basic'),
+                pubmed_enabled=os.getenv('PUBMED_ENABLED', 'true').lower() == 'true',
+                wikipedia_enabled=os.getenv('WIKIPEDIA_ENABLED', 'true').lower() == 'true',
+                tavily_enabled=os.getenv('TAVILY_ENABLED', 'true').lower() == 'true',
             ),
             circuit_config=CircuitConfig(
                 failure_threshold=int(os.getenv('CIRCUIT_FAILURE_THRESHOLD', '5')),

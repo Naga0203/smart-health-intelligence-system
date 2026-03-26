@@ -1,8 +1,8 @@
 // ============================================================================
-// Treatment Exploration Page - Multi-system treatment overview
+// Treatment Exploration Page - API-driven, fully rendered
 // ============================================================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     Box,
@@ -19,470 +19,430 @@ import {
     Paper,
     Stack,
     Divider,
+    CircularProgress,
     Dialog,
     DialogTitle,
     DialogContent,
     DialogActions,
+    List,
+    ListItem,
+    ListItemIcon,
+    ListItemText,
 } from '@mui/material';
 import {
     ArrowBack as ArrowBackIcon,
     InfoOutlined as InfoIcon,
     LocalPharmacy as DrugIcon,
-    Shield as ShieldIcon,
-    MedicalServices as ProcedureIcon,
-    SelfImprovement as BehavioralIcon,
     Spa as LeafIcon,
     WaterDrop as DropIcon,
     AccessibilityNew as BodyIcon,
-    MenuBook as BookIcon,
-    MonitorHeart as MonitorHeartIcon, // Changed from HeartIcon to MonitorHeartIcon as per instruction
+    Refresh as RefreshIcon,
+    FiberManualRecord as DotIcon,
+    Restaurant as DietIcon,
+    DirectionsRun as ExerciseIcon,
+    SelfImprovement as StressIcon,
+    Bedtime as SleepIcon,
+    PriorityHigh as UrgentIcon,
+    Block as BlockIcon,
+    CheckCircleOutline as CheckIcon,
+    OpenInNew as LinkIcon,
 } from '@mui/icons-material';
+import { apiService } from '@/services/api';
 
-// --- Types ---
+// ---- Types ----
 
-type SeverityLevel = 'Mild' | 'Moderate' | 'Severe' | 'Severe / Chronic' | 'Mild / Adjunct' | 'General';
 type TreatmentSystem = 'Modern Medicine' | 'Ayurveda' | 'Homeopathy' | 'Lifestyle';
 
-interface TreatmentCard {
-    id: string;
-    title: string;
-    description: string;
-    severity: SeverityLevel;
-    icon: React.ReactNode;
-    actionLabel?: string;
-}
-
 interface TreatmentData {
-    description: string;
-    systems: {
-        [key in TreatmentSystem]: TreatmentCard[];
-    };
+    disease: string;
+    systems?: Record<string, any>;
+    clinical_guidelines?: { guidelines?: string; sources?: any[]; success?: boolean };
+    evidence_analysis?: string;
+    disclaimer?: string;
+    treatment_info?: string;
+    sources?: any[];
+    [key: string]: any;
 }
 
-// --- Mock Data ---
+// ---- Constants ----
 
-const MOCK_DATA: Record<string, TreatmentData> = {
-    'Migraine': {
-        description: 'A comparative overview of potential treatment pathways. Treatments for migraine typically involve a combination of acute relief, preventive strategies, and lifestyle adjustments.',
-        systems: {
-            'Modern Medicine': [
-                {
-                    id: 'acute',
-                    title: 'Acute Pharmacotherapy',
-                    description: 'First-line treatment often involves NSAIDs (ibuprofen, naproxen) for mild attacks. For moderate to severe migraine, triptans (e.g., sumatriptan) are considered the standard of care to abort attacks.',
-                    severity: 'Moderate',
-                    icon: <DrugIcon color="primary" />,
-                    actionLabel: 'View Clinical Guidelines'
-                },
-                {
-                    id: 'preventive',
-                    title: 'Preventive Medication',
-                    description: 'Indicated for patients with frequent attacks (> 4/month). Options include beta-blockers (propranolol), anti-epileptics (topiramate), and CGRP monoclonal antibodies for refractory cases.',
-                    severity: 'Severe / Chronic',
-                    icon: <ShieldIcon color="secondary" />,
-                    actionLabel: 'View Efficacy Studies'
-                },
-                {
-                    id: 'procedural',
-                    title: 'Procedural Interventions',
-                    description: 'Interventions such as OnabotulinumtoxinA (Botox) injections are FDA-approved for chronic migraine. Nerve blocks (e.g., occipital nerve block) provide temporary relief for specific presentations.',
-                    severity: 'Severe',
-                    icon: <ProcedureIcon color="error" />,
-                    actionLabel: 'View Procedure Details'
-                },
-                {
-                    id: 'behavioral',
-                    title: 'Behavioral Therapy',
-                    description: 'Cognitive Behavioral Therapy (CBT) and Biofeedback are often prescribed alongside medication to help manage pain perception and reduce stress-induced triggers.',
-                    severity: 'Mild / Adjunct',
-                    icon: <BehavioralIcon color="warning" />,
-                    actionLabel: 'View Therapy Protocols'
-                }
-            ],
-            'Ayurveda': [
-                {
-                    id: 'shodhana',
-                    title: 'Shodhana Therapy',
-                    description: 'Purification procedures like Nasya (nasal administration of medicated oils) and Virechana (purgation) to balance doshas, specifically Pitta and Vata implicated in migraines.',
-                    severity: 'Moderate',
-                    icon: <LeafIcon color="success" />,
-                    actionLabel: 'View Ayurvedic Protocols'
-                },
-                {
-                    id: 'shamana',
-                    title: 'Shamana Aushadhi',
-                    description: 'Palliative oral medications using herbs like Pathyadi Kadha, Godanti Bhasma, and Shirashooladivajra Rasa to alleviate pain and reduce recurrence.',
-                    severity: 'Mild',
-                    icon: <LeafIcon color="success" />,
-                    actionLabel: 'View Herbal Formulations'
-                }
-            ],
-            'Homeopathy': [
-                {
-                    id: 'constitutional',
-                    title: 'Constitutional Treatment',
-                    description: 'Holistic approach selecting remedies (e.g., Natrum Mur, Belladonna, Sanguinaria) based on individual symptom patterns, triggers, and patient constitution.',
-                    severity: 'General',
-                    icon: <DropIcon color="info" />,
-                    actionLabel: 'View Remedy Profiles'
-                }
-            ],
-            'Lifestyle': [
-                {
-                    id: 'trigger_mgmt',
-                    title: 'Trigger Management',
-                    description: 'Identification and avoidance of dietary triggers (aged cheese, caffeine, alcohol), regulating sleep schedules, and managing stress levels.',
-                    severity: 'General',
-                    icon: <BodyIcon color="action" />,
-                    actionLabel: 'View Lifestyle Guide'
-                },
-                {
-                    id: 'yoga',
-                    title: 'Yoga & Pranayama',
-                    description: 'Practices like Sheetali Pranayama and specific asanas (e.g., Hastapadasana) to improve circulation and reduce tension.',
-                    severity: 'Mild / Adjunct',
-                    icon: <BodyIcon color="action" />,
-                    actionLabel: 'View Routine'
-                }
-            ]
-        }
-    },
-    'Diabetes': {
-        description: 'Comprehensive treatment approaches for diabetes management focusing on blood glucose control, lifestyle modifications, and prevention of complications.',
-        systems: {
-            'Modern Medicine': [
-                {
-                    id: 'oral_hypoglycemics',
-                    title: 'Oral Hypoglycemic Agents',
-                    description: 'Metformin is the first-line therapy for Type 2 diabetes. Additional agents include sulfonylureas, DPP-4 inhibitors, and SGLT2 inhibitors for glycemic control.',
-                    severity: 'Moderate',
-                    icon: <DrugIcon color="primary" />,
-                    actionLabel: 'View Clinical Guidelines'
-                },
-                {
-                    id: 'insulin_therapy',
-                    title: 'Insulin Therapy',
-                    description: 'Essential for Type 1 diabetes and advanced Type 2 cases. Regimens include basal-bolus, premixed, or continuous subcutaneous insulin infusion (insulin pump).',
-                    severity: 'Severe',
-                    icon: <ProcedureIcon color="error" />,
-                    actionLabel: 'View Efficacy Studies'
-                },
-                {
-                    id: 'monitoring',
-                    title: 'Continuous Glucose Monitoring',
-                    description: 'Advanced monitoring systems provide real-time glucose data, helping optimize insulin dosing and detect hypoglycemic episodes early.',
-                    severity: 'Moderate',
-                    icon: <ShieldIcon color="secondary" />,
-                    actionLabel: 'View Procedure Details'
-                },
-                {
-                    id: 'education',
-                    title: 'Diabetes Self-Management Education',
-                    description: 'Structured education programs teaching patients about medication adherence, dietary planning, exercise, and complication prevention.',
-                    severity: 'General',
-                    icon: <BehavioralIcon color="warning" />,
-                    actionLabel: 'View Therapy Protocols'
-                }
-            ],
-            'Ayurveda': [
-                {
-                    id: 'madhumeha_chikitsa',
-                    title: 'Madhumeha Chikitsa',
-                    description: 'Classical Ayurvedic treatment for diabetes using herbs like Gudmar (Gymnema sylvestre), Karela (bitter melon), and Jamun to regulate blood sugar.',
-                    severity: 'Moderate',
-                    icon: <LeafIcon color="success" />,
-                    actionLabel: 'View Ayurvedic Protocols'
-                },
-                {
-                    id: 'panchakarma',
-                    title: 'Panchakarma Detoxification',
-                    description: 'Purification therapies including Virechana and Basti to eliminate toxins and restore metabolic balance in diabetic patients.',
-                    severity: 'Severe',
-                    icon: <LeafIcon color="success" />,
-                    actionLabel: 'View Herbal Formulations'
-                }
-            ],
-            'Homeopathy': [
-                {
-                    id: 'constitutional_diabetes',
-                    title: 'Constitutional Remedies',
-                    description: 'Individualized treatment using remedies like Phosphoric Acid, Syzygium Jambolanum, and Uranium Nitricum based on patient symptoms and constitution.',
-                    severity: 'General',
-                    icon: <DropIcon color="info" />,
-                    actionLabel: 'View Remedy Profiles'
-                }
-            ],
-            'Lifestyle': [
-                {
-                    id: 'diet_control',
-                    title: 'Medical Nutrition Therapy',
-                    description: 'Carbohydrate counting, glycemic index awareness, portion control, and balanced meal planning to maintain stable blood glucose levels.',
-                    severity: 'Moderate',
-                    icon: <BodyIcon color="action" />,
-                    actionLabel: 'View Lifestyle Guide'
-                },
-                {
-                    id: 'exercise',
-                    title: 'Physical Activity Program',
-                    description: 'Regular aerobic exercise (150 min/week) and resistance training to improve insulin sensitivity and cardiovascular health.',
-                    severity: 'Moderate',
-                    icon: <BodyIcon color="action" />,
-                    actionLabel: 'View Routine'
-                }
-            ]
-        }
-    },
-    'Hypertension': {
-        description: 'Multi-faceted approach to blood pressure management combining pharmacological interventions with lifestyle modifications to reduce cardiovascular risk.',
-        systems: {
-            'Modern Medicine': [
-                {
-                    id: 'ace_inhibitors',
-                    title: 'ACE Inhibitors / ARBs',
-                    description: 'First-line agents like lisinopril or losartan that block the renin-angiotensin system, reducing blood pressure and protecting kidney function.',
-                    severity: 'Moderate',
-                    icon: <DrugIcon color="primary" />,
-                    actionLabel: 'View Clinical Guidelines'
-                },
-                {
-                    id: 'diuretics',
-                    title: 'Thiazide Diuretics',
-                    description: 'Hydrochlorothiazide and chlorthalidone reduce blood volume and are often used as initial therapy or in combination regimens.',
-                    severity: 'Mild',
-                    icon: <DrugIcon color="primary" />,
-                    actionLabel: 'View Efficacy Studies'
-                },
-                {
-                    id: 'calcium_blockers',
-                    title: 'Calcium Channel Blockers',
-                    description: 'Amlodipine and other CCBs relax blood vessels, particularly effective in elderly patients and those with isolated systolic hypertension.',
-                    severity: 'Moderate',
-                    icon: <ShieldIcon color="secondary" />,
-                    actionLabel: 'View Procedure Details'
-                },
-                {
-                    id: 'monitoring_bp',
-                    title: 'Home Blood Pressure Monitoring',
-                    description: 'Regular self-monitoring with validated devices helps track treatment response and detect white coat or masked hypertension.',
-                    severity: 'General',
-                    icon: <BehavioralIcon color="warning" />,
-                    actionLabel: 'View Therapy Protocols'
-                }
-            ],
-            'Ayurveda': [
-                {
-                    id: 'rakta_mokshana',
-                    title: 'Rakta Mokshana Therapy',
-                    description: 'Bloodletting therapy combined with herbs like Sarpagandha (Rauwolfia serpentina) and Arjuna to balance Pitta and reduce blood pressure.',
-                    severity: 'Moderate',
-                    icon: <LeafIcon color="success" />,
-                    actionLabel: 'View Ayurvedic Protocols'
-                },
-                {
-                    id: 'shirodhara',
-                    title: 'Shirodhara & Stress Management',
-                    description: 'Continuous oil flow on forehead combined with meditation and pranayama to reduce stress-induced hypertension.',
-                    severity: 'Mild',
-                    icon: <LeafIcon color="success" />,
-                    actionLabel: 'View Herbal Formulations'
-                }
-            ],
-            'Homeopathy': [
-                {
-                    id: 'hypertension_remedies',
-                    title: 'Individualized Remedies',
-                    description: 'Remedies like Rauwolfia, Crataegus, and Baryta Carb selected based on patient symptoms, stress levels, and cardiovascular profile.',
-                    severity: 'General',
-                    icon: <DropIcon color="info" />,
-                    actionLabel: 'View Remedy Profiles'
-                }
-            ],
-            'Lifestyle': [
-                {
-                    id: 'dash_diet',
-                    title: 'DASH Diet',
-                    description: 'Dietary Approaches to Stop Hypertension: low sodium, high potassium, rich in fruits, vegetables, and low-fat dairy products.',
-                    severity: 'Moderate',
-                    icon: <BodyIcon color="action" />,
-                    actionLabel: 'View Lifestyle Guide'
-                },
-                {
-                    id: 'stress_reduction',
-                    title: 'Stress Reduction Techniques',
-                    description: 'Meditation, yoga, deep breathing exercises, and regular physical activity to lower sympathetic nervous system activity.',
-                    severity: 'Mild',
-                    icon: <BodyIcon color="action" />,
-                    actionLabel: 'View Routine'
-                }
-            ]
-        }
-    },
-    'Asthma': {
-        description: 'Comprehensive asthma management strategies focusing on symptom control, prevention of exacerbations, and maintaining normal lung function.',
-        systems: {
-            'Modern Medicine': [
-                {
-                    id: 'controller_meds',
-                    title: 'Inhaled Corticosteroids',
-                    description: 'First-line controller therapy (e.g., fluticasone, budesonide) to reduce airway inflammation and prevent asthma symptoms.',
-                    severity: 'Moderate',
-                    icon: <DrugIcon color="primary" />,
-                    actionLabel: 'View Clinical Guidelines'
-                },
-                {
-                    id: 'rescue_inhalers',
-                    title: 'Short-Acting Beta Agonists',
-                    description: 'Quick-relief medications like albuterol for acute symptom relief and bronchodilation during asthma attacks.',
-                    severity: 'Mild',
-                    icon: <ProcedureIcon color="error" />,
-                    actionLabel: 'View Efficacy Studies'
-                },
-                {
-                    id: 'biologics',
-                    title: 'Biologic Therapies',
-                    description: 'Monoclonal antibodies (omalizumab, mepolizumab) for severe allergic or eosinophilic asthma uncontrolled by standard therapy.',
-                    severity: 'Severe',
-                    icon: <ShieldIcon color="secondary" />,
-                    actionLabel: 'View Procedure Details'
-                },
-                {
-                    id: 'action_plan',
-                    title: 'Asthma Action Plan',
-                    description: 'Written plan detailing daily management, trigger avoidance, and steps to take during worsening symptoms or attacks.',
-                    severity: 'General',
-                    icon: <BehavioralIcon color="warning" />,
-                    actionLabel: 'View Therapy Protocols'
-                }
-            ],
-            'Ayurveda': [
-                {
-                    id: 'swasa_chikitsa',
-                    title: 'Swasa Chikitsa',
-                    description: 'Ayurvedic asthma treatment using herbs like Vasa (Adhatoda vasica), Kantakari, and Pushkarmool to open airways and reduce inflammation.',
-                    severity: 'Moderate',
-                    icon: <LeafIcon color="success" />,
-                    actionLabel: 'View Ayurvedic Protocols'
-                },
-                {
-                    id: 'steam_therapy',
-                    title: 'Steam Inhalation Therapy',
-                    description: 'Herbal steam inhalation with eucalyptus and tulsi to clear respiratory passages and reduce bronchial constriction.',
-                    severity: 'Mild',
-                    icon: <LeafIcon color="success" />,
-                    actionLabel: 'View Herbal Formulations'
-                }
-            ],
-            'Homeopathy': [
-                {
-                    id: 'asthma_remedies',
-                    title: 'Constitutional Asthma Treatment',
-                    description: 'Remedies like Arsenicum Album, Natrum Sulph, and Antimonium Tart based on trigger patterns, time of symptoms, and patient constitution.',
-                    severity: 'General',
-                    icon: <DropIcon color="info" />,
-                    actionLabel: 'View Remedy Profiles'
-                }
-            ],
-            'Lifestyle': [
-                {
-                    id: 'trigger_avoidance',
-                    title: 'Allergen & Trigger Avoidance',
-                    description: 'Identifying and minimizing exposure to allergens (dust mites, pollen, pet dander) and irritants (smoke, strong odors).',
-                    severity: 'Moderate',
-                    icon: <BodyIcon color="action" />,
-                    actionLabel: 'View Lifestyle Guide'
-                },
-                {
-                    id: 'breathing_exercises',
-                    title: 'Breathing Exercises',
-                    description: 'Buteyko breathing method and pursed-lip breathing to improve respiratory control and reduce hyperventilation.',
-                    severity: 'Mild',
-                    icon: <BodyIcon color="action" />,
-                    actionLabel: 'View Routine'
-                }
-            ]
-        }
-    }
+const systemIcons: Record<string, React.ReactNode> = {
+    'Modern Medicine': <DrugIcon />,
+    'Ayurveda': <LeafIcon />,
+    'Homeopathy': <DropIcon />,
+    'Lifestyle': <BodyIcon />,
 };
 
-// --- Components ---
+const systemKeys: Record<TreatmentSystem, string> = {
+    'Modern Medicine': 'allopathy',
+    'Ayurveda': 'ayurveda',
+    'Homeopathy': 'homeopathy',
+    'Lifestyle': 'lifestyle',
+};
 
-const SeverityChip = ({ level }: { level: SeverityLevel }) => {
-    let color: 'success' | 'warning' | 'error' | 'default' | 'info' = 'default';
-    let label = level;
+const priorityColor: Record<string, 'error' | 'warning' | 'success' | 'default'> = {
+    high: 'error',
+    medium: 'warning',
+    low: 'success',
+};
 
-    if (level.includes('Mild')) color = 'success';
-    else if (level.includes('Moderate')) color = 'warning';
-    else if (level.includes('Severe')) color = 'error';
-    else if (level === 'General') color = 'info';
+// ---- Sub-components ----
+
+/** Renders a plain text block, splitting on newlines into paragraphs */
+function TextContent({ text }: { text: string }) {
+    const paragraphs = text.split(/\n+/).filter(Boolean);
+    return (
+        <Stack spacing={1.5}>
+            {paragraphs.map((p, i) => (
+                <Typography key={i} variant="body2" color="text.secondary" sx={{ lineHeight: 1.8 }}>
+                    {p}
+                </Typography>
+            ))}
+        </Stack>
+    );
+}
+
+/** Renders a list of items with a bullet */
+function BulletList({ items }: { items: string[] }) {
+    return (
+        <List dense disablePadding>
+            {items.map((item, i) => (
+                <ListItem key={i} disableGutters sx={{ alignItems: 'flex-start', py: 0.25 }}>
+                    <ListItemIcon sx={{ minWidth: 24, mt: 0.5 }}>
+                        <DotIcon sx={{ fontSize: 8, color: 'primary.main' }} />
+                    </ListItemIcon>
+                    <ListItemText
+                        primary={item}
+                        primaryTypographyProps={{ variant: 'body2', color: 'text.secondary', lineHeight: 1.7 }}
+                    />
+                </ListItem>
+            ))}
+        </List>
+    );
+}
+
+/** Section card with icon, title, and children */
+function SectionCard({
+    icon,
+    title,
+    color = '#f5f5f5',
+    children,
+}: {
+    icon: React.ReactNode;
+    title: string;
+    color?: string;
+    children: React.ReactNode;
+}) {
+    return (
+        <Card elevation={0} sx={{ border: '1px solid #e0e0e0', borderRadius: 2, overflow: 'hidden' }}>
+            <Box sx={{ px: 2.5, py: 1.5, bgcolor: color, display: 'flex', alignItems: 'center', gap: 1 }}>
+                {icon}
+                <Typography variant="subtitle1" fontWeight={700}>{title}</Typography>
+            </Box>
+            <CardContent sx={{ pt: 2 }}>{children}</CardContent>
+        </Card>
+    );
+}
+
+/** Renders the Lifestyle structured JSON beautifully */
+function LifestyleContent({ data }: { data: any }) {
+    if (!data) return null;
+
+    // If it's just a text plan (fallback from LLM)
+    if (data.text_plan) return <TextContent text={data.text_plan} />;
+    // If it's a plain string
+    if (typeof data === 'string') return <TextContent text={data} />;
+    // If it's the raw treatment_info string
+    if (data.treatment_info && typeof data.treatment_info === 'string') {
+        return <TextContent text={data.treatment_info} />;
+    }
+
+    const {
+        diet_plan = [],
+        exercise_plan = [],
+        stress_management = [],
+        sleep_hygiene = [],
+        immediate_actions = [],
+        contraindications = [],
+        personalization_notes,
+    } = data;
 
     return (
-        <Chip
-            label={label}
-            size="small"
-            color={color}
-            variant={level.includes('/') ? 'outlined' : 'filled'}
-            sx={{ fontWeight: 500 }}
-        />
+        <Stack spacing={3}>
+            {/* Immediate Actions */}
+            {immediate_actions.length > 0 && (
+                <SectionCard icon={<UrgentIcon color="error" />} title="Start Today" color="#fff3e0">
+                    <BulletList items={immediate_actions} />
+                </SectionCard>
+            )}
+
+            {/* Diet Plan */}
+            {diet_plan.length > 0 && (
+                <SectionCard icon={<DietIcon color="success" />} title="Diet & Nutrition" color="#f1f8e9">
+                    <Stack spacing={1.5}>
+                        {diet_plan.map((item: any, i: number) => (
+                            <Box key={i} sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+                                <CheckIcon sx={{ fontSize: 18, color: 'success.main', mt: 0.3, flexShrink: 0 }} />
+                                <Box>
+                                    <Typography variant="body2" fontWeight={600} color="text.primary">
+                                        {item.recommendation}
+                                    </Typography>
+                                    {item.evidence && (
+                                        <Typography variant="caption" color="text.secondary">
+                                            {item.evidence}
+                                        </Typography>
+                                    )}
+                                </Box>
+                                {item.priority && (
+                                    <Chip
+                                        label={item.priority}
+                                        size="small"
+                                        color={priorityColor[item.priority?.toLowerCase()] || 'default'}
+                                        sx={{ ml: 'auto', flexShrink: 0, height: 20, fontSize: '0.65rem' }}
+                                    />
+                                )}
+                            </Box>
+                        ))}
+                    </Stack>
+                </SectionCard>
+            )}
+
+            {/* Exercise Plan */}
+            {exercise_plan.length > 0 && (
+                <SectionCard icon={<ExerciseIcon color="primary" />} title="Physical Activity" color="#e3f2fd">
+                    <Stack spacing={1.5}>
+                        {exercise_plan.map((item: any, i: number) => (
+                            <Box key={i} sx={{ p: 1.5, bgcolor: '#f8f9fa', borderRadius: 1.5 }}>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                                    <Typography variant="body2" fontWeight={600}>{item.activity}</Typography>
+                                    {item.priority && (
+                                        <Chip
+                                            label={item.priority}
+                                            size="small"
+                                            color={priorityColor[item.priority?.toLowerCase()] || 'default'}
+                                            sx={{ height: 20, fontSize: '0.65rem' }}
+                                        />
+                                    )}
+                                </Box>
+                                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                                    {item.frequency && (
+                                        <Typography variant="caption" color="text.secondary">
+                                            📅 {item.frequency}
+                                        </Typography>
+                                    )}
+                                    {item.duration && (
+                                        <Typography variant="caption" color="text.secondary">
+                                            ⏱ {item.duration}
+                                        </Typography>
+                                    )}
+                                </Box>
+                                {item.safety_notes && (
+                                    <Typography variant="caption" color="warning.dark" sx={{ display: 'block', mt: 0.5 }}>
+                                        ⚠ {item.safety_notes}
+                                    </Typography>
+                                )}
+                            </Box>
+                        ))}
+                    </Stack>
+                </SectionCard>
+            )}
+
+            {/* Stress Management */}
+            {stress_management.length > 0 && (
+                <SectionCard icon={<StressIcon color="secondary" />} title="Stress Management" color="#f3e5f5">
+                    <Stack spacing={1.5}>
+                        {stress_management.map((item: any, i: number) => (
+                            <Box key={i}>
+                                <Typography variant="body2" fontWeight={600} color="text.primary">
+                                    {item.technique}
+                                </Typography>
+                                {item.how_to && (
+                                    <Typography variant="caption" color="text.secondary" display="block">
+                                        {item.how_to}
+                                    </Typography>
+                                )}
+                                {item.evidence && (
+                                    <Typography variant="caption" color="text.secondary" fontStyle="italic">
+                                        {item.evidence}
+                                    </Typography>
+                                )}
+                            </Box>
+                        ))}
+                    </Stack>
+                </SectionCard>
+            )}
+
+            {/* Sleep Hygiene */}
+            {sleep_hygiene.length > 0 && (
+                <SectionCard icon={<SleepIcon sx={{ color: '#5c6bc0' }} />} title="Sleep Hygiene" color="#e8eaf6">
+                    <Stack spacing={1}>
+                        {sleep_hygiene.map((item: any, i: number) => (
+                            <Box key={i} sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+                                <CheckIcon sx={{ fontSize: 16, color: '#5c6bc0', mt: 0.4, flexShrink: 0 }} />
+                                <Box>
+                                    <Typography variant="body2" fontWeight={600}>{item.tip}</Typography>
+                                    {item.rationale && (
+                                        <Typography variant="caption" color="text.secondary">{item.rationale}</Typography>
+                                    )}
+                                </Box>
+                            </Box>
+                        ))}
+                    </Stack>
+                </SectionCard>
+            )}
+
+            {/* Contraindications */}
+            {contraindications.length > 0 && (
+                <SectionCard icon={<BlockIcon color="error" />} title="Avoid These" color="#ffebee">
+                    <BulletList items={contraindications} />
+                </SectionCard>
+            )}
+
+            {/* Personalization note */}
+            {personalization_notes && (
+                <Paper sx={{ p: 2, bgcolor: '#e8f5e9', border: '1px solid #c8e6c9', borderRadius: 2 }}>
+                    <Typography variant="caption" color="text.secondary" fontStyle="italic">
+                        💡 {personalization_notes}
+                    </Typography>
+                </Paper>
+            )}
+        </Stack>
     );
-};
+}
+
+/** Renders allopathy / ayurveda / homeopathy treatment text */
+function TreatmentTextContent({ data }: { data: any }) {
+    if (!data) return null;
+
+    const text: string =
+        typeof data === 'string'
+            ? data
+            : data.treatment_info || data.guidelines || '';
+
+    if (!text) return null;
+
+    // Split into numbered sections if present (e.g. "1. ...\n2. ...")
+    const lines = text.split(/\n+/).filter(Boolean);
+
+    return (
+        <Stack spacing={1.5}>
+            {lines.map((line, i) => {
+                const isHeading = /^#+\s|^\d+\.\s/.test(line);
+                return (
+                    <Typography
+                        key={i}
+                        variant={isHeading ? 'subtitle2' : 'body2'}
+                        fontWeight={isHeading ? 700 : 400}
+                        color={isHeading ? 'text.primary' : 'text.secondary'}
+                        sx={{ lineHeight: 1.8 }}
+                    >
+                        {line.replace(/^#+\s/, '')}
+                    </Typography>
+                );
+            })}
+        </Stack>
+    );
+}
+
+/** Sources list */
+function SourcesList({ sources }: { sources: any[] }) {
+    if (!sources?.length) return null;
+    return (
+        <Box mt={2}>
+            <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" mb={0.5}>
+                Sources
+            </Typography>
+            <Stack spacing={0.5}>
+                {sources.slice(0, 5).map((s: any, i: number) => (
+                    <Box key={i} display="flex" alignItems="center" gap={0.5}>
+                        <LinkIcon sx={{ fontSize: 12, color: 'primary.main' }} />
+                        {s.url ? (
+                            <Typography
+                                component="a"
+                                href={s.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                variant="caption"
+                                color="primary.main"
+                                sx={{ textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+                            >
+                                {s.title || s.source || s.url}
+                            </Typography>
+                        ) : (
+                            <Typography variant="caption" color="text.secondary">
+                                {s.title || s.source || `Source ${i + 1}`}
+                            </Typography>
+                        )}
+                    </Box>
+                ))}
+            </Stack>
+        </Box>
+    );
+}
+
+// ---- Main Component ----
 
 export default function TreatmentExplorationPage() {
     const { diseaseId } = useParams<{ diseaseId: string }>();
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState(0);
-    const [selectedAction, setSelectedAction] = useState<{ type: string; treatment: string; disease: string } | null>(null);
 
-    // Normalize disease name for lookup (handle URL-friendly formats)
-    const diseaseName = diseaseId || 'Migraine';
-    const normalizedDiseaseName = diseaseName
+    const [activeTab, setActiveTab] = useState(0);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [data, setData] = useState<TreatmentData | null>(null);
+    const [guidelinesOpen, setGuidelinesOpen] = useState(false);
+
+    const diseaseName = (diseaseId || '')
         .split('-')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
         .join(' ');
-    
-    // Check if disease data exists
-    const data = MOCK_DATA[normalizedDiseaseName];
-    const diseaseDataAvailable = !!data;
+
+    const fetchTreatment = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const response = await apiService.client.post('/api/treatment/explore/', {
+                disease: diseaseName,
+                system: 'all',
+                include_evidence: true,
+            });
+            const result = response.data;
+            if (result.success && result.data) {
+                setData(result.data);
+            } else {
+                setError(result.message || 'No treatment data returned.');
+            }
+        } catch (err: any) {
+            setError(
+                err.response?.data?.message ||
+                err.message ||
+                'Failed to load treatment information.'
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => { fetchTreatment(); }, [diseaseId]);
 
     const systems: TreatmentSystem[] = ['Modern Medicine', 'Ayurveda', 'Homeopathy', 'Lifestyle'];
     const currentSystem = systems[activeTab];
-    const treatments = data?.systems[currentSystem] || [];
+    const currentKey = systemKeys[currentSystem];
 
-    const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
-        setActiveTab(newValue);
+    const getSystemData = () => {
+        if (!data) return null;
+        if (data.systems) return data.systems[currentKey] || null;
+        return data;
     };
 
-    const handleActionClick = (actionType: string, treatmentTitle: string) => {
-        // For MVP, open a simple dialog/alert showing the action
-        setSelectedAction({
-            type: actionType,
-            treatment: treatmentTitle,
-            disease: normalizedDiseaseName
-        });
-    };
-
-    const handleCloseDialog = () => {
-        setSelectedAction(null);
-    };
+    const systemData = getSystemData();
+    const guidelines = data?.clinical_guidelines;
+    const evidenceAnalysis = data?.evidence_analysis;
+    const sources = systemData?.sources || data?.sources || [];
 
     return (
         <Box sx={{ minHeight: '100vh', bgcolor: '#f8f9fa', pb: 8 }}>
-            {/* Header / Nav */}
-            <Paper elevation={0} sx={{ borderBottom: 1, borderColor: 'divider', px: 3, py: 2, bgcolor: 'white' }}>
-                <Container maxWidth="lg">
-                    <Box display="flex" alignItems="center" gap={1}>
-                        {/* Simple Header based on design */}
-                        <MonitorHeartIcon color="primary" />
-                        <Typography variant="h6" fontWeight="bold" color="text.primary">
-                            Health Intelligence
-                        </Typography>
-                        <Box flexGrow={1} />
-                        {/* Placeholder for Search/User - simplistic for now */}
-                    </Box>
-                </Container>
-            </Paper>
-
             <Container maxWidth="lg" sx={{ mt: 4 }}>
-                {/* Back Button */}
                 <Button
                     startIcon={<ArrowBackIcon />}
                     onClick={() => navigate(-1)}
@@ -491,201 +451,180 @@ export default function TreatmentExplorationPage() {
                     Back to Diseases
                 </Button>
 
-                {/* Disclaimer Banner */}
                 <Alert
                     severity="warning"
                     icon={<InfoIcon fontSize="inherit" />}
                     sx={{ mb: 4, bgcolor: '#fff8e1', color: '#5d4037', border: '1px solid #ffe0b2' }}
-                    action={
-                        <Button color="inherit" size="small" sx={{ textTransform: 'none', bgcolor: 'white' }}>
-                            Dismiss
-                        </Button>
-                    }
                 >
                     <Typography variant="subtitle2" fontWeight="bold">For Informational Use Only</Typography>
                     <Typography variant="body2">
-                        This overview is generated by AI to assist in exploration. It is not a medical prescription or diagnosis.
-                        Always consult a qualified healthcare provider.
+                        This overview is generated by AI to assist in exploration. It is not a medical
+                        prescription or diagnosis. Always consult a qualified healthcare provider.
                     </Typography>
                 </Alert>
 
-                {/* Title Section */}
-                <Typography variant="h4" component="h1" fontWeight="bold" gutterBottom>
-                    Treatment Landscape: {normalizedDiseaseName}
+                <Typography variant="h4" fontWeight="bold" gutterBottom>
+                    Treatment Landscape: {diseaseName}
                 </Typography>
-                <Typography variant="body1" color="text.secondary" sx={{ maxWidth: '800px', mb: 4 }}>
-                    {data?.description || 'Exploring treatment options for this condition.'}
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+                    Explore evidence-based treatment approaches across multiple medical systems.
                 </Typography>
 
-                {/* Fallback UI for missing disease data */}
-                {!diseaseDataAvailable && (
-                    <Alert
-                        severity="info"
-                        icon={<InfoIcon fontSize="inherit" />}
-                        sx={{ mb: 4, bgcolor: '#e3f2fd', color: '#1565c0', border: '1px solid #90caf9' }}
-                    >
-                        <Typography variant="subtitle2" fontWeight="bold">Treatment Data Not Available</Typography>
-                        <Typography variant="body2">
-                            Treatment information for {normalizedDiseaseName} is not yet available in our system. 
-                            Please check back later or consult with a healthcare provider for treatment options.
+                {loading && (
+                    <Box display="flex" alignItems="center" gap={2} mt={4}>
+                        <CircularProgress size={28} />
+                        <Typography color="text.secondary">
+                            Fetching treatment information for {diseaseName}…
                         </Typography>
-                        <Button 
-                            variant="outlined" 
-                            size="small" 
-                            onClick={() => navigate(-1)}
-                            sx={{ mt: 2, textTransform: 'none', borderColor: '#1565c0', color: '#1565c0' }}
-                        >
-                            Go Back
-                        </Button>
+                    </Box>
+                )}
+
+                {!loading && error && (
+                    <Alert
+                        severity="error"
+                        sx={{ mt: 2 }}
+                        action={
+                            <Button color="inherit" size="small" startIcon={<RefreshIcon />} onClick={fetchTreatment}>
+                                Retry
+                            </Button>
+                        }
+                    >
+                        {error}
                     </Alert>
                 )}
 
-                {/* Only show tabs and content if disease data is available */}
-                {diseaseDataAvailable && (
+                {!loading && !error && data && (
                     <>
-                        {/* Tabs */}
-                        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+                        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
                             <Tabs
                                 value={activeTab}
-                                onChange={handleTabChange}
+                                onChange={(_, v) => setActiveTab(v)}
                                 textColor="primary"
                                 indicatorColor="primary"
                                 variant="scrollable"
                                 scrollButtons="auto"
                             >
-                                <Tab
-                                    label="Modern Medicine"
-                                    icon={<DrugIcon />}
-                                    iconPosition="start"
-                                    sx={{ textTransform: 'none', fontWeight: 600 }}
-                                />
-                                <Tab
-                                    label="Ayurveda"
-                                    icon={<LeafIcon />}
-                                    iconPosition="start"
-                                    sx={{ textTransform: 'none', fontWeight: 600 }}
-                                />
-                                <Tab
-                                    label="Homeopathy"
-                                    icon={<DropIcon />}
-                                    iconPosition="start"
-                                    sx={{ textTransform: 'none', fontWeight: 600 }}
-                                />
-                                <Tab
-                                    label="Lifestyle"
-                                    icon={<BodyIcon />}
-                                    iconPosition="start"
-                                    sx={{ textTransform: 'none', fontWeight: 600 }}
-                                />
+                                {systems.map((sys) => (
+                                    <Tab
+                                        key={sys}
+                                        label={sys}
+                                        icon={systemIcons[sys] as React.ReactElement}
+                                        iconPosition="start"
+                                        sx={{ textTransform: 'none', fontWeight: 600 }}
+                                    />
+                                ))}
                             </Tabs>
                         </Box>
 
-                        {/* Active View & Legend */}
-                        <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2} mb={3}>
-                            <Chip label={`Active View: ${currentSystem}`} color="primary" variant="outlined" sx={{ bgcolor: '#e3f2fd', border: 'none' }} />
-
-                            <Stack direction="row" spacing={2} alignItems="center">
-                                <Typography variant="caption" color="text.secondary">SEVERITY INDICATORS:</Typography>
-                                <Box display="flex" alignItems="center" gap={0.5}>
-                                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'success.main' }} />
-                                    <Typography variant="caption">Mild</Typography>
-                                </Box>
-                                <Box display="flex" alignItems="center" gap={0.5}>
-                                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'warning.main' }} />
-                                    <Typography variant="caption">Moderate</Typography>
-                                </Box>
-                                <Box display="flex" alignItems="center" gap={0.5}>
-                                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'error.main' }} />
-                                    <Typography variant="caption">Severe</Typography>
-                                </Box>
-                            </Stack>
-                        </Box>
-
-                        {/* Content Grid */}
                         <Grid container spacing={3}>
-                            {treatments.map((item) => (
-                                <Grid size={{ xs: 12, md: 6 }} key={item.id}>
-                                    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
-                                        <CardContent sx={{ flexGrow: 1, p: 3 }}>
-                                            <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
-                                                <Box
-                                                    sx={{
-                                                        p: 1,
-                                                        borderRadius: 2,
-                                                        bgcolor: activeTab === 0 ? 'primary.light' : activeTab === 1 ? 'success.light' : activeTab === 2 ? 'info.light' : 'grey.200',
-                                                        color: 'white',
-                                                        display: 'flex'
-                                                    }}
-                                                >
-                                                    {/* Clone icon to enforce color if needed, or rely on inherit */}
-                                                    {item.icon}
-                                                </Box>
-                                                <SeverityChip level={item.severity} />
-                                            </Box>
-
-                                            <Typography variant="h6" fontWeight="bold" gutterBottom>
-                                                {item.title}
+                            {/* Main content */}
+                            <Grid size={{ xs: 12, md: 8 }}>
+                                <Card elevation={0} sx={{ border: '1px solid #e0e0e0', borderRadius: 2 }}>
+                                    <CardContent sx={{ p: 3 }}>
+                                        <Box display="flex" alignItems="center" gap={1} mb={2}>
+                                            {systemIcons[currentSystem]}
+                                            <Typography variant="h6" fontWeight="bold">
+                                                {currentSystem}
                                             </Typography>
+                                        </Box>
+                                        <Divider sx={{ mb: 3 }} />
 
-                                            <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                                                {item.description}
+                                        {systemData ? (
+                                            currentSystem === 'Lifestyle'
+                                                ? <LifestyleContent data={systemData} />
+                                                : <TreatmentTextContent data={systemData} />
+                                        ) : (
+                                            <Typography color="text.secondary" fontStyle="italic">
+                                                No {currentSystem} information available for {diseaseName}.
                                             </Typography>
-                                        </CardContent>
-
-                                        {item.actionLabel && (
-                                            <Box sx={{ p: 2, pt: 0 }}>
-                                                <Divider sx={{ mb: 2 }} />
-                                                <Button
-                                                    startIcon={<BookIcon />}
-                                                    size="small"
-                                                    onClick={() => handleActionClick(item.actionLabel!, item.title)}
-                                                    sx={{ textTransform: 'none' }}
-                                                >
-                                                    {item.actionLabel}
-                                                </Button>
-                                            </Box>
                                         )}
-                                    </Card>
-                                </Grid>
-                            ))}
-                        </Grid>
 
-                        {/* Footer CTA */}
-                        <Box sx={{ mt: 8, textAlign: 'center', pb: 4 }}>
-                            <Divider sx={{ mb: 4 }} />
-                            <Typography variant="h6" gutterBottom fontWeight="bold">Explore Specialist Options</Typography>
-                            <Typography variant="body2" color="text.secondary" gutterBottom>
-                                Would you like to find a specialist who focuses on integrative approaches for {normalizedDiseaseName}?
-                            </Typography>
-                            <Button variant="contained" size="large" sx={{ mt: 2, borderRadius: 50, px: 4, textTransform: 'none', fontWeight: 'bold' }}>
-                                Find a Specialist
-                            </Button>
-                        </Box>
+                                        {sources.length > 0 && (
+                                            <>
+                                                <Divider sx={{ mt: 3, mb: 1 }} />
+                                                <SourcesList sources={sources} />
+                                            </>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            </Grid>
+
+                            {/* Sidebar */}
+                            <Grid size={{ xs: 12, md: 4 }}>
+                                <Stack spacing={2}>
+                                    {/* Clinical Guidelines */}
+                                    {guidelines && (
+                                        <Card elevation={0} sx={{ border: '1px solid #e0e0e0', borderRadius: 2 }}>
+                                            <CardContent>
+                                                <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                                                    📋 Clinical Guidelines
+                                                </Typography>
+                                                {typeof guidelines.guidelines === 'string' && guidelines.guidelines ? (
+                                                    <>
+                                                        <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+                                                            {guidelines.guidelines.slice(0, 320)}
+                                                            {guidelines.guidelines.length > 320 ? '…' : ''}
+                                                        </Typography>
+                                                        {guidelines.guidelines.length > 320 && (
+                                                            <Button
+                                                                size="small"
+                                                                onClick={() => setGuidelinesOpen(true)}
+                                                                sx={{ textTransform: 'none', p: 0, mt: 1 }}
+                                                            >
+                                                                Read full guidelines
+                                                            </Button>
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        Guidelines available from authoritative sources.
+                                                    </Typography>
+                                                )}
+                                                {guidelines.sources && guidelines.sources.length > 0 && (
+                                                    <Typography variant="caption" color="text.secondary" display="block" mt={1}>
+                                                        {guidelines.sources.length} source(s) referenced
+                                                    </Typography>
+                                                )}
+                                            </CardContent>
+                                        </Card>
+                                    )}
+
+                                    {/* Evidence Analysis */}
+                                    {evidenceAnalysis && (
+                                        <Card elevation={0} sx={{ border: '1px solid #e0e0e0', borderRadius: 2 }}>
+                                            <CardContent>
+                                                <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                                                    🔬 Evidence Analysis
+                                                </Typography>
+                                                <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+                                                    {evidenceAnalysis.slice(0, 400)}
+                                                    {evidenceAnalysis.length > 400 ? '…' : ''}
+                                                </Typography>
+                                            </CardContent>
+                                        </Card>
+                                    )}
+
+                                    {/* Disclaimer */}
+                                    <Paper sx={{ p: 2, bgcolor: '#fff3e0', border: '1px solid #ffe0b2', borderRadius: 2 }}>
+                                        <Typography variant="caption" color="#e65100" sx={{ lineHeight: 1.6, display: 'block' }}>
+                                            ⚕️ {data.disclaimer || 'Always consult a qualified healthcare professional before starting any treatment.'}
+                                        </Typography>
+                                    </Paper>
+                                </Stack>
+                            </Grid>
+                        </Grid>
                     </>
                 )}
             </Container>
 
-            {/* Action Dialog */}
-            <Dialog open={!!selectedAction} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-                <DialogTitle>
-                    {selectedAction?.type}
-                </DialogTitle>
-                <DialogContent>
-                    <Typography variant="body1" gutterBottom>
-                        <strong>Treatment:</strong> {selectedAction?.treatment}
-                    </Typography>
-                    <Typography variant="body1" gutterBottom>
-                        <strong>Disease:</strong> {selectedAction?.disease}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                        This feature would display detailed information about {selectedAction?.type.toLowerCase()} for {selectedAction?.treatment}.
-                        In a full implementation, this would show comprehensive clinical data, research studies, or detailed protocols.
-                    </Typography>
+            {/* Full guidelines dialog */}
+            <Dialog open={guidelinesOpen} onClose={() => setGuidelinesOpen(false)} maxWidth="md" fullWidth>
+                <DialogTitle>Clinical Guidelines — {diseaseName}</DialogTitle>
+                <DialogContent dividers>
+                    <TreatmentTextContent data={guidelines?.guidelines} />
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={handleCloseDialog} variant="contained">
-                        Close
-                    </Button>
+                    <Button onClick={() => setGuidelinesOpen(false)}>Close</Button>
                 </DialogActions>
             </Dialog>
         </Box>

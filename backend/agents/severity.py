@@ -367,6 +367,8 @@ class SeverityScoringAgent(EnhancedBaseHealthAgent):
             }
             
             # Get AI assessment
+            if not self.severity_assessment_chain:
+                return None
             ai_assessment = self.severity_assessment_chain.invoke(assessment_input)
             
             return ai_assessment.strip()
@@ -485,6 +487,8 @@ class SeverityScoringAgent(EnhancedBaseHealthAgent):
             }
             
             # Get escalation decision
+            if not self.escalation_decision_chain:
+                return "MONITOR: LLM unavailable"
             decision = self.escalation_decision_chain.invoke(decision_input)
             
             return decision.strip()

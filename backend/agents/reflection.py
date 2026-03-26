@@ -270,6 +270,10 @@ Provide your quality assessment as valid JSON only.""")
             Critique dictionary or None if failed
         """
         try:
+            if not self.critique_chain:
+                logger_reflection.warning("critique_chain is None (LLM unavailable)")
+                return None
+
             # Execute LangChain chain
             result = self.critique_chain.invoke({
                 "disease": disease,
@@ -326,6 +330,8 @@ Provide your quality assessment as valid JSON only.""")
             Quality assessment dictionary with scores and confidence
         """
         try:
+            if not self.quality_assessment_chain:
+                return {"quality_score": 5, "confidence": 0.5, "strengths": [], "weaknesses": ["LLM unavailable"]}
             # Execute quality assessment chain
             result = self.quality_assessment_chain.invoke({
                 "original_assessment": json.dumps(original_assessment, indent=2)[:500],

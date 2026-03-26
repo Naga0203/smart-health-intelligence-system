@@ -335,6 +335,8 @@ class LangChainValidationAgent(EnhancedBaseHealthAgent):
                 return None
             
             # Get enhanced feedback from LangChain
+            if not self.validation_feedback_chain:
+                return "; ".join(issues) if issues else None
             enhanced_feedback = self.validation_feedback_chain.invoke(
                 {"validation_issues": "; ".join(issues)}
             )

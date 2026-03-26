@@ -189,8 +189,10 @@ class APIService {
   /**
    * POST /api/health/analyze/ - Authenticated health analysis
    */
-  async analyzeHealth(data) {
-    const response = await this.client.post('/api/health/analyze/', data);
+  async analyzeHealth(data: any) {
+    const response = await this.client.post('/api/health/analyze/', data, {
+      timeout: 120000, // 2 min — AI pipeline
+    });
     return response.data;
   }
 
@@ -309,6 +311,8 @@ class APIService {
 
   /**
    * POST /api/predict/ - Full disease prediction (Orchestrator)
+   * Returns job_id + status:"pending" when backend responds HTTP 202 (async pipeline),
+   * or the full result directly when backend responds HTTP 200 (sync / legacy).
    */
   async predict(
     symptoms: string[] | string,
@@ -322,7 +326,7 @@ class APIService {
     age?: number,
     gender?: string,
     additionalInfo?: any
-  ) {
+  ): Promise<{ job_id: string; status: 'pending' } | any> {
     const payload: any = {
       symptoms,
       age,
@@ -347,7 +351,32 @@ class APIService {
       payload.data_sources = dataSources;
     }
 
-    const response = await this.client.post('/api/predict/', payload);
+    const response = await this.client.post('/api/predict/', payload, {
+      timeout: 10000, // Short timeout — expect 202 quickly; polling handles the rest
+      // Allow 202 Accepted to pass through without error
+      validateStatus: (status) => (status >= 200 && status < 300) || status === 202,
+    });
+
+    // HTTP 202 → async job accepted; return job_id for polling
+    if (response.status === 202) {
+      return response.data as { job_id: string; status: 'pending' };
+    }
+
+    // HTTP 200 → synchronous result (legacy / fallback)
+    return response.data;
+  }
+
+  /**
+   * GET /api/jobs/{jobId}/status/ - Poll async job status
+   * Returns { status: 'pending'|'processing'|'complete'|'error', progress: number, result?: any }
+   */
+  async pollJobStatus(jobId: string): Promise<{
+    status: 'pending' | 'processing' | 'complete' | 'error';
+    progress: number;
+    result?: any;
+    error?: string;
+  }> {
+    const response = await this.client.get(`/api/jobs/${jobId}/status/`);
     return response.data;
   }
 

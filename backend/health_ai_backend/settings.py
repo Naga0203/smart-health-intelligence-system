@@ -117,6 +117,9 @@ FIREBASE_STORAGE_BUCKET = config('FIREBASE_STORAGE_BUCKET', default='')
 # Google Gemini Configuration
 GEMINI_API_KEY = config('GEMINI_API_KEY', default='')
 GEMINI_MODEL = config('GEMINI_MODEL', default='gemini-1.5-flash')
+GEMINI_REQUEST_TIMEOUT = config('GEMINI_REQUEST_TIMEOUT', default=60, cast=int)
+MAX_PREDICTIONS = config('MAX_PREDICTIONS', default=3, cast=int)
+AGENT_TIMEOUT_SECONDS = config('AGENT_TIMEOUT_SECONDS', default=30, cast=int)
 
 # Medical Report Upload Feature Flags
 ENABLE_REPORT_UPLOAD = config('ENABLE_REPORT_UPLOAD', default=True, cast=bool)
@@ -273,6 +276,12 @@ CORS_ALLOWED_ORIGINS = config(
 )
 
 CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = config(
+    'CSRF_TRUSTED_ORIGINS',
+    default='http://localhost:3000,http://127.0.0.1:3000',
+    cast=lambda v: [s.strip() for s in v.split(',')]
+)
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators

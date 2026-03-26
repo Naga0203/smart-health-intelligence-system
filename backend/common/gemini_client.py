@@ -59,7 +59,7 @@ class LangChainGeminiClient:
             logger.warning(f"Failed to retrieve API key via manager: {e}, falling back to settings")
             self.api_key = settings.GEMINI_API_KEY
         
-        self.model_name = "gemini-2.5-flash"
+        self.model_name = getattr(settings, 'GEMINI_MODEL', 'gemini-2.0-flash')
         self.llm = None
         self.last_request_time = None
         self.min_request_interval = 1.0  # Minimum seconds between requests
@@ -74,7 +74,7 @@ class LangChainGeminiClient:
         self.circuit_breaker_cooldown = 60  # seconds
         
         # Timeout configuration (Requirement 4.3)
-        self.request_timeout = 5  # seconds
+        self.request_timeout = int(getattr(settings, 'GEMINI_REQUEST_TIMEOUT', 60))
         
         # Fallback explanations for API failures
         self.fallback_explanations = {
@@ -91,25 +91,21 @@ class LangChainGeminiClient:
             if not self.api_key:
                 logger.warning("Gemini API key not provided - using fallback explanations only")
                 return
-            
+
             # Initialize LangChain ChatGoogleGenerativeAI
+            # Note: safety_settings omitted — string-key format is deprecated in newer
+            # langchain-google-genai versions and causes silent init failures.
             self.llm = ChatGoogleGenerativeAI(
                 model=self.model_name,
                 google_api_key=self.api_key,
-                temperature=0.3,  # Lower temperature for more consistent explanations
-                max_output_tokens=500,  # Limit response length
+                temperature=0.3,
+                max_output_tokens=4096,
                 top_p=0.8,
                 top_k=40,
-                safety_settings={
-                    "HARM_CATEGORY_HARASSMENT": "BLOCK_MEDIUM_AND_ABOVE",
-                    "HARM_CATEGORY_HATE_SPEECH": "BLOCK_MEDIUM_AND_ABOVE", 
-                    "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_MEDIUM_AND_ABOVE",
-                    "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_MEDIUM_AND_ABOVE",
-                }
             )
-            
-            logger.info("LangChain Gemini client initialized successfully")
-            
+
+            logger.info(f"LangChain Gemini client initialized successfully (model={self.model_name})")
+
         except Exception as e:
             logger.error(f"Failed to initialize LangChain Gemini client: {str(e)}")
             self.llm = None

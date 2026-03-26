@@ -55,6 +55,7 @@ class FirebaseDatabase:
     
     def _initialize_firebase(self):
         """Initialize Firebase Admin SDK."""
+        self.db = None
         try:
             # Check if already initialized
             if firebase_admin._apps:
@@ -68,14 +69,13 @@ class FirebaseDatabase:
             
             if not cred_file.exists():
                 logger.warning(f"Firebase credentials not found at: {cred_path}")
-                logger.warning("Using default credentials (for development only)")
-                # Initialize with default credentials (for local development)
-                firebase_admin.initialize_app()
-            else:
-                # Initialize with service account
-                cred = credentials.Certificate(str(cred_file))
-                firebase_admin.initialize_app(cred)
-                logger.info(f"Firebase initialized with credentials from: {cred_path}")
+                logger.warning("Firebase unavailable — running without Firestore (offline/dev mode)")
+                return
+            
+            # Initialize with service account
+            cred = credentials.Certificate(str(cred_file))
+            firebase_admin.initialize_app(cred)
+            logger.info(f"Firebase initialized with credentials from: {cred_path}")
             
             # Get Firestore client
             self.db = firestore.client()
@@ -86,8 +86,8 @@ class FirebaseDatabase:
             logger.info("Firebase Firestore connected successfully")
             
         except Exception as e:
-            logger.error(f"Failed to initialize Firebase: {e}")
-            raise
+            logger.warning(f"Firebase initialization failed (offline/dev mode): {e}")
+            self.db = None
     
     def _ensure_collections(self):
         """Ensure all required collections exist."""

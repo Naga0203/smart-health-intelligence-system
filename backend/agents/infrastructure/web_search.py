@@ -7,11 +7,17 @@ rate limiting, and result caching.
 Requirements: 2.1, 2.5, 2.7
 """
 
+import os
 import time
 import logging
+import concurrent.futures
+import xml.etree.ElementTree as ET
 from typing import List, Dict, Any, Optional
 from urllib.parse import urlparse
 from datetime import datetime, timedelta
+
+import requests
+
 from .models import SearchResult
 from .config import SearchConfig
 
@@ -250,6 +256,387 @@ class SearchCache:
         logger.info("Search cache cleared")
 
 
+class PubMedClient:
+    """
+    Client for querying the NCBI PubMed E-utilities API.
+
+    Retrieves peer-reviewed abstracts via a two-step esearch → efetch flow.
+
+    Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 8.4, 9.1, 9.3
+    """
+
+    BASE_ESEARCH = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+    BASE_EFETCH = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
+    MIN_DELAY_S = 0.334  # 3 req/sec NCBI unauthenticated limit
+
+    def __init__(self, config: SearchConfig):
+        """
+        Initialize PubMedClient.
+
+        Args:
+            config: Search configuration
+        """
+        self.config = config
+
+    def search(self, query: str) -> List[SearchResult]:
+        """
+        Search PubMed for peer-reviewed abstracts.
+
+        Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 8.4
+
+        Args:
+            query: Search query string
+
+        Returns:
+            List of SearchResult objects, or [] on error/disabled
+        """
+        if not self.config.pubmed_enabled:
+            return []
+
+        try:
+            # Step 1: esearch to get PMIDs
+            esearch_params = {
+                "db": "pubmed",
+                "term": query,
+                "retmax": self.config.pubmed_max_results,
+                "retmode": "json",
+            }
+            esearch_resp = requests.get(
+                self.BASE_ESEARCH, params=esearch_params, timeout=self.config.timeout
+            )
+            if esearch_resp.status_code != 200:
+                logger.warning(
+                    f"PubMed esearch returned HTTP {esearch_resp.status_code} for query: {query}"
+                )
+                return []
+
+            pmids = esearch_resp.json().get("esearchresult", {}).get("idlist", [])
+            if not pmids:
+                return []
+
+            # Enforce minimum inter-request delay (NCBI rate limit)
+            time.sleep(self.MIN_DELAY_S)
+
+            # Step 2: efetch to retrieve article XML
+            results = self._fetch_articles(pmids)
+
+            # Cap at configured maximum
+            return results[: self.config.pubmed_max_results]
+
+        except requests.RequestException as exc:
+            logger.warning(f"PubMed network error for query '{query}': {exc}")
+            return []
+
+    def _fetch_articles(self, pmids: List[str]) -> List[SearchResult]:
+        """
+        Fetch article details for a list of PMIDs via efetch.
+
+        Requirements: 9.1
+
+        Args:
+            pmids: List of PubMed IDs
+
+        Returns:
+            List of SearchResult objects parsed from XML
+        """
+        try:
+            efetch_data = {
+                "db": "pubmed",
+                "id": ",".join(pmids),
+                "retmode": "xml",
+                "rettype": "abstract",
+            }
+            efetch_resp = requests.post(
+                self.BASE_EFETCH, data=efetch_data, timeout=self.config.timeout
+            )
+            if efetch_resp.status_code != 200:
+                logger.warning(
+                    f"PubMed efetch returned HTTP {efetch_resp.status_code}"
+                )
+                return []
+
+            root = ET.fromstring(efetch_resp.text)
+            results: List[SearchResult] = []
+            for article_elem in root.iter("PubmedArticle"):
+                result = self._parse_article(article_elem)
+                if result is not None:
+                    results.append(result)
+            return results
+
+        except requests.RequestException as exc:
+            logger.warning(f"PubMed efetch network error: {exc}")
+            return []
+        except ET.ParseError as exc:
+            logger.warning(f"PubMed efetch XML parse error: {exc}")
+            return []
+
+    def _parse_article(self, article_elem) -> Optional[SearchResult]:
+        """
+        Parse a single PubmedArticle XML element into a SearchResult.
+
+        Requirements: 1.2, 1.6, 1.7, 9.3
+
+        Args:
+            article_elem: xml.etree.ElementTree Element for a PubmedArticle
+
+        Returns:
+            SearchResult or None if the element is malformed
+        """
+        try:
+            title_elem = article_elem.find(".//ArticleTitle")
+            abstract_elem = article_elem.find(".//AbstractText")
+            pmid_elem = article_elem.find(".//PMID")
+
+            if title_elem is None or pmid_elem is None:
+                logger.debug("Skipping PubMed article: missing ArticleTitle or PMID")
+                return None
+
+            title = title_elem.text or ""
+            snippet = abstract_elem.text if abstract_elem is not None else ""
+            pmid = pmid_elem.text or ""
+
+            if not pmid:
+                logger.debug("Skipping PubMed article: empty PMID")
+                return None
+
+            url = f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/"
+
+            return SearchResult(
+                title=title,
+                url=url,
+                snippet=snippet or "",
+                source_domain="pubmed.ncbi.nlm.nih.gov",
+                quality_score=1.0,
+            )
+        except Exception as exc:
+            logger.debug(f"Skipping malformed PubMed article element: {exc}")
+            return None
+
+
+class WikipediaClient:
+    """
+    Client for querying the Wikipedia REST API summary endpoint.
+
+    Returns a single introductory extract as a SearchResult.
+
+    Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6
+    """
+
+    BASE_URL = "https://en.wikipedia.org/api/rest_v1/page/summary/{title}"
+
+    def __init__(self, config: SearchConfig):
+        """
+        Initialize WikipediaClient.
+
+        Args:
+            config: Search configuration
+        """
+        self.config = config
+
+    def _normalize_title(self, query: str) -> str:
+        """
+        Normalize a query string to a Wikipedia-compatible title.
+
+        Replaces spaces with underscores and capitalizes the first character.
+
+        Requirements: 2.6
+
+        Args:
+            query: Raw query string
+
+        Returns:
+            Normalized title string
+        """
+        normalized = query.replace(" ", "_")
+        if normalized:
+            normalized = normalized[0].upper() + normalized[1:]
+        return normalized
+
+    def search(self, query: str) -> List[SearchResult]:
+        """
+        Search Wikipedia for a page summary.
+
+        Requirements: 2.1, 2.2, 2.3, 2.4, 2.5
+
+        Args:
+            query: Search query string
+
+        Returns:
+            List containing at most one SearchResult, or [] on error/disabled
+        """
+        if not self.config.wikipedia_enabled:
+            return []
+
+        title = self._normalize_title(query)
+        url = self.BASE_URL.format(title=title)
+
+        try:
+            headers = {
+                "User-Agent": "HealthAI/1.0 (health assessment system; contact@healthai.example.com)"
+            }
+            response = requests.get(url, headers=headers, timeout=self.config.timeout)
+
+            if response.status_code == 404:
+                return []
+
+            if response.status_code != 200:
+                logger.warning(
+                    f"Wikipedia API returned HTTP {response.status_code} for query: {query}"
+                )
+                return []
+
+            data = response.json()
+
+            if data.get("type") == "disambiguation":
+                return []
+
+            return [
+                SearchResult(
+                    title=data.get("title", ""),
+                    url=data.get("content_urls", {}).get("desktop", {}).get("page", ""),
+                    snippet=data.get("extract", ""),
+                    source_domain="en.wikipedia.org",
+                    quality_score=0.6,
+                )
+            ]
+
+        except requests.RequestException as exc:
+            logger.warning(f"Wikipedia network error for query '{query}': {exc}")
+            return []
+
+
+TAVILY_AUTHORITATIVE_DOMAINS = [
+    "who.int",
+    "cdc.gov",
+    "fda.gov",
+    "nih.gov",
+    "thelancet.com",
+    "nejm.org",
+    "pubmed.ncbi.nlm.nih.gov",
+    "bmj.com",
+    "jamanetwork.com",
+]
+
+
+class TavilyClient:
+    """
+    Client for querying the Tavily Search API, restricted to authoritative health domains.
+
+    Returns real-time health intelligence as SearchResult objects.
+
+    Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7
+    """
+
+    ENDPOINT = "https://api.tavily.com/search"
+
+    def __init__(self, config: SearchConfig):
+        """
+        Initialize TavilyClient.
+
+        Args:
+            config: Search configuration
+        """
+        self.config = config
+
+    def search(self, query: str) -> List[SearchResult]:
+        """
+        Search Tavily for real-time health results restricted to authoritative domains.
+
+        Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7
+
+        Args:
+            query: Search query string
+
+        Returns:
+            List of SearchResult objects, or [] on error/disabled/missing key
+        """
+        if not self.config.tavily_enabled:
+            return []
+
+        api_key = os.environ.get("TAVILY_API", "")
+        if not api_key:
+            logger.warning("TAVILY_API environment variable is not set; skipping Tavily search")
+            return []
+
+        payload = {
+            "query": query,
+            "api_key": api_key,
+            "include_domains": TAVILY_AUTHORITATIVE_DOMAINS,
+            "max_results": self.config.tavily_max_results,
+            "search_depth": self.config.tavily_search_depth,
+        }
+
+        try:
+            response = requests.post(
+                self.ENDPOINT, json=payload, timeout=self.config.timeout
+            )
+            if response.status_code != 200:
+                logger.warning(
+                    f"Tavily API returned HTTP {response.status_code} for query: {query}"
+                )
+                return []
+
+            source_filter = MedicalSourceFilter()
+            results: List[SearchResult] = []
+            for item in response.json().get("results", []):
+                url = item.get("url", "")
+                domain = urlparse(url).netloc
+                results.append(
+                    SearchResult(
+                        title=item.get("title", ""),
+                        url=url,
+                        snippet=item.get("content", ""),
+                        source_domain=domain,
+                        quality_score=source_filter.assess_source_quality(domain),
+                    )
+                )
+            return results
+
+        except requests.RequestException as exc:
+            logger.warning(f"Tavily network error for query '{query}': {exc}")
+            return []
+
+
+class ResultMerger:
+    """
+    Combines, deduplicates, sorts, and caps result lists from multiple search clients.
+
+    Requirements: 4.1, 4.2, 4.3, 4.4, 4.5
+    """
+
+    @staticmethod
+    def merge(result_lists: List[List[SearchResult]], max_results: int) -> List[SearchResult]:
+        """
+        Merge multiple SearchResult lists into a single deduplicated, sorted list.
+
+        Algorithm:
+        1. Flatten all input lists.
+        2. Build dict[url, SearchResult] keeping the entry with the higher quality_score
+           when the same URL appears more than once.
+        3. Sort by quality_score descending.
+        4. Return the first max_results entries.
+        5. Returns [] when all inputs are empty — never raises.
+
+        Requirements: 4.1, 4.2, 4.3, 4.4, 4.5
+
+        Args:
+            result_lists: List of SearchResult lists from any combination of clients.
+            max_results: Maximum number of results to return.
+
+        Returns:
+            Merged, deduplicated, sorted list capped at max_results.
+        """
+        best: Dict[str, SearchResult] = {}
+        for result_list in result_lists:
+            for result in result_list:
+                existing = best.get(result.url)
+                if existing is None or result.quality_score > existing.quality_score:
+                    best[result.url] = result
+
+        sorted_results = sorted(best.values(), key=lambda r: r.quality_score, reverse=True)
+        return sorted_results[:max_results]
+
+
 class WebSearchTool:
     """
     Tool for searching medical information on the web.
@@ -324,92 +711,298 @@ class WebSearchTool:
     
     def _perform_search(self, query: str, filters: Optional[Dict[str, Any]]) -> List[SearchResult]:
         """
-        Perform actual search (placeholder for real implementation).
-        
-        In production, this would integrate with a search API like:
-        - Google Custom Search API
-        - Bing Search API
-        - PubMed API
-        
+        Perform actual web search using a configurable search API.
+
+        Supported backends (checked in order):
+        1. SerpAPI  — set ``SERPAPI_KEY`` in the environment.
+        2. Google Custom Search — set both ``GOOGLE_SEARCH_API_KEY`` and
+           ``GOOGLE_SEARCH_ENGINE_ID`` in the environment.
+
+        If no API key is configured the method logs a warning and returns an
+        empty list (graceful degradation — preserves existing behaviour).
+
         Args:
-            query: Search query
-            filters: Optional filters
-            
+            query: Search query string.
+            filters: Optional filters (currently unused by the HTTP backends).
+
         Returns:
-            List of search results
+            List of SearchResult objects, or ``[]`` when no key is available
+            or a network/API error occurs.
         """
-        # Placeholder implementation
-        # In production, this would call actual search APIs
-        logger.warning("Using placeholder search implementation - integrate real search API")
-        
-        # Return empty results for now
-        # Real implementation would call search API and parse results
-        return []
-    
+        serpapi_key = os.environ.get("SERPAPI_KEY", "").strip()
+        google_key = os.environ.get("GOOGLE_SEARCH_API_KEY", "").strip()
+        google_cx = os.environ.get("GOOGLE_SEARCH_ENGINE_ID", "").strip()
+
+        if serpapi_key:
+            return self._search_via_serpapi(query, serpapi_key)
+
+        if google_key and google_cx:
+            return self._search_via_google(query, google_key, google_cx)
+
+        return self._search_via_stack(query)
+
+    # ------------------------------------------------------------------
+    # Private search-backend helpers
+    # ------------------------------------------------------------------
+
+    def _search_via_serpapi(self, query: str, api_key: str) -> List[SearchResult]:
+        """Call SerpAPI and convert results to SearchResult objects."""
+        url = "https://serpapi.com/search"
+        params = {
+            "q": query,
+            "api_key": api_key,
+            "num": self.config.max_results,
+            "engine": "google",
+        }
+        try:
+            response = requests.get(url, params=params, timeout=self.config.timeout)
+            response.raise_for_status()
+            data = response.json()
+        except requests.RequestException as exc:
+            logger.warning(f"SerpAPI request failed: {exc}")
+            return []
+        except ValueError as exc:
+            logger.warning(f"SerpAPI response JSON parse error: {exc}")
+            return []
+
+        results: List[SearchResult] = []
+        for item in data.get("organic_results", []):
+            try:
+                result_url = item.get("link", "")
+                domain = urlparse(result_url).netloc.lstrip("www.")
+                results.append(SearchResult(
+                    title=item.get("title", ""),
+                    url=result_url,
+                    snippet=item.get("snippet", ""),
+                    source_domain=domain,
+                    quality_score=self.source_filter.assess_source_quality(domain),
+                ))
+            except (ValueError, KeyError) as exc:
+                logger.debug(f"Skipping malformed SerpAPI result: {exc}")
+                continue
+
+        logger.info(f"SerpAPI returned {len(results)} results for: {query}")
+        return results
+
+    def _search_via_google(self, query: str, api_key: str, cx: str) -> List[SearchResult]:
+        """Call Google Custom Search JSON API and convert results."""
+        url = "https://www.googleapis.com/customsearch/v1"
+        params = {
+            "q": query,
+            "key": api_key,
+            "cx": cx,
+            "num": min(self.config.max_results, 10),  # API max is 10
+        }
+        try:
+            response = requests.get(url, params=params, timeout=self.config.timeout)
+            response.raise_for_status()
+            data = response.json()
+        except requests.RequestException as exc:
+            logger.warning(f"Google Custom Search request failed: {exc}")
+            return []
+        except ValueError as exc:
+            logger.warning(f"Google Custom Search response JSON parse error: {exc}")
+            return []
+
+        results: List[SearchResult] = []
+        for item in data.get("items", []):
+            try:
+                result_url = item.get("link", "")
+                domain = urlparse(result_url).netloc.lstrip("www.")
+                results.append(SearchResult(
+                    title=item.get("title", ""),
+                    url=result_url,
+                    snippet=item.get("snippet", ""),
+                    source_domain=domain,
+                    quality_score=self.source_filter.assess_source_quality(domain),
+                ))
+            except (ValueError, KeyError) as exc:
+                logger.debug(f"Skipping malformed Google CSE result: {exc}")
+                continue
+
+        logger.info(f"Google Custom Search returned {len(results)} results for: {query}")
+        return results
+
+    def _search_via_stack(self, query: str) -> List[SearchResult]:
+        """
+        Run PubMed, Wikipedia, and Tavily in parallel and merge results.
+
+        Requirements: 5.4, 5.5
+
+        Args:
+            query: Search query string.
+
+        Returns:
+            Merged list of SearchResult objects capped at max_results.
+        """
+        pubmed_client = PubMedClient(self.config)
+        wikipedia_client = WikipediaClient(self.config)
+        tavily_client = TavilyClient(self.config)
+
+        clients = [
+            ("PubMedClient", pubmed_client.search),
+            ("WikipediaClient", wikipedia_client.search),
+            ("TavilyClient", tavily_client.search),
+        ]
+
+        result_lists: List[List[SearchResult]] = []
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+            futures = {
+                executor.submit(fn, query): name
+                for name, fn in clients
+            }
+            for future in concurrent.futures.as_completed(futures):
+                client_name = futures[future]
+                try:
+                    result_lists.append(future.result())
+                except Exception as exc:
+                    logger.warning(f"Search_Stack client {client_name} raised an exception: {exc}")
+                    result_lists.append([])
+
+        merged = ResultMerger.merge(result_lists, self.config.max_results)
+
+        if not merged:
+            attempted = [name for name, _ in clients]
+            logger.warning(
+                f"All Search_Stack clients returned empty results. "
+                f"Attempted: {', '.join(attempted)}"
+            )
+
+        return merged
+
     def search_medical_literature(self, query: str) -> List[SearchResult]:
         """
-        Search PubMed and medical journals.
-        
-        Requirements: 2.1 - Search medical literature
-        
+        Search medical literature using PubMed (primary) and Wikipedia (secondary).
+
+        Requirements: 5.1, 7.5, 8.1, 8.2, 8.3
+
         Args:
             query: Search query
-            
+
         Returns:
             List of medical literature results
         """
-        # Add medical literature specific filters
-        filters = {
-            'sources': ['pubmed', 'medical_journals'],
-            'content_type': 'research'
-        }
-        
+        # Check cache first (Requirement 8.1)
+        cached = self.cache.get(query)
+        if cached is not None:
+            logger.info(f"Cache hit for search_medical_literature: {query}")
+            return cached
+
+        # Check rate limit (Requirement 8.3)
+        if not self.rate_limiter.can_make_request():
+            wait_time = self.rate_limiter.wait_time()
+            logger.warning(f"Rate limit exceeded for search_medical_literature, wait {wait_time:.1f}s")
+            raise RateLimitExceeded(f"Rate limit exceeded. Wait {wait_time:.1f}s")
+
         logger.info(f"Searching medical literature: {query}")
-        return self.search(query, filters)
-    
+
+        # PubMed primary, Wikipedia secondary — sequential (Requirement 5.1)
+        pubmed_results = PubMedClient(self.config).search(query)
+        wikipedia_results = WikipediaClient(self.config).search(query)
+
+        results = ResultMerger.merge([pubmed_results, wikipedia_results], self.config.max_results)
+
+        # Write to cache and record rate-limiter request (Requirements 8.2, 8.3)
+        self.cache.set(query, results)
+        self.rate_limiter.record_request()
+
+        logger.info(f"search_medical_literature completed: {query} ({len(results)} results)")
+        return results
+
     def search_clinical_guidelines(self, condition: str) -> List[SearchResult]:
         """
-        Search for clinical practice guidelines.
-        
-        Requirements: 2.3 - Search for clinical guidelines
-        
+        Search clinical guidelines using Tavily (primary) and PubMed (secondary).
+
+        Requirements: 5.2, 7.5, 8.1, 8.2, 8.3
+
         Args:
             condition: Medical condition
-            
+
         Returns:
             List of clinical guideline results
         """
         query = f"{condition} clinical practice guidelines"
-        filters = {
-            'sources': ['who', 'cdc', 'nih', 'medical_societies'],
-            'content_type': 'guidelines'
-        }
-        
+
+        # Check cache first (Requirement 8.1)
+        cached = self.cache.get(query)
+        if cached is not None:
+            logger.info(f"Cache hit for search_clinical_guidelines: {condition}")
+            return cached
+
+        # Check rate limit (Requirement 8.3)
+        if not self.rate_limiter.can_make_request():
+            wait_time = self.rate_limiter.wait_time()
+            logger.warning(f"Rate limit exceeded for search_clinical_guidelines, wait {wait_time:.1f}s")
+            raise RateLimitExceeded(f"Rate limit exceeded. Wait {wait_time:.1f}s")
+
         logger.info(f"Searching clinical guidelines for: {condition}")
-        return self.search(query, filters)
-    
+
+        # Tavily primary, PubMed secondary — sequential (Requirement 5.2)
+        tavily_results = TavilyClient(self.config).search(query)
+        pubmed_results = PubMedClient(self.config).search(query)
+
+        results = ResultMerger.merge([tavily_results, pubmed_results], self.config.max_results)
+
+        # Write to cache and record rate-limiter request (Requirements 8.2, 8.3)
+        self.cache.set(query, results)
+        self.rate_limiter.record_request()
+
+        logger.info(f"search_clinical_guidelines completed: {condition} ({len(results)} results)")
+        return results
+
     def search_drug_information(self, drug_name: str) -> Dict[str, Any]:
         """
-        Search for drug information and interactions.
-        
-        Requirements: 7.5 - Search for drug interactions
-        
+        Search drug information using PubMed and Wikipedia for both info and
+        interactions queries.
+
+        Requirements: 5.3, 7.5, 8.1, 8.2, 8.3
+
         Args:
             drug_name: Drug name
-            
+
         Returns:
             Drug information dictionary
         """
-        # Search for drug information
         info_query = f"{drug_name} drug information"
-        info_results = self.search(info_query)
-        
-        # Search for interactions
         interaction_query = f"{drug_name} drug interactions"
-        interaction_results = self.search(interaction_query)
-        
-        logger.info(f"Searched drug information for: {drug_name}")
-        
+
+        # --- Info query ---
+        # Check cache first (Requirement 8.1)
+        info_results = self.cache.get(info_query)
+        if info_results is None:
+            if not self.rate_limiter.can_make_request():
+                wait_time = self.rate_limiter.wait_time()
+                logger.warning(f"Rate limit exceeded for drug info query, wait {wait_time:.1f}s")
+                raise RateLimitExceeded(f"Rate limit exceeded. Wait {wait_time:.1f}s")
+
+            pubmed_info = PubMedClient(self.config).search(info_query)
+            wiki_info = WikipediaClient(self.config).search(info_query)
+            info_results = ResultMerger.merge([pubmed_info, wiki_info], self.config.max_results)
+
+            self.cache.set(info_query, info_results)
+            self.rate_limiter.record_request()
+
+        # --- Interactions query ---
+        # Check cache first (Requirement 8.1)
+        interaction_results = self.cache.get(interaction_query)
+        if interaction_results is None:
+            if not self.rate_limiter.can_make_request():
+                wait_time = self.rate_limiter.wait_time()
+                logger.warning(f"Rate limit exceeded for drug interactions query, wait {wait_time:.1f}s")
+                raise RateLimitExceeded(f"Rate limit exceeded. Wait {wait_time:.1f}s")
+
+            pubmed_interactions = PubMedClient(self.config).search(interaction_query)
+            wiki_interactions = WikipediaClient(self.config).search(interaction_query)
+            interaction_results = ResultMerger.merge(
+                [pubmed_interactions, wiki_interactions], self.config.max_results
+            )
+
+            self.cache.set(interaction_query, interaction_results)
+            self.rate_limiter.record_request()
+
+        logger.info(f"search_drug_information completed for: {drug_name}")
+
         return {
             'drug_name': drug_name,
             'information': info_results,

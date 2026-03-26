@@ -345,6 +345,10 @@ Ensure all recommendations are evidence-based, personalized, and include clear a
             }
             
             # Execute chain with circuit breaker
+            if not self.recommendation_chain:
+                logger.warning("recommendation_chain is None (LLM unavailable), using fallback")
+                return None
+
             response = self.execute_with_circuit_breaker(
                 lambda: self.recommendation_chain.invoke(chain_input)
             )

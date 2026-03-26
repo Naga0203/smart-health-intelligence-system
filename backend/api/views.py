@@ -25,6 +25,8 @@ from datetime import datetime
 from django.utils import timezone
 import logging
 import traceback
+import uuid
+import threading
 
 from agents.orchestrator import OrchestratorAgent
 from prediction.predictor import DiseasePredictor
@@ -743,37 +745,91 @@ class HealthAssessmentView(APIView):
             serializer = HealthAssessmentInputSerializer(data=request.data)
             if not serializer.is_valid():
                 return APIErrorHandler.handle_validation_error(serializer.errors, logger)
-            
-            # Initialize orchestrator
-            orchestrator = OrchestratorAgent()
-            
-            # Process assessment
-            result = orchestrator.process(serializer.validated_data)
-            
-            if result.get('success'):
-                return Response(result['data'], status=status.HTTP_200_OK)
-            else:
-                error_message = result.get('message', 'Assessment failed')
-                
-                # Check if it's a service availability issue
-                if 'unavailable' in error_message.lower() or 'timeout' in error_message.lower():
-                    return APIErrorHandler.handle_service_unavailable(error_message, logger)
-                
-                return Response(
-                    {
-                        "error": "assessment_failed",
-                        "message": error_message,
-                        "status_code": 500
-                    },
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-        
+
+            # Generate a unique job_id
+            job_id = str(uuid.uuid4())
+            user_id = getattr(getattr(request, 'user', None), 'uid', None) or \
+                      serializer.validated_data.get('user_id', 'anonymous')
+            symptoms = serializer.validated_data.get('symptoms', [])
+            now = datetime.utcnow()
+
+            # Write pending record to Firestore analyses collection
+            try:
+                from common.firebase_db import get_firebase_db
+                db = get_firebase_db().db
+                db.collection('analyses').document(job_id).set({
+                    'job_id': job_id,
+                    'user_id': user_id,
+                    'status': 'pending',
+                    'created_at': now,
+                    'updated_at': now,
+                    'symptoms': symptoms,
+                    'predictions': None,
+                    'agent_results': None,
+                    'report_ref': None,
+                })
+            except Exception as db_err:
+                logger.warning(f"Could not write pending record to Firestore: {db_err}")
+
+            # Capture validated data for the background thread
+            input_data = dict(serializer.validated_data)
+            input_data['user_id'] = user_id
+
+            def run_pipeline_async(job_id, input_data):
+                """Run the orchestrator pipeline in a background thread."""
+                try:
+                    from common.firebase_db import get_firebase_db
+                    db = get_firebase_db().db
+                    doc_ref = db.collection('analyses').document(job_id)
+
+                    # Mark as processing
+                    doc_ref.update({'status': 'processing', 'updated_at': datetime.utcnow()})
+
+                    orchestrator = OrchestratorAgent()
+                    result = orchestrator.process(input_data)
+
+                    if result.get('success'):
+                        doc_ref.update({
+                            'status': 'complete',
+                            'updated_at': datetime.utcnow(),
+                            'predictions': result.get('data', {}).get('prediction'),
+                            'agent_results': result.get('data'),
+                        })
+                    else:
+                        doc_ref.update({
+                            'status': 'error',
+                            'updated_at': datetime.utcnow(),
+                            'error': result.get('message', 'Pipeline failed'),
+                        })
+                except Exception as e:
+                    logger.error(f"Background pipeline error for job {job_id}: {e}", exc_info=True)
+                    try:
+                        from common.firebase_db import get_firebase_db
+                        get_firebase_db().db.collection('analyses').document(job_id).update({
+                            'status': 'error',
+                            'updated_at': datetime.utcnow(),
+                            'error': str(e),
+                        })
+                    except Exception:
+                        pass
+
+            threading.Thread(
+                target=run_pipeline_async,
+                args=(job_id, input_data),
+                daemon=True
+            ).start()
+
+            return Response(
+                {'job_id': job_id, 'status': 'pending'},
+                status=status.HTTP_202_ACCEPTED
+            )
+
         except ValidationError as e:
             return APIErrorHandler.handle_validation_error(e, logger)
-        
+
         except Throttled as e:
             return APIErrorHandler.handle_rate_limit_error(e, logger)
-        
+
         except Exception as e:
             logger.error(f"Assessment error: {str(e)}", exc_info=True)
             return APIErrorHandler.handle_internal_error(e, logger)
@@ -1136,14 +1192,93 @@ class PredictView(HealthAssessmentView):
     """
     Predict disease based on symptoms using the full Orchestrator pipeline.
     Maps to /api/predict/
+
+    Returns HTTP 202 immediately with a job_id; the pipeline runs asynchronously.
+    Poll GET /api/jobs/{job_id}/status/ for progress and results.
     """
     @extend_schema(
-        summary="Predict Disease (Orchestrator)", 
+        summary="Predict Disease (Orchestrator)",
         tags=["Prediction"],
-        description="Predict disease based on symptoms using the full Orchestrator pipeline. Matches existing assess/ flow."
+        description=(
+            "Submit symptoms for disease prediction. Returns HTTP 202 with a job_id immediately. "
+            "Poll GET /api/jobs/{job_id}/status/ for progress and results."
+        ),
     )
     def post(self, request):
         return super().post(request)
+
+
+class JobStatusView(APIView):
+    """
+    Job status endpoint for async pipeline results.
+
+    GET /api/jobs/{job_id}/status/
+    Returns {"status": ..., "progress": ..., "result": ...}
+    """
+
+    authentication_classes = []
+    permission_classes = []
+
+    @extend_schema(
+        tags=["Prediction"],
+        summary="Get job status",
+        description=(
+            "Poll the status of an async prediction job. "
+            "status: pending | processing | complete | error. "
+            "progress: 0 (pending), 50 (processing), 100 (complete/error)."
+        ),
+    )
+    def get(self, request, job_id):
+        """
+        GET /api/jobs/{job_id}/status/
+
+        Returns:
+        {
+            "status": "pending" | "processing" | "complete" | "error",
+            "progress": 0 | 50 | 100,
+            "result": <full result payload or null>
+        }
+
+        Error Responses:
+        - 404: Job not found
+        - 500: Internal server error
+        """
+        try:
+            from common.firebase_db import get_firebase_db
+            db = get_firebase_db().db
+            doc = db.collection('analyses').document(job_id).get()
+
+            if not doc.exists:
+                return Response(
+                    {'error': 'not_found', 'message': f'Job {job_id} not found'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            data = doc.to_dict()
+            job_status = data.get('status', 'pending')
+
+            progress_map = {
+                'pending': 0,
+                'processing': 50,
+                'complete': 100,
+                'error': 100,
+            }
+            progress = progress_map.get(job_status, 0)
+
+            result = None
+            if job_status == 'complete':
+                result = data.get('agent_results')
+            elif job_status == 'error':
+                result = {'error': data.get('error')}
+
+            return Response(
+                {'status': job_status, 'progress': progress, 'result': result},
+                status=status.HTTP_200_OK
+            )
+
+        except Exception as e:
+            logger.error(f"JobStatusView error for job {job_id}: {e}", exc_info=True)
+            return APIErrorHandler.handle_internal_error(e, logger)
 
 
 @api_view(['GET'])
@@ -2883,4 +3018,81 @@ class ReportMetadataView(APIView):
         
         except Exception as e:
             logger.error(f"Unexpected error in report metadata for user {request.user.uid if hasattr(request.user, 'uid') else 'unknown'}: {str(e)}", exc_info=True)
+            return APIErrorHandler.handle_internal_error(e, logger)
+
+
+class TreatmentExploreView(APIView):
+    """
+    Dedicated treatment exploration endpoint.
+
+    POST: Explore treatment options for a given disease.
+
+    Rate Limiting:
+    - Anonymous users: 5 requests per hour
+    - IP-based limit: 200 requests per hour
+    """
+
+    authentication_classes = []  # Allow unauthenticated access
+    permission_classes = []      # Allow any user
+    throttle_classes = [
+        AnonymousHealthAnalysisThrottle,  # 5/hour for anonymous
+        IPBasedRateThrottle,              # 200/hour per IP
+    ]
+    parser_classes = [JSONParser]
+
+    def post(self, request):
+        """
+        POST /api/treatment/explore/
+
+        Explore treatment options for a disease.
+
+        Request Body:
+        {
+            "disease": "Diabetes",
+            "system": "all",          (optional)
+            "medications": [],        (optional)
+            "include_evidence": true  (optional)
+        }
+
+        Response:
+        {
+            "success": true,
+            "data": { ... treatment information ... },
+            "message": "Treatment information retrieved for Diabetes"
+        }
+
+        Error Responses:
+        - 400: Missing required 'disease' field
+        - 429: Rate limit exceeded
+        - 500: Internal server error
+        """
+        from agents.treatment_exploration import TreatmentExplorationAgent
+
+        disease = request.data.get('disease', '').strip() if request.data else ''
+        if not disease:
+            return Response(
+                {
+                    "error": "validation_error",
+                    "message": "Invalid input data",
+                    "details": "'disease' field is required",
+                    "status_code": 400
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            agent = TreatmentExplorationAgent()
+            result = agent.process(request.data)
+            return Response(result, status=status.HTTP_200_OK)
+
+        except Throttled as e:
+            RateLimitExceededLogger.log_rate_limit_exceeded(
+                request,
+                e.__class__.__name__,
+                e.wait
+            )
+            return APIErrorHandler.handle_rate_limit_error(e, logger)
+
+        except Exception as e:
+            logger.error(f"Unexpected error in TreatmentExploreView: {str(e)}", exc_info=True)
             return APIErrorHandler.handle_internal_error(e, logger)

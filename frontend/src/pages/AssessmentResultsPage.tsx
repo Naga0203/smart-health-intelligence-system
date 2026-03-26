@@ -22,16 +22,10 @@ import {
   LocalHospital as HospitalIcon,
 } from '@mui/icons-material';
 import { useAssessmentStore } from '@/stores/assessmentStore';
+import { useAuthStore } from '@/stores/authStore';
+import { useUserStore } from '@/stores/userStore';
 import { RiskLevelBadge, RiskLevel } from '@/components/results/RiskLevelBadge';
 import { RiskDriverItem } from '@/components/results/RiskDriverItem';
-
-// Mock data for development (will be replaced with real data from store)
-const MOCK_PATIENT = {
-  name: "John Doe",
-  id: "49201",
-  age: 45,
-  gender: "Male"
-};
 
 export const AssessmentResultsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -40,6 +34,9 @@ export const AssessmentResultsPage: React.FC = () => {
 
   const assessmentStore = useAssessmentStore() as any;
   const { currentAssessment, loading, error, fetchAssessmentDetail } = assessmentStore;
+
+  const { user } = useAuthStore();
+  const { profile } = useUserStore();
 
   // Use state data if available (from prediction), otherwise fetch from API
   const [localAssessment, setLocalAssessment] = useState((location.state as any)?.result || null);
@@ -173,8 +170,9 @@ export const AssessmentResultsPage: React.FC = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', color: '#6B7280', gap: 1 }}>
                 <Typography variant="body2">
                   <Box component="span" sx={{ color: '#9CA3AF', mr: 0.5 }}>👤</Box>
-                  Patient: <Box component="span" fontWeight={600} color="#374151">{MOCK_PATIENT.name}</Box>
-                  (ID: #{MOCK_PATIENT.id}) • {MOCK_PATIENT.age} Yrs • {MOCK_PATIENT.gender}
+                  {user?.displayName || user?.email || 'User'}
+                  {profile?.age ? ` • ${profile.age} Yrs` : ''}
+                  {profile?.gender ? ` • ${profile.gender}` : ''}
                 </Typography>
               </Box>
             </Box>

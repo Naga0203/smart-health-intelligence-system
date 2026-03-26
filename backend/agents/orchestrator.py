@@ -1,4 +1,5 @@
 import logging
+import os
 import uuid
 import asyncio
 from typing import Dict, Any, List, Optional, Callable, Tuple
@@ -15,14 +16,17 @@ from .reflection import ReflectionAgent
 from .severity import SeverityAgent
 from .explanation import LangChainExplanationAgent
 from .recommendation import RecommendationAgent
+from .treatment_exploration import TreatmentExplorationAgent
 
 try:
     from backend.prediction.predictor import DiseasePredictor
     from backend.common.firebase_db import get_firebase_db
+    from backend.prediction.ml.multihot_inference import predict_disease
 except ImportError:
     try:
         from prediction.predictor import DiseasePredictor
         from common.firebase_db import get_firebase_db
+        from prediction.ml.multihot_inference import predict_disease
     except ImportError:
         pass
 
@@ -79,6 +83,7 @@ class OrchestratorAgent(EnhancedBaseHealthAgent):
         self.recommendation_agent = RecommendationAgent()
         self.lifestyle_agent = LifestyleModificationAgent()
         self.reflection_agent = ReflectionAgent()
+        self.treatment_agent = TreatmentExplorationAgent()
         
         # Agent registry for autonomous selection
         self.agent_registry = {
@@ -88,7 +93,8 @@ class OrchestratorAgent(EnhancedBaseHealthAgent):
             'explanation': self.explanation_agent,
             'recommendation': self.recommendation_agent,
             'lifestyle': self.lifestyle_agent,
-            'reflection': self.reflection_agent
+            'reflection': self.reflection_agent,
+            'treatment': self.treatment_agent
         }
         
         # Initialize Firebase database
@@ -474,7 +480,9 @@ class OrchestratorAgent(EnhancedBaseHealthAgent):
         self.log_agent_action("step_3_parallel_execution")
         
         disease = self._select_disease(sanitized_input["symptoms"])
+        top_predictions = self._get_top_predictions(sanitized_input["symptoms"])
         self.context_manager.add_to_context('selected_disease', disease)
+        self.context_manager.add_to_context('top_predictions', top_predictions)
         
         extraction_input = {
             "symptoms": sanitized_input["symptoms"],
@@ -551,11 +559,24 @@ class OrchestratorAgent(EnhancedBaseHealthAgent):
         self.context_manager.add_to_context('prediction', {
             'disease': disease,
             'probability': probability,
-            'confidence': confidence
+            'confidence': confidence,
+            'top_predictions': top_predictions
         })
         
         # Step 6: Sequential Execution of Dependent Agents
         self.log_agent_action("step_5_sequential_execution")
+        
+        # Gather treatment information for MEDIUM and HIGH confidence
+        treatment_data = {}
+        if confidence in ("MEDIUM", "HIGH"):
+            try:
+                treatment_result = self._execute_single_agent(
+                    'treatment', self.treatment_agent, {"disease": disease}
+                )
+                treatment_data = treatment_result.get("data", {}) if treatment_result.get("success") else {}
+            except Exception as e:
+                logger_orchestrator.warning(f"TreatmentExplorationAgent failed, continuing without treatment data: {e}")
+                treatment_data = {}
         
         # Generate Explanation
         explanation_input = {
@@ -563,7 +584,8 @@ class OrchestratorAgent(EnhancedBaseHealthAgent):
             "probability": probability,
             "confidence": confidence,
             "symptoms": sanitized_input["symptoms"],
-            "severity": severity_result.get("data", {}) if severity_result.get("success") else {}
+            "severity": severity_result.get("data", {}) if severity_result.get("success") else {},
+            "top_predictions": top_predictions
         }
         
         explanation_result = self._execute_single_agent('explanation', self.explanation_agent, explanation_input)
@@ -579,7 +601,8 @@ class OrchestratorAgent(EnhancedBaseHealthAgent):
                 "confidence": confidence,
                 "symptoms": sanitized_input["symptoms"],
                 "user_context": {"age": sanitized_input["age"], "gender": sanitized_input["gender"]},
-                "severity": severity_result.get("data", {}) if severity_result.get("success") else {}
+                "severity": severity_result.get("data", {}) if severity_result.get("success") else {},
+                "top_predictions": top_predictions
             }
         )
         
@@ -604,7 +627,8 @@ class OrchestratorAgent(EnhancedBaseHealthAgent):
             "prediction": {
                 "disease": disease,
                 "probability": probability,
-                "confidence": confidence
+                "confidence": confidence,
+                "top_predictions": top_predictions
             },
             "explanation": explanation_data,
             "recommendations": recommendations_data,
@@ -668,7 +692,9 @@ class OrchestratorAgent(EnhancedBaseHealthAgent):
             storage_ids=storage_ids,
             processing_time=processing_time,
             prediction_metadata=prediction_metadata,
-            severity_data=severity_result.get("data", {}) if severity_result.get("success") else {}
+            severity_data=severity_result.get("data", {}) if severity_result.get("success") else {},
+            top_predictions=top_predictions,
+            treatment_data=treatment_data
         )
         
         # Clear context at end of session
@@ -680,41 +706,38 @@ class OrchestratorAgent(EnhancedBaseHealthAgent):
     
     def _select_disease(self, symptoms: list) -> str:
         """
-        Select the most likely disease based on symptoms.
-        
+        Select the most likely disease based on symptoms using NN model artifacts.
+
+        Uses predict_disease() from multihot_inference to return the top prediction
+        from the dynamically loaded label encoder. top_k is read from MAX_PREDICTIONS
+        env var (default 3).
+
         Args:
             symptoms: List of symptoms
-            
+
         Returns:
-            Disease name
+            Disease name from label_encoder.classes_
         """
-        # Simple keyword-based disease selection
-        # In production, this could use a more sophisticated classifier
-        
-        symptom_text = " ".join(symptoms).lower()
-        
-        diabetes_keywords = ["thirst", "urination", "weight_loss", "fatigue", "hunger"]
-        heart_keywords = ["chest_pain", "shortness_of_breath", "heart", "angina"]
-        hypertension_keywords = ["headache", "dizziness", "blood_pressure", "hypertension"]
-        
-        diabetes_score = sum(1 for kw in diabetes_keywords if kw in symptom_text)
-        heart_score = sum(1 for kw in heart_keywords if kw in symptom_text)
-        hypertension_score = sum(1 for kw in hypertension_keywords if kw in symptom_text)
-        
-        scores = {
-            "diabetes": diabetes_score,
-            "heart_disease": heart_score,
-            "hypertension": hypertension_score
-        }
-        
-        selected_disease = max(scores, key=scores.get)
-        
-        # Default to diabetes if no clear match
-        if scores[selected_disease] == 0:
-            selected_disease = "diabetes"
-        
-        logger_orchestrator.info(f"Selected disease: {selected_disease} (scores: {scores})")
+        symptoms_text = " ".join(symptoms) if isinstance(symptoms, list) else symptoms
+        top_k = int(os.environ.get('MAX_PREDICTIONS', 3))
+        predictions = predict_disease(symptoms_text, top_k=top_k)
+        selected_disease = predictions[0]['disease']
+        logger_orchestrator.info(f"Selected disease via NN artifacts: {selected_disease} (top_k={top_k})")
         return selected_disease
+
+    def _get_top_predictions(self, symptoms: list) -> list:
+        """
+        Return the full top-k predictions list from the NN model for downstream agents.
+
+        Args:
+            symptoms: List of symptoms
+
+        Returns:
+            List of prediction dicts from predict_disease()
+        """
+        symptoms_text = " ".join(symptoms) if isinstance(symptoms, list) else symptoms
+        top_k = int(os.environ.get('MAX_PREDICTIONS', 3))
+        return predict_disease(symptoms_text, top_k=top_k)
     
     def _merge_data_sources(self, manual_data: Dict[str, Any], 
                            extracted_data: Dict[str, Any],
@@ -961,7 +984,9 @@ class OrchestratorAgent(EnhancedBaseHealthAgent):
                         lifestyle_recommendations: Dict[str, Any],
                         storage_ids: Dict[str, str], processing_time: float,
                         prediction_metadata: Dict[str, Any],
-                        severity_data: Dict[str, Any] = None) -> Dict[str, Any]:
+                        severity_data: Dict[str, Any] = None,
+                        top_predictions: list = None,
+                        treatment_data: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         Build the complete response for the frontend.
         
@@ -975,7 +1000,8 @@ class OrchestratorAgent(EnhancedBaseHealthAgent):
                 "probability": round(probability, 4),
                 "probability_percent": round(probability * 100, 2),
                 "confidence": confidence,
-                "model_version": prediction_metadata.get("model_version")
+                "model_version": prediction_metadata.get("model_version"),
+                "top_predictions": top_predictions or []
             },
             "extraction": {
                 "confidence": extraction_confidence,
@@ -985,6 +1011,7 @@ class OrchestratorAgent(EnhancedBaseHealthAgent):
             "explanation": explanation,
             "recommendations": recommendations,
             "lifestyle_recommendations": lifestyle_recommendations,
+            "treatment_info": treatment_data if treatment_data is not None else {},
             "metadata": {
                 "processing_time_seconds": round(processing_time, 2),
                 "timestamp": datetime.utcnow().isoformat(),

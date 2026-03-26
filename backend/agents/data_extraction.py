@@ -316,6 +316,9 @@ Return JSON only."""
             }
             
             # Execute chain with circuit breaker
+            if not self.extraction_chain:
+                logger.warning("extraction_chain is None (LLM unavailable), using fallback")
+                return None
             result = self.execute_with_circuit_breaker(
                 lambda: self.extraction_chain.invoke(chain_input)
             )

@@ -20,7 +20,9 @@ from .views import (
     ReportUploadView,
     ExtractionStatusView,
     ReportMetadataView,
-    PredictView
+    PredictView,
+    JobStatusView,
+    TreatmentExploreView
 )
 from .new_views import (
     MedicalHistoryAPIView,
@@ -79,5 +81,11 @@ urlpatterns = [
     
     # Full prediction (Orchestrator)
     path('predict/', PredictView.as_view(), name='predict'),
+
+    # Async job status polling
+    path('jobs/<str:job_id>/status/', JobStatusView.as_view(), name='job-status'),
+
+    # Treatment exploration
+    path('treatment/explore/', TreatmentExploreView.as_view(), name='treatment-explore'),
 ]
 
