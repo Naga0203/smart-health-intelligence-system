@@ -6,9 +6,23 @@ import { create } from 'zustand';
 import { apiService } from '@/services/api';
 import { useNotificationStore } from './notificationStore';
 
-let pollingInterval = null;
+let pollingInterval: NodeJS.Timeout | null = null;
 
-export const useSystemStore = create((set, get) => ({
+interface SystemStore {
+  status: any;
+  modelInfo: any;
+  diseases: any;
+  loading: boolean;
+  error: string | null;
+  fetchSystemStatus: () => Promise<void>;
+  fetchModelInfo: () => Promise<void>;
+  fetchDiseases: () => Promise<void>;
+  startStatusPolling: () => void;
+  stopStatusPolling: () => void;
+  clearError: () => void;
+}
+
+export const useSystemStore = create<SystemStore>((set, get) => ({
   status: null,
   modelInfo: null,
   diseases: null,
@@ -48,7 +62,7 @@ export const useSystemStore = create((set, get) => ({
       }
 
       set({ status, loading: false, error: null });
-    } catch (error) {
+    } catch (error: any) {
       set({
         loading: false,
         error: error.response?.data?.message || 'Failed to fetch system status'
@@ -62,7 +76,7 @@ export const useSystemStore = create((set, get) => ({
     try {
       const modelInfo = await apiService.getModelInfo();
       set({ modelInfo, loading: false, error: null });
-    } catch (error) {
+    } catch (error: any) {
       set({
         loading: false,
         error: error.response?.data?.message || 'Failed to fetch model info'
@@ -77,7 +91,7 @@ export const useSystemStore = create((set, get) => ({
       const response = await apiService.getDiseases();
       // API returns { total: N, diseases: [...] }
       set({ diseases: response.diseases || [], loading: false, error: null });
-    } catch (error) {
+    } catch (error: any) {
       set({
         loading: false,
         error: error.response?.data?.message || 'Failed to fetch diseases'

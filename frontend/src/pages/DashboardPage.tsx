@@ -1,7 +1,13 @@
+<<<<<<< HEAD
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+=======
+import { useEffect, useState } from 'react';
+import { Container, Grid, Typography, Box, useTheme } from '@mui/material';
+import { useAssessmentStore } from '@/stores/assessmentStore';
+>>>>>>> d205e2c3b4d37e237e6680a1b659b923cf7962e9
 
 /* ────── SVG Icons ────── */
 const DashIcon = () => (
@@ -32,6 +38,7 @@ const mockAssessments = [
   { id: 5, date: '2026-03-14', symptoms: 'Chest tightness, shortness of breath', risk: 'High', system: 'Modern Medicine' },
 ];
 
+<<<<<<< HEAD
 const chartData = [
   { date: 'Mar 10', score: 35 },
   { date: 'Mar 14', score: 72 },
@@ -40,6 +47,15 @@ const chartData = [
   { date: 'Mar 25', score: 30 },
   { date: 'Mar 28', score: 45 },
 ];
+=======
+/**
+ * Dashboard overview page
+ * Displays recent assessments, system status, user statistics, and quick actions
+ */
+export default function DashboardPage() {
+  const { fetchAssessmentHistory, assessmentHistory, loading: assessmentsLoading } = useAssessmentStore();
+  const theme = useTheme();
+>>>>>>> d205e2c3b4d37e237e6680a1b659b923cf7962e9
 
 const DashboardPage = () => {
   const { user, logout } = useAuthStore();
@@ -47,9 +63,37 @@ const DashboardPage = () => {
 
   const handleLogout = async () => {
     try {
+<<<<<<< HEAD
       await logout();
       navigate('/');
     } catch (e) { /* handled in store */ }
+=======
+      // Try to get data from the most recent assessment
+      const recentAssessment = assessmentHistory?.assessments?.[0];
+
+      if (!recentAssessment || !recentAssessment.symptoms || recentAssessment.symptoms.length === 0) {
+        setPredictionsError('No recent assessment data available. Complete an assessment first.');
+        setPredictions(null);
+        return;
+      }
+
+      // Use data from recent assessment
+      const result = await apiService.getTopPredictions(
+        recentAssessment.symptoms,
+        30, // Default age if not available
+        'other', // Default gender if not available
+        n
+      );
+
+      setPredictions(result.predictions || []);
+    } catch (error: any) {
+      console.error('Error fetching top predictions:', error);
+      setPredictionsError(error.response?.data?.message || 'Failed to fetch predictions');
+      setPredictions(null);
+    } finally {
+      setPredictionsLoading(false);
+    }
+>>>>>>> d205e2c3b4d37e237e6680a1b659b923cf7962e9
   };
 
   const greeting = (() => {
@@ -65,6 +109,7 @@ const DashboardPage = () => {
   };
 
   return (
+<<<<<<< HEAD
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       {/* ── Sidebar ── */}
       <aside className="ss-sidebar">
@@ -201,6 +246,53 @@ const DashboardPage = () => {
         </div>
       </main>
     </div>
+=======
+    <Box
+      sx={{
+        minHeight: '100vh',
+        background: `linear-gradient(135deg, ${theme.palette.background.default} 0%, ${theme.palette.background.paper} 100%)`,
+        py: 4,
+      }}
+    >
+      <Container maxWidth="lg">
+        <Typography variant="h4" component="h1" gutterBottom fontWeight="700">
+          Dashboard
+        </Typography>
+
+        <Grid container spacing={4}>
+          {/* Quick Actions */}
+          <Grid size={{ xs: 12 }}>
+            <QuickActions />
+          </Grid>
+
+          {/* User Statistics */}
+          <Grid size={{ xs: 12, md: 6 }}>
+            <UserStatistics statistics={statistics} loading={statsLoading} />
+          </Grid>
+
+          {/* Top Predictions */}
+          <Grid size={{ xs: 12, md: 6 }}>
+            <TopPredictions
+              predictions={predictions}
+              loading={predictionsLoading}
+              error={predictionsError}
+              onFetchPredictions={handleFetchPredictions}
+              defaultN={5}
+            />
+          </Grid>
+
+          {/* Recent Assessments */}
+          <Grid size={{ xs: 12, md: 6 }}>
+            <RecentAssessments
+              assessments={assessmentHistory?.assessments || []}
+              loading={assessmentsLoading}
+            />
+          </Grid>
+
+        </Grid>
+      </Container>
+    </Box>
+>>>>>>> d205e2c3b4d37e237e6680a1b659b923cf7962e9
   );
 };
 

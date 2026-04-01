@@ -1,3 +1,4 @@
+
 // ============================================================================
 // Treatment Exploration Page - API-driven, fully rendered
 // ============================================================================
@@ -24,10 +25,15 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
+<<<<<<< HEAD
     List,
     ListItem,
     ListItemIcon,
     ListItemText,
+=======
+    useTheme,
+    alpha,
+>>>>>>> d205e2c3b4d37e237e6680a1b659b923cf7962e9
 } from '@mui/material';
 import {
     ArrowBack as ArrowBackIcon,
@@ -36,6 +42,7 @@ import {
     Spa as LeafIcon,
     WaterDrop as DropIcon,
     AccessibilityNew as BodyIcon,
+<<<<<<< HEAD
     Refresh as RefreshIcon,
     FiberManualRecord as DotIcon,
     Restaurant as DietIcon,
@@ -46,10 +53,20 @@ import {
     Block as BlockIcon,
     CheckCircleOutline as CheckIcon,
     OpenInNew as LinkIcon,
+=======
+    MenuBook as BookIcon,
+    MonitorHeart as MonitorHeartIcon,
+>>>>>>> d205e2c3b4d37e237e6680a1b659b923cf7962e9
 } from '@mui/icons-material';
 import { apiService } from '@/services/api';
 
+<<<<<<< HEAD
 // ---- Types ----
+=======
+import ClinicalGuidelinesModal from '@/components/ClinicalGuidelinesModal';
+
+// --- Types ---
+>>>>>>> d205e2c3b4d37e237e6680a1b659b923cf7962e9
 
 type TreatmentSystem = 'Modern Medicine' | 'Ayurveda' | 'Homeopathy' | 'Lifestyle';
 
@@ -385,6 +402,13 @@ function SourcesList({ sources }: { sources: any[] }) {
 export default function TreatmentExplorationPage() {
     const { diseaseId } = useParams<{ diseaseId: string }>();
     const navigate = useNavigate();
+<<<<<<< HEAD
+=======
+    const theme = useTheme();
+    const [activeTab, setActiveTab] = useState(0);
+    const [selectedAction, setSelectedAction] = useState<{ type: string; treatment: string; disease: string } | null>(null);
+  const [selectedGuideline, setSelectedGuideline] = useState<{ treatment: string; disease: string } | null>(null);
+>>>>>>> d205e2c3b4d37e237e6680a1b659b923cf7962e9
 
     const [activeTab, setActiveTab] = useState(0);
     const [loading, setLoading] = useState(true);
@@ -435,6 +459,7 @@ export default function TreatmentExplorationPage() {
         return data;
     };
 
+<<<<<<< HEAD
     const systemData = getSystemData();
     const guidelines = data?.clinical_guidelines;
     const evidenceAnalysis = data?.evidence_analysis;
@@ -442,6 +467,63 @@ export default function TreatmentExplorationPage() {
 
     return (
         <Box sx={{ minHeight: '100vh', bgcolor: '#f8f9fa', pb: 8 }}>
+=======
+    const handleActionClick = (actionType: string, treatmentTitle: string) => {
+        if (actionType === 'View Clinical Guidelines') {
+            // Open the Clinical Guidelines modal
+            setSelectedGuideline({ treatment: treatmentTitle, disease: normalizedDiseaseName });
+        } else {
+            // Fallback to generic action dialog
+            setSelectedAction({
+                type: actionType,
+                treatment: treatmentTitle,
+                disease: normalizedDiseaseName
+            });
+        }
+    };
+
+    const handleCloseDialog = () => {
+        setSelectedAction(null);
+    };
+
+    return (
+        <Box 
+            sx={{ 
+                minHeight: '100vh', 
+                pb: 8,
+                background: `linear-gradient(135deg, ${theme.palette.background.default} 0%, ${theme.palette.background.paper} 100%)`, 
+            }}
+        >
+            {/* Header / Nav */}
+            <Paper 
+                elevation={0} 
+                sx={{ 
+                    borderBottom: 1, 
+                    borderColor: alpha(theme.palette.divider, 0.1), 
+                    px: 3, 
+                    py: 2, 
+                    background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.6)} 0%, ${alpha(theme.palette.background.paper, 0.3)} 100%)`,
+                    backdropFilter: 'blur(20px)',
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 10,
+                    boxShadow: `0 4px 30px ${alpha(theme.palette.common.black, 0.05)}`,
+                }}
+            >
+                <Container maxWidth="lg">
+                    <Box display="flex" alignItems="center" gap={1}>
+                        {/* Simple Header based on design */}
+                        <MonitorHeartIcon color="primary" />
+                        <Typography variant="h6" fontWeight="bold" color="text.primary">
+                            Health Intelligence
+                        </Typography>
+                        <Box flexGrow={1} />
+                        {/* Placeholder for Search/User - simplistic for now */}
+                    </Box>
+                </Container>
+            </Paper>
+
+>>>>>>> d205e2c3b4d37e237e6680a1b659b923cf7962e9
             <Container maxWidth="lg" sx={{ mt: 4 }}>
                 <Button
                     startIcon={<ArrowBackIcon />}
@@ -516,6 +598,7 @@ export default function TreatmentExplorationPage() {
                             </Tabs>
                         </Box>
 
+<<<<<<< HEAD
                         <Grid container spacing={3}>
                             {/* Main content */}
                             <Grid size={{ xs: 12, md: 8 }}>
@@ -525,6 +608,70 @@ export default function TreatmentExplorationPage() {
                                             {systemIcons[currentSystem]}
                                             <Typography variant="h6" fontWeight="bold">
                                                 {currentSystem}
+=======
+                        {/* Active View & Legend */}
+                        <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2} mb={3}>
+                            <Chip label={`Active View: ${currentSystem}`} color="primary" variant="outlined" sx={{ bgcolor: '#e3f2fd', border: 'none' }} />
+
+                            <Stack direction="row" spacing={2} alignItems="center">
+                                <Typography variant="caption" color="text.secondary">SEVERITY INDICATORS:</Typography>
+                                <Box display="flex" alignItems="center" gap={0.5}>
+                                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'success.main' }} />
+                                    <Typography variant="caption">Mild</Typography>
+                                </Box>
+                                <Box display="flex" alignItems="center" gap={0.5}>
+                                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'warning.main' }} />
+                                    <Typography variant="caption">Moderate</Typography>
+                                </Box>
+                                <Box display="flex" alignItems="center" gap={0.5}>
+                                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'error.main' }} />
+                                    <Typography variant="caption">Severe</Typography>
+                                </Box>
+                            </Stack>
+                        </Box>
+
+                        {/* Content Grid */}
+                        <Grid container spacing={4} sx={{ mt: 2 }}>
+                            {treatments.map((item) => (
+                                <Grid size={{ xs: 12, md: 6 }} key={item.id}>
+                                    <Card 
+                                        sx={{ 
+                                            height: '100%', 
+                                            display: 'flex', 
+                                            flexDirection: 'column', 
+                                            borderRadius: 4,
+                                            background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.4)} 0%, ${alpha(theme.palette.background.paper, 0.1)} 100%)`,
+                                            backdropFilter: 'blur(10px)',
+                                            border: '1px solid',
+                                            borderColor: alpha(theme.palette.divider, 0.2),
+                                            transition: 'all 0.3s ease-in-out',
+                                            '&:hover': {
+                                                transform: 'translateY(-4px)',
+                                                boxShadow: `0 12px 40px ${alpha(theme.palette.primary.main, 0.15)}`,
+                                                borderColor: alpha(theme.palette.primary.main, 0.3),
+                                            },
+                                        }}
+                                    >
+                                        <CardContent sx={{ flexGrow: 1, p: 3 }}>
+                                            <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+                                                <Box
+                                                    sx={{
+                                                        p: 1,
+                                                        borderRadius: 2,
+                                                        bgcolor: activeTab === 0 ? 'primary.light' : activeTab === 1 ? 'success.light' : activeTab === 2 ? 'info.light' : 'grey.200',
+                                                        color: 'white',
+                                                        display: 'flex'
+                                                    }}
+                                                >
+                                                    {/* Clone icon to enforce color if needed, or rely on inherit */}
+                                                    {item.icon}
+                                                </Box>
+                                                <SeverityChip level={item.severity} />
+                                            </Box>
+
+                                            <Typography variant="h6" fontWeight="bold" gutterBottom>
+                                                {item.title}
+>>>>>>> d205e2c3b4d37e237e6680a1b659b923cf7962e9
                                             </Typography>
                                         </Box>
                                         <Divider sx={{ mb: 3 }} />
@@ -539,6 +686,7 @@ export default function TreatmentExplorationPage() {
                                             </Typography>
                                         )}
 
+<<<<<<< HEAD
                                         {sources.length > 0 && (
                                             <>
                                                 <Divider sx={{ mt: 3, mb: 1 }} />
@@ -613,6 +761,30 @@ export default function TreatmentExplorationPage() {
                                 </Stack>
                             </Grid>
                         </Grid>
+=======
+                        {/* Footer CTA */}
+                        <Box sx={{ mt: 8, textAlign: 'center', pb: 4 }}>
+                            <Divider sx={{ mb: 4 }} />
+                            <Typography variant="h6" gutterBottom fontWeight="bold">Explore Specialist Options</Typography>
+                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                                Would you like to find a specialist who focuses on integrative approaches for {normalizedDiseaseName}?
+                            </Typography>
+                            <Button 
+                                variant="contained" 
+                                size="large" 
+                                sx={{ 
+                                    mt: 2, 
+                                    borderRadius: 50, 
+                                    px: 4, 
+                                    textTransform: 'none', 
+                                    fontWeight: 'bold',
+                                    boxShadow: `0 8px 24px ${alpha(theme.palette.primary.main, 0.3)}`,
+                                }}
+                            >
+                                Find a Specialist
+                            </Button>
+                        </Box>
+>>>>>>> d205e2c3b4d37e237e6680a1b659b923cf7962e9
                     </>
                 )}
             </Container>
@@ -627,6 +799,14 @@ export default function TreatmentExplorationPage() {
                     <Button onClick={() => setGuidelinesOpen(false)}>Close</Button>
                 </DialogActions>
             </Dialog>
+
+            {/* Clinical Guidelines Modal */}
+            <ClinicalGuidelinesModal
+                open={!!selectedGuideline}
+                onClose={() => setSelectedGuideline(null)}
+                treatmentName={selectedGuideline?.treatment ?? ''}
+                diseaseName={selectedGuideline?.disease ?? ''}
+            />
         </Box>
     );
 }

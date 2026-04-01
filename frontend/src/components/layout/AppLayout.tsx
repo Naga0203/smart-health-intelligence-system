@@ -12,7 +12,6 @@ import { useKeyboardShortcuts } from '@/hooks';
 export const AppLayout = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md')); // <768px
-  const isTablet = useMediaQuery(theme.breakpoints.between('md', 'lg')); // 768-1024px
 
   // Enable global keyboard shortcuts
   useKeyboardShortcuts();
@@ -30,8 +29,21 @@ export const AppLayout = () => {
   };
 
   return (
+<<<<<<< HEAD
     <Box sx={{ display: 'flex', minHeight: '100vh', flexDirection: 'column', height: 'auto' }}>
       <Header onMenuClick={toggleSidebar} sidebarOpen={sidebarOpen} />
+=======
+    <Box 
+      sx={{ 
+        display: 'flex', 
+        minHeight: '100vh', 
+        flexDirection: 'column', 
+        height: 'auto',
+        background: `linear-gradient(135deg, ${theme.palette.background.default} 0%, ${theme.palette.background.paper} 100%)`, 
+      }}
+    >
+      <Header onMenuClick={toggleSidebar} />
+>>>>>>> d205e2c3b4d37e237e6680a1b659b923cf7962e9
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <Box
@@ -73,4 +85,3 @@ export const AppLayout = () => {
     </Box>
   );
 };
-

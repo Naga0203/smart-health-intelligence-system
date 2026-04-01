@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { useState, useEffect } from 'react';
-import { Container, Box, Alert, CircularProgress } from '@mui/material';
+import { Container, Box, Alert, CircularProgress, useTheme, alpha } from '@mui/material';
 import { ProfileView } from '@/components/profile/ProfileView';
 import { ProfileForm } from '@/components/profile/ProfileForm';
 import { useUserStore } from '@/stores/userStore';
@@ -13,6 +13,7 @@ export function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const { profile, loading, error, fetchProfile } = useUserStore();
   const { addNotification } = useNotificationStore();
+  const theme = useTheme();
 
   useEffect(() => {
     fetchProfile();
@@ -37,17 +38,30 @@ export function ProfilePage() {
 
   if (loading && !profile) {
     return (
-      <Container maxWidth="md">
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-          <CircularProgress />
-        </Box>
-      </Container>
+      <Box 
+        sx={{
+          minHeight: 'calc(100vh - 64px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, ${alpha(theme.palette.background.default, 1)} 100%)`,
+        }}
+      >
+        <CircularProgress />
+      </Box>
     );
   }
 
   return (
-    <Container maxWidth="md">
-      <Box py={4}>
+    <Box 
+      sx={{
+        minHeight: 'calc(100vh - 64px)',
+        background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.03)} 0%, ${alpha(theme.palette.background.default, 1)} 100%)`,
+        py: { xs: 4, md: 8 },
+        transition: 'background 0.3s ease'
+      }}
+    >
+      <Container maxWidth="md">
         {error && (
           <Alert severity="error" sx={{ mb: 3 }}>
             {error}
@@ -63,8 +77,8 @@ export function ProfilePage() {
         ) : (
           <ProfileView profile={profile} onEdit={handleEdit} />
         )}
-      </Box>
-    </Container>
+      </Container>
+    </Box>
   );
 }
 

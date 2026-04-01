@@ -179,7 +179,7 @@ export const suggestAccessibleColor = (
 
   // Try darkening or lightening the foreground color
   const bgLum = getLuminance(
-    ...Object.values(hexToRgb(background) || { r: 255, g: 255, b: 255 })
+    ...(Object.values(hexToRgb(background) || { r: 255, g: 255, b: 255 }) as [number, number, number])
   );
 
   // If background is light, darken foreground; if dark, lighten foreground

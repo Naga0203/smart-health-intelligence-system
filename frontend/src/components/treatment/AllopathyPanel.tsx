@@ -1,9 +1,8 @@
 import React from 'react';
 import { Box, Typography, Paper, Alert, List, ListItem, ListItemText, Divider } from '@mui/material';
-import { TreatmentDetail } from '@/types';
 
 interface AllopathyPanelProps {
-  treatments: TreatmentDetail[];
+  treatments: any[];
 }
 
 export const AllopathyPanel: React.FC<AllopathyPanelProps> = ({ treatments }) => {
@@ -44,7 +43,7 @@ export const AllopathyPanel: React.FC<AllopathyPanelProps> = ({ treatments }) =>
                   Recommendations:
                 </Typography>
                 <List dense>
-                  {treatment.recommendations.map((rec, recIndex) => (
+                  {treatment.recommendations.map((rec: any, recIndex: any) => (
                     <ListItem key={recIndex} sx={{ pl: 0 }}>
                       <ListItemText 
                         primary={rec}

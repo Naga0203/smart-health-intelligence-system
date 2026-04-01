@@ -15,7 +15,7 @@ Validates: Requirements 7.3, 7.4
 from typing import Dict, Any, List, Optional, Tuple
 import logging
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger('health_ai.prediction')
 
@@ -167,7 +167,7 @@ class DiseasePredictor:
                 "model_version": self.model_version,
                 "model_type": model.get_model_type(),
                 "features_used": len(feature_vector),
-                "prediction_timestamp": datetime.utcnow().isoformat(),
+                "prediction_timestamp": datetime.now(timezone.utc).isoformat(),
                 "device": "GPU" if self.use_gpu else "CPU"
             }
             

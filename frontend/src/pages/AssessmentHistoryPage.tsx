@@ -4,7 +4,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Container, Typography, Box, Alert } from '@mui/material';
+import { Container, Typography, Box, Alert, useTheme } from '@mui/material';
 import { AssessmentTimeline } from '@/components/history/AssessmentTimeline';
 import { HistoryFilters, FilterValues } from '@/components/history/HistoryFilters';
 import { RiskTrendChart } from '@/components/history/RiskTrendChart';
@@ -12,6 +12,7 @@ import { useAssessmentStore } from '@/stores/assessmentStore';
 
 export const AssessmentHistoryPage: React.FC = () => {
   const navigate = useNavigate();
+  const theme = useTheme();
   const { assessmentHistory, loading, error, fetchAssessmentHistory } = useAssessmentStore();
   
   const [currentPage, setCurrentPage] = useState(1);
@@ -48,13 +49,12 @@ export const AssessmentHistoryPage: React.FC = () => {
   };
 
   // Get assessments from store
-  const assessments = assessmentHistory?.assessments || [];
+  const assessments: any[] = assessmentHistory?.assessments || [];
   const total = assessmentHistory?.total || 0;
-  const pageSize = assessmentHistory?.page_size || 10;
   const hasMore = assessments.length < total;
 
   // Filter assessments client-side (in production, this should be done server-side)
-  const filteredAssessments = assessments.filter((assessment) => {
+  const filteredAssessments = assessments.filter((assessment: any) => {
     // Filter by condition
     if (filters.condition && assessment.disease !== filters.condition) {
       return false;
@@ -81,18 +81,25 @@ export const AssessmentHistoryPage: React.FC = () => {
 
   // Get unique conditions for filter dropdown
   const availableConditions = Array.from(
-    new Set(assessments.map((a) => a.disease))
-  ).sort();
+    new Set(assessments.map((a: any) => a.disease))
+  ).sort() as string[];
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Assessment History
-      </Typography>
+    <Box 
+      sx={{ 
+        minHeight: '100vh', 
+        pb: 8,
+        background: `linear-gradient(135deg, ${theme.palette.background.default} 0%, ${theme.palette.background.paper} 100%)`, 
+      }}
+    >
+      <Container maxWidth="lg" sx={{ py: 4, position: 'relative', zIndex: 1 }}>
+        <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 700, color: theme.palette.text.primary }}>
+          Assessment History
+        </Typography>
 
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        View and track your health assessments over time
-      </Typography>
+        <Typography variant="body1" sx={{ mb: 4, color: theme.palette.text.secondary }}>
+          View and track your health assessments over time
+        </Typography>
 
       {/* Error Alert */}
       {error && (
@@ -124,11 +131,12 @@ export const AssessmentHistoryPage: React.FC = () => {
       {/* Results Summary */}
       {filteredAssessments.length > 0 && (
         <Box sx={{ mt: 2, textAlign: 'center' }}>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
             Showing {filteredAssessments.length} of {total} assessments
           </Typography>
         </Box>
       )}
-    </Container>
+      </Container>
+    </Box>
   );
 };

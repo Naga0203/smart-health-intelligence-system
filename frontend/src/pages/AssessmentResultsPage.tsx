@@ -13,6 +13,8 @@ import {
   LinearProgress,
   Alert,
   Chip,
+  useTheme,
+  alpha,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -31,6 +33,7 @@ export const AssessmentResultsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const theme = useTheme();
 
   const assessmentStore = useAssessmentStore() as any;
   const { currentAssessment, loading, error, fetchAssessmentDetail } = assessmentStore;
@@ -39,7 +42,7 @@ export const AssessmentResultsPage: React.FC = () => {
   const { profile } = useUserStore();
 
   // Use state data if available (from prediction), otherwise fetch from API
-  const [localAssessment, setLocalAssessment] = useState((location.state as any)?.result || null);
+  const localAssessment = (location.state as any)?.result || null;
   const [showAllFactors, setShowAllFactors] = useState(false);
 
   useEffect(() => {
@@ -98,7 +101,7 @@ export const AssessmentResultsPage: React.FC = () => {
   
   // Build risk drivers from actual API data
   const buildRiskDrivers = () => {
-    const drivers = [];
+    const drivers: Array<{factor: string, value: string, contribution: number, description: string, isPrimary: boolean}> = [];
     
     // Add primary symptoms as risk drivers
     if (contributingFactors.primary_symptoms && contributingFactors.primary_symptoms.length > 0) {
@@ -146,8 +149,14 @@ export const AssessmentResultsPage: React.FC = () => {
   const riskDrivers = buildRiskDrivers();
 
   return (
-    <Box sx={{ bgcolor: '#F9FAFB', minHeight: '100vh', pb: 8 }}>
-      <Container maxWidth="lg" sx={{ py: 4 }}>
+    <Box 
+      sx={{ 
+        minHeight: '100vh', 
+        pb: 8,
+        background: `linear-gradient(135deg, ${theme.palette.background.default} 0%, ${theme.palette.background.paper} 100%)`, 
+      }}
+    >
+      <Container maxWidth="lg" sx={{ py: 4, position: 'relative', zIndex: 1 }}>
         {/* Navigation Header */}
         <Box sx={{ mb: 4 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -167,6 +176,7 @@ export const AssessmentResultsPage: React.FC = () => {
                 </Typography>
                 <RiskLevelBadge level={riskLevel} />
               </Box>
+<<<<<<< HEAD
               <Box sx={{ display: 'flex', alignItems: 'center', color: '#6B7280', gap: 1 }}>
                 <Typography variant="body2">
                   <Box component="span" sx={{ color: '#9CA3AF', mr: 0.5 }}>👤</Box>
@@ -175,6 +185,9 @@ export const AssessmentResultsPage: React.FC = () => {
                   {profile?.gender ? ` • ${profile.gender}` : ''}
                 </Typography>
               </Box>
+=======
+
+>>>>>>> d205e2c3b4d37e237e6680a1b659b923cf7962e9
             </Box>
 
             <Button
@@ -183,13 +196,18 @@ export const AssessmentResultsPage: React.FC = () => {
               onClick={() => navigate('/app/dashboard')}
               sx={{
                 textTransform: 'none',
-                color: '#374151',
-                borderColor: '#E5E7EB',
-                bgcolor: 'white',
+                fontWeight: 600,
+                borderRadius: 3,
+                color: theme.palette.text.primary,
+                borderColor: alpha(theme.palette.text.primary, 0.5),
+                backdropFilter: 'blur(10px)',
+                background: alpha(theme.palette.background.paper, 0.1),
                 '&:hover': {
-                  bgcolor: '#F3F4F6',
-                  borderColor: '#D1D5DB'
-                }
+                  borderColor: theme.palette.text.primary,
+                  background: alpha(theme.palette.background.paper, 0.2),
+                  transform: 'translateY(-2px)',
+                },
+                transition: 'all 0.2s ease-in-out',
               }}
             >
               Back to Dashboard
@@ -200,9 +218,20 @@ export const AssessmentResultsPage: React.FC = () => {
         {/* Main Content Grid */}
         <Grid container spacing={3}>
           {/* Left Column: AI Explanation */}
-          <Grid item xs={12} md={5}>
-            <Card sx={{ height: '100%', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', border: '1px solid #E5E7EB' }}>
-              <CardContent sx={{ p: 3 }}>
+          <Grid size={{ xs: 12, md: 5 }} sx={{ display: 'flex' }}>
+            <Card 
+              sx={{ 
+                height: '100%', 
+                width: '100%',
+                borderRadius: 4, 
+                background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.4)} 0%, ${alpha(theme.palette.background.paper, 0.1)} 100%)`,
+                backdropFilter: 'blur(10px)',
+                border: '1px solid',
+                borderColor: alpha(theme.palette.divider, 0.2),
+                boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.05)}`,
+              }}
+            >
+              <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                   <Box>
                     <Typography variant="h6" fontWeight={700} color="#111827">
@@ -259,14 +288,24 @@ export const AssessmentResultsPage: React.FC = () => {
                 </Box>
 
                 {/* Insight Box */}
-                <Paper sx={{ p: 2, bgcolor: '#F8FAFC', border: '1px solid #F1F5F9', borderRadius: 2, mb: 4 }}>
+                <Paper 
+                  elevation={0}
+                  sx={{ 
+                    p: 2.5, 
+                    background: `linear-gradient(135deg, ${alpha(theme.palette.warning.light, 0.1)} 0%, ${alpha(theme.palette.warning.main, 0.05)} 100%)`,
+                    border: '1px solid',
+                    borderColor: alpha(theme.palette.warning.main, 0.2),
+                    borderRadius: 3, 
+                    mb: 4 
+                  }}
+                >
                   <Box sx={{ display: 'flex', gap: 1.5 }}>
-                    <LightbulbIcon sx={{ color: '#F59E0B', fontSize: 20, mt: 0.5 }} />
-                    <Typography variant="body2" color="#475569" sx={{ lineHeight: 1.6 }}>
+                    <LightbulbIcon sx={{ color: theme.palette.warning.main, fontSize: 24, mt: 0.5 }} />
+                    <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7, fontSize: '0.9rem' }}>
                       {explanation.confidence_reasoning?.meaning || 
                         `The system has ${prediction.confidence?.toLowerCase() || 'moderate'} confidence in this assessment based on the provided symptoms.`}
                       {' '}Please note that this is a
-                      <Box component="span" fontWeight={700} color="#1E293B"> statistical projection </Box>
+                      <Box component="span" fontWeight={700} color="text.primary"> statistical projection </Box>
                       derived from available data, and individual variations may exist.
                     </Typography>
                   </Box>
@@ -297,9 +336,20 @@ export const AssessmentResultsPage: React.FC = () => {
           </Grid>
 
           {/* Right Column: Key Risk Drivers */}
-          <Grid item xs={12} md={7}>
-            <Card sx={{ height: '100%', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', border: '1px solid #E5E7EB' }}>
-              <CardContent sx={{ p: 3 }}>
+          <Grid size={{ xs: 12, md: 7 }} sx={{ display: 'flex' }}>
+            <Card 
+              sx={{ 
+                height: '100%', 
+                width: '100%',
+                borderRadius: 4, 
+                background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.4)} 0%, ${alpha(theme.palette.background.paper, 0.1)} 100%)`,
+                backdropFilter: 'blur(10px)',
+                border: '1px solid',
+                borderColor: alpha(theme.palette.divider, 0.2),
+                boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.05)}`,
+              }}
+            >
+              <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                   <Typography variant="h6" fontWeight={700} color="#111827">
                     Key Risk Drivers
@@ -331,8 +381,18 @@ export const AssessmentResultsPage: React.FC = () => {
 
         {/* Bottom Actions */}
         <Box sx={{ mt: 4 }}>
-          <Card sx={{ borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', border: '1px solid #E5E7EB', p: 1 }}>
-            <CardContent sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+          <Card 
+            sx={{ 
+              borderRadius: 4, 
+              background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.4)} 0%, ${alpha(theme.palette.background.paper, 0.1)} 100%)`,
+              backdropFilter: 'blur(10px)',
+              border: '1px solid',
+              borderColor: alpha(theme.palette.divider, 0.2),
+              boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.05)}`,
+              p: { xs: 2, sm: 3 } 
+            }}
+          >
+            <CardContent sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 3, p: 0, '&:last-child': { pb: 0 } }}>
               <Box>
                 <Typography variant="h6" fontWeight={700} color="#111827">
                   Recommended Next Steps
@@ -342,19 +402,28 @@ export const AssessmentResultsPage: React.FC = () => {
                 </Typography>
               </Box>
 
-              <Box sx={{ display: 'flex', gap: 2 }}>
+              <Box sx={{ display: 'flex', gap: 2, width: { xs: '100%', sm: 'auto' } }}>
                 <Button
                   variant="outlined"
                   startIcon={<FlagIcon />}
                   onClick={() => {
-                    // TODO: Implement flag for review functionality
                     console.log('Flag for review clicked');
                   }}
+                  fullWidth={!theme.breakpoints.up('sm')}
                   sx={{
                     textTransform: 'none',
                     fontWeight: 600,
-                    color: '#374151',
-                    borderColor: '#E5E7EB'
+                    borderRadius: 3,
+                    color: theme.palette.text.primary,
+                    borderColor: alpha(theme.palette.text.primary, 0.5),
+                    backdropFilter: 'blur(10px)',
+                    background: alpha(theme.palette.background.paper, 0.1),
+                    '&:hover': {
+                      borderColor: theme.palette.text.primary,
+                      background: alpha(theme.palette.background.paper, 0.2),
+                      transform: 'translateY(-2px)',
+                    },
+                    transition: 'all 0.2s ease-in-out',
                   }}
                 >
                   Flag for Review
@@ -362,10 +431,9 @@ export const AssessmentResultsPage: React.FC = () => {
                 <Button
                   variant="contained"
                   startIcon={<HospitalIcon />}
+                  fullWidth={!theme.breakpoints.up('sm')}
                   onClick={() => {
-                    // Navigate to treatment page with disease from prediction
                     const disease = prediction.disease || 'Diabetes';
-                    // Convert disease name to URL-friendly format (e.g., "Type 2 Diabetes" -> "type-2-diabetes")
                     const diseaseId = disease.toLowerCase().replace(/\s+/g, '-');
                     navigate(`/app/diseases/${diseaseId}/treatment`, {
                       state: { 
@@ -378,12 +446,16 @@ export const AssessmentResultsPage: React.FC = () => {
                   sx={{
                     textTransform: 'none',
                     fontWeight: 600,
-                    bgcolor: '#2563EB',
-                    boxShadow: 'none',
+                    borderRadius: 3,
+                    bgcolor: 'primary.main',
+                    color: 'white',
+                    boxShadow: `0 8px 24px ${alpha(theme.palette.primary.main, 0.4)}`,
                     '&:hover': {
-                      bgcolor: '#1D4ED8',
-                      boxShadow: 'none'
-                    }
+                      bgcolor: 'primary.dark',
+                      transform: 'translateY(-2px)',
+                      boxShadow: `0 12px 28px ${alpha(theme.palette.primary.main, 0.6)}`,
+                    },
+                    transition: 'all 0.2s ease-in-out',
                   }}
                 >
                   View Treatment Options

@@ -52,10 +52,25 @@ class APIService {
   setupInterceptors() {
     // Request interceptor - add auth token and CSRF token
     this.client.interceptors.request.use(
-      (config) => {
-        const token = tokenStorage.getToken();
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
+      async (config) => {
+        // Always try to get a fresh token from Firebase if available
+        try {
+          const { firebaseService } = await import('@/services/firebase');
+          const freshToken = await firebaseService.getIdToken(false);
+          if (freshToken) {
+            config.headers.Authorization = `Bearer ${freshToken}`;
+            tokenStorage.setToken(freshToken);
+          } else {
+            const token = tokenStorage.getToken();
+            if (token) {
+              config.headers.Authorization = `Bearer ${token}`;
+            }
+          }
+        } catch {
+          const token = tokenStorage.getToken();
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+          }
         }
 
         // Add CSRF token for state-changing requests
@@ -190,9 +205,13 @@ class APIService {
    * POST /api/health/analyze/ - Authenticated health analysis
    */
   async analyzeHealth(data: any) {
+<<<<<<< HEAD
     const response = await this.client.post('/api/health/analyze/', data, {
       timeout: 120000, // 2 min — AI pipeline
     });
+=======
+    const response = await this.client.post('/api/health/analyze/', data);
+>>>>>>> d205e2c3b4d37e237e6680a1b659b923cf7962e9
     return response.data;
   }
 
@@ -249,7 +268,11 @@ class APIService {
   /**
    * GET /api/user/assessments/{id}/ - Get assessment detail
    */
+<<<<<<< HEAD
   async getAssessmentDetail(id: string | number) {
+=======
+  async getAssessmentDetail(id: string) {
+>>>>>>> d205e2c3b4d37e237e6680a1b659b923cf7962e9
     const response = await this.client.get(`/api/user/assessments/${id}/`);
     return response.data;
   }
@@ -261,7 +284,11 @@ class APIService {
   /**
    * POST /api/predict/top/ - Get top N predictions
    */
+<<<<<<< HEAD
   async getTopPredictions(symptoms: string[], age?: number, gender?: string, n: number = 5) {
+=======
+  async getTopPredictions(symptoms: string[], age: number, gender: string, n = 5) {
+>>>>>>> d205e2c3b4d37e237e6680a1b659b923cf7962e9
     const response = await this.client.post('/api/predict/top/', {
       symptoms,
       age,
@@ -339,6 +366,13 @@ class APIService {
     const response = await this.client.get('/api/diseases/');
     return response.data;
   }
+    /**
+     * POST /api/clinical-guidelines/ - Fetch clinical guidelines for treatment and disease
+     */
+    async fetchClinicalGuidelines(treatment: string, disease: string) {
+        const response = await this.client.post('/api/clinical-guidelines/', { treatment, disease });
+        return response.data;
+    }
 }
 
 export const apiService = new APIService();

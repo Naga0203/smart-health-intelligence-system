@@ -2,7 +2,7 @@
 // Error Boundary Component
 // ============================================================================
 
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, ErrorInfo, ReactNode } from 'react';
 import { Box, Typography, Button, Container } from '@mui/material';
 import { Error as ErrorIcon } from '@mui/icons-material';
 

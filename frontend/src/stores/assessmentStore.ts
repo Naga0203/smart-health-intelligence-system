@@ -33,7 +33,7 @@ export const useAssessmentStore = create<AssessmentStore>((set) => ({
 
       set({ currentAssessment: assessment, loading: false, error: null });
       return assessment;
-    } catch (error) {
+    } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Assessment failed';
       set({ loading: false, error: errorMessage });
       throw error;
@@ -46,7 +46,7 @@ export const useAssessmentStore = create<AssessmentStore>((set) => ({
     try {
       const history = await apiService.getAssessmentHistory(page, pageSize);
       set({ assessmentHistory: history, loading: false, error: null });
-    } catch (error) {
+    } catch (error: any) {
       set({
         loading: false,
         error: error.response?.data?.message || 'Failed to fetch history'
@@ -61,7 +61,7 @@ export const useAssessmentStore = create<AssessmentStore>((set) => ({
     try {
       const assessment = await apiService.getAssessmentDetail(id);
       set({ currentAssessment: assessment, loading: false, error: null });
-    } catch (error) {
+    } catch (error: any) {
       set({
         loading: false,
         error: error.response?.data?.message || 'Failed to fetch assessment'

@@ -19,6 +19,7 @@ interface AuthStore {
   user: User | null;
   token: string | null;
   loading: boolean;
+  initialized: boolean;
   error: string | null;
   initialize: () => void;
   login: (email: string, password: string) => Promise<void>;
@@ -32,15 +33,16 @@ interface AuthStore {
 
 export const useAuthStore = create<AuthStore>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       user: null,
       token: null,
       loading: false,
+      initialized: false,
       error: null,
 
       // Initialize auth state listener
       initialize: () => {
-        firebaseService.onAuthStateChange(async (firebaseUser) => {
+        firebaseService.onAuthStateChange(async (firebaseUser: any) => {
           if (firebaseUser) {
             const token = await firebaseUser.getIdToken();
             const user = {
@@ -50,10 +52,10 @@ export const useAuthStore = create<AuthStore>()(
               photoURL: firebaseUser.photoURL,
             };
 
-            set({ user, token, loading: false });
+            set({ user, token, loading: false, initialized: true });
             tokenStorage.setToken(token);
           } else {
-            set({ user: null, token: null, loading: false });
+            set({ user: null, token: null, loading: false, initialized: true });
             tokenStorage.removeToken();
           }
         });
@@ -75,7 +77,7 @@ export const useAuthStore = create<AuthStore>()(
 
           set({ user, token, loading: false, error: null });
           tokenStorage.setToken(token);
-        } catch (error) {
+        } catch (error: any) {
           set({
             loading: false,
             error: error.message || 'Login failed'
@@ -119,7 +121,7 @@ export const useAuthStore = create<AuthStore>()(
           await firebaseService.logout();
           set({ user: null, token: null, loading: false, error: null });
           tokenStorage.clearAuth();
-        } catch (error) {
+        } catch (error: any) {
           set({
             loading: false,
             error: error.message || 'Logout failed'

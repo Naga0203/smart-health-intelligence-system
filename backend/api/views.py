@@ -14,14 +14,12 @@ from rest_framework.exceptions import (
     AuthenticationFailed,
     PermissionDenied,
     NotFound,
-    NotFound,
     Throttled
 )
 from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
-from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
 from drf_spectacular.types import OpenApiTypes
-from datetime import datetime
+from datetime import datetime, timezone
 from django.utils import timezone
 import logging
 import traceback
@@ -1019,7 +1017,7 @@ class SystemStatusView(APIView):
                 "status": "operational",
                 "version": "1.0",
                 "components": pipeline_status,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }, status=status.HTTP_200_OK)
         
         except Exception as e:
@@ -1027,7 +1025,7 @@ class SystemStatusView(APIView):
             return Response({
                 "status": "error",
                 "error": str(e),
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
@@ -1296,7 +1294,7 @@ def health_check(request):
     """
     return Response({
         "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }, status=status.HTTP_200_OK)
 
 
@@ -1430,9 +1428,9 @@ class UserProfileAPIView(APIView):
                     'display_name': request.user.display_name or '',
                     'photo_url': getattr(request.user, 'photo_url', ''),
                     'email_verified': request.user.email_verified,
-                    'created_at': datetime.utcnow(),
-                    'updated_at': datetime.utcnow(),
-                    'last_login': datetime.utcnow(),
+                    'created_at': datetime.now(timezone.utc),
+                    'updated_at': datetime.now(timezone.utc),
+                    'last_login': datetime.now(timezone.utc),
                     'phone_number': '',
                     'date_of_birth': None,
                     'gender': '',
@@ -1451,7 +1449,7 @@ class UserProfileAPIView(APIView):
             
             # Update last_login
             db.collection('users').document(user_id).update({
-                'last_login': datetime.utcnow()
+                'last_login': datetime.now(timezone.utc)
             })
             
             return Response(profile_data, status=status.HTTP_200_OK)
@@ -1583,7 +1581,7 @@ class UserProfileAPIView(APIView):
             
             # Prepare update data
             update_data = serializer.validated_data
-            update_data['updated_at'] = datetime.utcnow()
+            update_data['updated_at'] = datetime.now(timezone.utc)
             
             # Update profile in Firestore (set with merge handles both new and existing docs)
             db.collection('users').document(user_id).set(update_data, merge=True)
@@ -1701,7 +1699,13 @@ class UserStatisticsAPIView(APIView):
             
             user_data = user_doc.to_dict()
             created_at = user_data.get('created_at')
-            account_age_days = (timezone.now() - created_at).days if created_at else 0
+            if created_at:
+                if created_at.tzinfo is None:
+                    import datetime as _dt
+                    created_at = created_at.replace(tzinfo=_dt.timezone.utc)
+                account_age_days = (timezone.now() - created_at).days
+            else:
+                account_age_days = 0
             
             # Query assessments
             assessments_ref = db.collection('assessments').where('user_id', '==', user_id)
@@ -1735,7 +1739,17 @@ class UserStatisticsAPIView(APIView):
                 key=lambda x: x['count'],
                 reverse=True
             )[:5]
-            
+
+            # Serialize last_assessment_date to ISO string
+            if last_assessment_date is not None:
+                if hasattr(last_assessment_date, 'isoformat'):
+                    last_assessment_date = last_assessment_date.isoformat()
+                elif hasattr(last_assessment_date, '_seconds'):
+                    import datetime as _dt
+                    last_assessment_date = _dt.datetime.fromtimestamp(
+                        last_assessment_date._seconds, tz=_dt.timezone.utc
+                    ).isoformat()
+
             statistics = {
                 'total_assessments': total_assessments,
                 'assessments_by_confidence': confidence_counts,
@@ -1893,9 +1907,18 @@ class AssessmentHistoryAPIView(APIView):
             assessments_data = []
             for assessment in paginated_assessments:
                 data = assessment.to_dict()
+                created_at = data.get('created_at')
+                # Firestore Timestamps need explicit conversion to ISO string
+                if hasattr(created_at, 'isoformat'):
+                    created_at = created_at.isoformat()
+                elif hasattr(created_at, '_seconds'):
+                    import datetime as _dt
+                    created_at = _dt.datetime.fromtimestamp(
+                        created_at._seconds, tz=_dt.timezone.utc
+                    ).isoformat()
                 assessments_data.append({
                     'id': assessment.id,
-                    'created_at': data.get('created_at'),
+                    'created_at': created_at,
                     'disease': data.get('disease'),
                     'probability': data.get('probability'),
                     'confidence': data.get('confidence'),
@@ -2396,7 +2419,7 @@ class ReportUploadView(APIView):
                     pass
             
             # Step 6: Return response
-            upload_timestamp = datetime.utcnow().isoformat() + 'Z'
+            upload_timestamp = datetime.now(timezone.utc).isoformat() + 'Z'
             
             response_data = {
                 "success": True,
@@ -3021,6 +3044,7 @@ class ReportMetadataView(APIView):
             return APIErrorHandler.handle_internal_error(e, logger)
 
 
+<<<<<<< HEAD
 class TreatmentExploreView(APIView):
     """
     Dedicated treatment exploration endpoint.
@@ -3096,3 +3120,264 @@ class TreatmentExploreView(APIView):
         except Exception as e:
             logger.error(f"Unexpected error in TreatmentExploreView: {str(e)}", exc_info=True)
             return APIErrorHandler.handle_internal_error(e, logger)
+=======
+# ============================================================================
+# Clinical Guidelines API Endpoint
+# ============================================================================
+
+class ClinicalGuidelinesView(APIView):
+    """
+    API endpoint for retrieving clinical guidelines.
+    
+    Accepts treatment-disease combinations and returns comprehensive
+    clinical information generated by the ClinicalGuidelinesAgent.
+    """
+    
+    authentication_classes = []  # Allow unauthenticated access
+    permission_classes = []  # Allow any user
+    throttle_classes = [IPBasedRateThrottle]
+    
+    @extend_schema(
+        tags=['Clinical Guidelines'],
+        summary='Get clinical guidelines for treatment-disease combination',
+        description='''
+        Retrieve comprehensive clinical guidelines for a specific treatment-disease combination.
+        
+        The endpoint accepts a treatment name and disease name, and returns detailed clinical
+        information including treatment details, disease protocols, research evidence, clinical
+        recommendations, dosage guidelines, contraindications, sources, and medical disclaimer.
+        
+        **Request Timeout:** 30 seconds
+        **Rate Limiting:** IP-based throttling applied
+        **Authentication:** Not required
+        ''',
+        request={
+            'application/json': {
+                'type': 'object',
+                'properties': {
+                    'treatment': {
+                        'type': 'string',
+                        'description': 'Name of the treatment',
+                        'example': 'Acute Pharmacotherapy'
+                    },
+                    'disease': {
+                        'type': 'string',
+                        'description': 'Name of the disease',
+                        'example': 'Migraine'
+                    }
+                },
+                'required': ['treatment', 'disease']
+            }
+        },
+        responses={
+            200: OpenApiExample(
+                'Clinical Guidelines Retrieved',
+                value={
+                    "success": True,
+                    "data": {
+                        "treatment_details": "Detailed information about treatment mechanisms...",
+                        "disease_protocols": "Disease-specific protocols and guidelines...",
+                        "research_evidence": "Summary of research studies and evidence...",
+                        "clinical_recommendations": "Clinical recommendations for practitioners...",
+                        "dosage_guidelines": "Dosage information and administration guidelines...",
+                        "contraindications": "Contraindications, warnings, and precautions...",
+                        "sources": [
+                            "Source 1 citation",
+                            "Source 2 citation"
+                        ],
+                        "disclaimer": "Medical disclaimer text..."
+                    },
+                    "message": "Clinical guidelines retrieved successfully",
+                    "agent": "ClinicalGuidelinesAgent",
+                    "timestamp": "2024-01-15T10:30:00Z"
+                },
+                response_only=True
+            ),
+            400: OpenApiExample(
+                'Bad Request - Missing Parameters',
+                value={
+                    "success": False,
+                    "message": "Missing required parameter: treatment",
+                    "agent": "ClinicalGuidelinesAgent",
+                    "timestamp": "2024-01-15T10:30:00Z"
+                },
+                response_only=True
+            ),
+            500: OpenApiExample(
+                'Internal Server Error',
+                value={
+                    "success": False,
+                    "message": "Error generating clinical guidelines: [error details]",
+                    "agent": "ClinicalGuidelinesAgent",
+                    "timestamp": "2024-01-15T10:30:00Z"
+                },
+                response_only=True
+            ),
+            504: OpenApiExample(
+                'Gateway Timeout',
+                value={
+                    "success": False,
+                    "message": "Request timeout: Clinical guidelines generation exceeded 30 seconds",
+                    "agent": "ClinicalGuidelinesAgent",
+                    "timestamp": "2024-01-15T10:30:00Z"
+                },
+                response_only=True
+            )
+        }
+    )
+    def post(self, request):
+        """
+        POST /api/clinical-guidelines/
+        
+        Generate and retrieve clinical guidelines for a treatment-disease combination.
+        
+        Request Body:
+        {
+            "treatment": "Acute Pharmacotherapy",
+            "disease": "Migraine"
+        }
+        
+        Response (200 OK):
+        {
+            "success": true,
+            "data": {
+                "treatment_details": "...",
+                "disease_protocols": "...",
+                "research_evidence": "...",
+                "clinical_recommendations": "...",
+                "dosage_guidelines": "...",
+                "contraindications": "...",
+                "sources": [...],
+                "disclaimer": "..."
+            },
+            "message": "Clinical guidelines retrieved successfully",
+            "agent": "ClinicalGuidelinesAgent",
+            "timestamp": "2024-01-15T10:30:00Z"
+        }
+        
+        Error Responses:
+        - 400: Missing or invalid parameters
+        - 500: Agent processing error
+        - 504: Request timeout (exceeds 30 seconds)
+        - 429: Rate limit exceeded
+        """
+        from agents.clinical_guidelines import ClinicalGuidelinesAgent
+        import concurrent.futures
+
+        TIMEOUT_SECONDS = 30
+
+        # Extract parameters from request body
+        treatment = request.data.get('treatment', '').strip()
+        disease = request.data.get('disease', '').strip()
+
+        # Validate required parameters
+        if not treatment:
+            logger.warning("Clinical guidelines request missing treatment parameter")
+            return Response({
+                "success": False,
+                "message": "Missing required parameter: treatment",
+                "agent": "ClinicalGuidelinesAgent",
+                "timestamp": datetime.now(timezone.utc).isoformat() + "Z"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if not disease:
+            logger.warning("Clinical guidelines request missing disease parameter")
+            return Response({
+                "success": False,
+                "message": "Missing required parameter: disease",
+                "agent": "ClinicalGuidelinesAgent",
+                "timestamp": datetime.now(timezone.utc).isoformat() + "Z"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        logger.info(f"Clinical guidelines request: treatment={treatment}, disease={disease}")
+
+        # Initialize agent
+        agent = ClinicalGuidelinesAgent()
+
+        # Process request with 30-second timeout via ThreadPoolExecutor
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(agent.process, {
+                    "treatment": treatment,
+                    "disease": disease
+                })
+                try:
+                    result = future.result(timeout=TIMEOUT_SECONDS)
+                except concurrent.futures.TimeoutError:
+                    logger.error(f"Clinical guidelines request timeout for {treatment}/{disease}")
+                    return Response({
+                        "success": False,
+                        "message": "Request timeout: Clinical guidelines generation exceeded 30 seconds",
+                        "agent": "ClinicalGuidelinesAgent",
+                        "timestamp": datetime.now(timezone.utc).isoformat() + "Z"
+                    }, status=status.HTTP_504_GATEWAY_TIMEOUT)
+
+            # Add agent name and timestamp to response if not already present
+            if isinstance(result, dict):
+                result.setdefault("agent", "ClinicalGuidelinesAgent")
+                result.setdefault("timestamp", datetime.now(timezone.utc).isoformat() + "Z")
+
+            return Response(result, status=status.HTTP_200_OK)
+
+        except TimeoutError:
+            logger.error(f"Clinical guidelines request timeout for {treatment}/{disease}")
+            return Response({
+                "success": False,
+                "message": "Request timeout: Clinical guidelines generation exceeded 30 seconds",
+                "agent": "ClinicalGuidelinesAgent",
+                "timestamp": datetime.now(timezone.utc).isoformat() + "Z"
+            }, status=status.HTTP_504_GATEWAY_TIMEOUT)
+
+        except Exception as e:
+            logger.error(f"Clinical guidelines agent error: {str(e)}", exc_info=True)
+            return Response({
+                "success": False,
+                "message": f"Error generating clinical guidelines: {str(e)}",
+                "agent": "ClinicalGuidelinesAgent",
+                "timestamp": datetime.now(timezone.utc).isoformat() + "Z"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ============================================================================
+# Stub views (previously in new_views.py)
+# ============================================================================
+
+class MedicalHistoryAPIView(APIView):
+    """Medical history endpoint — stub implementation."""
+    authentication_classes = [FirebaseAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response({"medical_history": []}, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        return Response(
+            {"message": "Medical history update not yet implemented"},
+            status=status.HTTP_501_NOT_IMPLEMENTED
+        )
+
+
+class AssessmentExportAPIView(APIView):
+    """Assessment export endpoint — stub implementation."""
+    authentication_classes = [FirebaseAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, assessment_id):
+        return Response(
+            {"message": "Assessment export not yet implemented"},
+            status=status.HTTP_501_NOT_IMPLEMENTED
+        )
+
+
+class ReportParseAPIView(APIView):
+    """Report parse endpoint — stub implementation."""
+    authentication_classes = [FirebaseAuthentication]
+    permission_classes = [IsAuthenticated]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
+
+    def post(self, request):
+        return Response(
+            {"message": "Report parsing not yet implemented"},
+            status=status.HTTP_501_NOT_IMPLEMENTED
+        )
+>>>>>>> d205e2c3b4d37e237e6680a1b659b923cf7962e9

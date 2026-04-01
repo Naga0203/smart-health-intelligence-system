@@ -1,6 +1,5 @@
 import { useNavigate } from 'react-router-dom';
 import {
-  Box,
   Card,
   CardContent,
   Typography,
@@ -10,6 +9,9 @@ import {
   ListItemText,
   Chip,
   Stack,
+  useTheme,
+  alpha,
+  Box
 } from '@mui/material';
 import { format } from 'date-fns';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -21,10 +23,10 @@ import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 
 /**
  * Get color for confidence level
- * @param {'LOW'|'MEDIUM'|'HIGH'} confidence
- * @returns {string}
+ * @param {'HIGH'|'MEDIUM'|'LOW'|string} confidence
+ * @returns {'success'|'warning'|'error'|'default'}
  */
-const getConfidenceColor = (confidence) => {
+const getConfidenceColor = (confidence: string): 'success' | 'warning' | 'error' | 'default' => {
   switch (confidence) {
     case 'HIGH':
       return 'success';
@@ -42,13 +44,12 @@ const getConfidenceColor = (confidence) => {
  * @param {string} riskLevel
  * @returns {string}
  */
-const getRiskLevelColor = (riskLevel) => {
+const getRiskLevelColor = (riskLevel: string): 'info' | 'warning' | 'error' | 'default' => {
   const level = riskLevel?.toLowerCase();
   switch (level) {
     case 'low':
       return 'info';
     case 'medium':
-      return 'warning';
     case 'elevated':
       return 'warning';
     case 'high':
@@ -58,25 +59,40 @@ const getRiskLevelColor = (riskLevel) => {
   }
 };
 
+interface RecentAssessmentsProps {
+  assessments: any[];
+  loading: boolean;
+}
+
 /**
  * Recent Assessments Component
  * Displays list of recent assessments with date, condition, risk level, confidence
- * @param {Object} props
- * @param {AssessmentHistoryItem[]} props.assessments - Array of assessment history items
- * @param {boolean} props.loading - Loading state
  */
-export default function RecentAssessments({ assessments, loading }) {
+export default function RecentAssessments({ assessments, loading }: RecentAssessmentsProps) {
   const navigate = useNavigate();
+  const theme = useTheme();
 
-  const handleAssessmentClick = (assessmentId) => {
+  const handleAssessmentClick = (assessmentId: string) => {
     navigate(`/app/assessment/${assessmentId}`);
+  };
+
+  const glassCardSx = {
+    background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.4)} 0%, ${alpha(
+      theme.palette.background.paper,
+      0.1
+    )} 100%)`,
+    backdropFilter: 'blur(24px)',
+    border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+    borderRadius: 4,
+    boxShadow: `0 8px 32px 0 ${alpha(theme.palette.common.black, 0.05)}`,
+    height: '100%'
   };
 
   if (loading) {
     return (
-      <Card>
+      <Card sx={glassCardSx}>
         <CardContent>
-          <Typography variant="h6" gutterBottom>
+          <Typography variant="h6" gutterBottom fontWeight="600">
             Recent Assessments
           </Typography>
           <LoadingSkeleton />
@@ -87,9 +103,9 @@ export default function RecentAssessments({ assessments, loading }) {
 
   if (!assessments || assessments.length === 0) {
     return (
-      <Card>
+      <Card sx={glassCardSx}>
         <CardContent>
-          <Typography variant="h6" gutterBottom>
+          <Typography variant="h6" gutterBottom fontWeight="600">
             Recent Assessments
           </Typography>
           <EmptyState
@@ -102,34 +118,56 @@ export default function RecentAssessments({ assessments, loading }) {
   }
 
   return (
-    <Card>
+    <Card sx={glassCardSx}>
       <CardContent>
-        <Typography variant="h6" gutterBottom>
+        <Typography variant="h6" gutterBottom fontWeight="600">
           Recent Assessments
         </Typography>
         <List>
-          {assessments.map((assessment) => (
-            <ListItem key={assessment.id} disablePadding>
-              <ListItemButton onClick={() => handleAssessmentClick(assessment.id)}>
+          {assessments.map((assessment, index) => (
+            <ListItem 
+              key={assessment.id} 
+              disablePadding
+              sx={{
+                mb: 1,
+                borderRadius: 2,
+                overflow: 'hidden',
+                background: alpha(theme.palette.background.paper, 0.4),
+                border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                transition: 'all 0.2s ease-in-out',
+                '&:hover': {
+                  transform: 'translateY(-2px)',
+                  boxShadow: `0 4px 12px ${alpha(theme.palette.common.black, 0.1)}`,
+                  background: alpha(theme.palette.background.paper, 0.6),
+                }
+              }}
+            >
+              <ListItemButton onClick={() => handleAssessmentClick(assessment.id)} sx={{ p: 2 }}>
                 <ListItemText
                   primary={
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <Typography variant="body1" component="span">
+                    <Stack direction="row" spacing={1} alignItems="center" mb={0.5}>
+                      <Typography variant="body1" component="span" fontWeight="500">
                         {assessment.disease}
                       </Typography>
                       <Chip
                         label={assessment.confidence}
                         size="small"
                         color={getConfidenceColor(assessment.confidence)}
+                        sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }}
                       />
                     </Stack>
                   }
                   secondary={
-                    <Box sx={{ mt: 0.5 }}>
+                    <Box sx={{ mt: 0.5, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
                       <Typography variant="body2" color="text.secondary" component="span">
-                        {format(new Date(assessment.created_at), 'MMM dd, yyyy HH:mm')}
+                        {format(new Date(assessment.created_at), 'MMM dd, yyyy • HH:mm')}
                       </Typography>
-                      <Typography variant="body2" component="span" sx={{ ml: 2 }}>
+                      <Typography 
+                        variant="body2" 
+                        component="span"
+                        color="primary.main"
+                        fontWeight="500"
+                      >
                         Probability: {Math.round(assessment.probability * 100)}%
                       </Typography>
                     </Box>

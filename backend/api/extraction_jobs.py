@@ -10,7 +10,7 @@ from firebase_admin import firestore
 from typing import Dict, Any, Optional
 import uuid
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger('health_ai.extraction_jobs')
 
@@ -186,7 +186,7 @@ class ExtractionJobManager:
             error_info = {
                 'error_code': error_code,
                 'message': message,
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now(timezone.utc).isoformat()
             }
             
             update_data = {

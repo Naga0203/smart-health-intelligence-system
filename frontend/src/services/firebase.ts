@@ -121,7 +121,11 @@ export class FirebaseService {
   /**
    * Listen to authentication state changes
    */
+<<<<<<< HEAD
   onAuthStateChange(callback: (user: any) => void) {
+=======
+  onAuthStateChange(callback: any) {
+>>>>>>> d205e2c3b4d37e237e6680a1b659b923cf7962e9
     return onAuthStateChanged(auth, callback);
   }
 
