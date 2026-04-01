@@ -15,10 +15,10 @@ import {
   useTheme,
 } from '@mui/material';
 import {
-  Menu as MenuIcon,
   AccountCircle,
   Logout,
 } from '@mui/icons-material';
+import { BurgerMenu } from '../ui/BurgerMenu';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
@@ -26,9 +26,10 @@ import { LogoutModal } from '../common';
 
 interface HeaderProps {
   onMenuClick: () => void;
+  sidebarOpen?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
+export const Header: React.FC<HeaderProps> = ({ onMenuClick, sidebarOpen = false }) => {
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm')); // <600px
@@ -81,20 +82,13 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
             px: { xs: 1, sm: 2, md: 3 },
           }}
         >
-          <IconButton
-            color="inherit"
-            aria-label="toggle menu"
-            edge="start"
-            onClick={onMenuClick}
-            sx={{
-              mr: { xs: 1, sm: 2 },
-              // Ensure proper touch target size on mobile
-              minWidth: 44,
-              minHeight: 44,
-            }}
-          >
-            <MenuIcon />
-          </IconButton>
+          <Box sx={{ mr: { xs: 1, sm: 2 } }}>
+            <BurgerMenu
+              open={sidebarOpen}
+              onClick={onMenuClick}
+              aria-label="toggle menu"
+            />
+          </Box>
 
           <Typography
             variant="h6"

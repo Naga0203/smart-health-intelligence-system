@@ -114,20 +114,23 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
           p: 4,
           textAlign: 'center',
           cursor: 'pointer',
-          border: isDragging ? '2px dashed' : '2px dashed',
-          borderColor: isDragging ? 'primary.main' : 'grey.400',
-          backgroundColor: isDragging ? 'action.hover' : 'background.paper',
+          borderRadius: 3,
+          border: '2px dashed',
+          borderColor: isDragging ? '#0ea5e9' : 'rgba(255, 255, 255, 0.2)',
+          backgroundColor: isDragging ? 'rgba(14, 165, 233, 0.1)' : 'rgba(255, 255, 255, 0.02)',
+          backdropFilter: 'blur(10px)',
           transition: 'all 0.3s ease',
           '&:hover': {
-            borderColor: 'primary.main',
-            backgroundColor: 'action.hover',
+            borderColor: '#0ea5e9',
+            backgroundColor: 'rgba(14, 165, 233, 0.05)',
+            boxShadow: '0 4px 20px rgba(14, 165, 233, 0.15)',
           },
         }}
       >
         <CloudUploadIcon
           sx={{
             fontSize: 64,
-            color: isDragging ? 'primary.main' : 'grey.500',
+            color: isDragging ? '#38bdf8' : 'rgba(255, 255, 255, 0.5)',
             mb: 2,
           }}
         />

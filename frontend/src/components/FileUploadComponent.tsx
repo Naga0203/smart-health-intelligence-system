@@ -2,12 +2,13 @@
 // FileUploadComponent - Medical Report Upload with Extraction
 // ============================================================================
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Box, Button, Alert, Typography } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { FileDropzone, FilePreview, UploadProgress, FileUploadStatus } from './upload';
 import { ExtractedMedicalData, UploadError } from '@/types/medicalReport';
-import { reportService } from '@/services/reportService';
+import { geminiAI } from '@/services/geminiService';
+import { firebaseService } from '@/services/firebase.ts';
 
 interface FileUploadComponentProps {
   onUploadComplete: (extractedData: ExtractedMedicalData, jobId: string, reportMetadata: {
@@ -24,8 +25,6 @@ interface FileUploadComponentProps {
 
 const DEFAULT_MAX_FILE_SIZE_MB = 10;
 const DEFAULT_ACCEPTED_FORMATS = ['.pdf', '.jpg', '.jpeg', '.png'];
-const POLL_INTERVAL_MS = 2000; // Poll every 2 seconds
-const MAX_POLL_ATTEMPTS = 60; // 2 minutes max (60 * 2 seconds)
 
 export const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
   onUploadComplete,
@@ -36,28 +35,8 @@ export const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
 }) => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadStatus, setUploadStatus] = useState<FileUploadStatus[]>([]);
-  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
-  const [currentReportMetadata, setCurrentReportMetadata] = useState<{
-    reportId: string;
-    fileName: string;
-    fileSize: number;
-    uploadTimestamp: string;
-  } | null>(null);
   const [extractionError, setExtractionError] = useState<string | null>(null);
-  const [isPolling, setIsPolling] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
-
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const pollAttemptsRef = useRef<number>(0);
-
-  // Cleanup polling on unmount
-  useEffect(() => {
-    return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-      }
-    };
-  }, []);
 
   /**
    * Handle file selection from dropzone
@@ -86,189 +65,86 @@ export const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
     setSelectedFiles([]);
     setUploadStatus([]);
     setExtractionError(null);
-    setCurrentJobId(null);
+    setRetryCount(0);
   }, []);
 
   /**
-   * Poll extraction status
+   * Convert file to Base64 string
    */
-  const pollExtractionStatus = useCallback(async (jobId: string) => {
-    try {
-      pollAttemptsRef.current += 1;
-
-      const statusResponse = await reportService.getExtractionStatus(jobId);
-
-      if (statusResponse.status === 'complete') {
-        // Extraction complete
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
-          pollIntervalRef.current = null;
-        }
-        setIsPolling(false);
-
-        setUploadStatus(prev => prev.map(file => ({
-          ...file,
-          progress: 100,
-          status: 'completed',
-        })));
-
-        // Call success callback with extracted data and report metadata
-        if (currentReportMetadata && statusResponse.extracted_data) {
-          onUploadComplete(statusResponse.extracted_data, jobId, currentReportMetadata);
-        }
-
-      } else if (statusResponse.status === 'failed') {
-        // Extraction failed
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
-          pollIntervalRef.current = null;
-        }
-        setIsPolling(false);
-
-        const errorMessage = statusResponse.message || 'Extraction failed';
-        setExtractionError(errorMessage);
-
-        setUploadStatus(prev => prev.map(file => ({
-          ...file,
-          status: 'error',
-          error: errorMessage,
-        })));
-
-        onUploadError({
-          code: statusResponse.error_code || 'extraction_failed',
-          message: errorMessage,
-          details: statusResponse.partial_data,
-        });
-
-      } else if (statusResponse.status === 'processing') {
-        // Still processing - update progress
-        const progress = statusResponse.progress_percent || 50;
-        setUploadStatus(prev => prev.map(file => ({
-          ...file,
-          progress,
-          status: 'uploading',
-        })));
-      }
-
-      // Check if we've exceeded max poll attempts
-      if (pollAttemptsRef.current >= MAX_POLL_ATTEMPTS) {
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
-          pollIntervalRef.current = null;
-        }
-        setIsPolling(false);
-
-        const timeoutError = 'Extraction timeout - processing is taking longer than expected';
-        setExtractionError(timeoutError);
-
-        setUploadStatus(prev => prev.map(file => ({
-          ...file,
-          status: 'error',
-          error: timeoutError,
-        })));
-
-        onUploadError({
-          code: 'extraction_timeout',
-          message: timeoutError,
-        });
-      }
-
-    } catch (error: any) {
-      console.error('Error polling extraction status:', error);
-
-      // Don't stop polling on network errors - just log and continue
-      if (pollAttemptsRef.current >= MAX_POLL_ATTEMPTS) {
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
-          pollIntervalRef.current = null;
-        }
-        setIsPolling(false);
-
-        const errorMessage = error.response?.data?.message || 'Failed to check extraction status';
-        setExtractionError(errorMessage);
-
-        setUploadStatus(prev => prev.map(file => ({
-          ...file,
-          status: 'error',
-          error: errorMessage,
-        })));
-
-        onUploadError({
-          code: 'status_check_failed',
-          message: errorMessage,
-        });
-      }
-    }
-  }, [onUploadComplete, onUploadError]);
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const base64String = reader.result as string;
+        const base64Data = base64String.split(',')[1];
+        resolve(base64Data);
+      };
+      reader.onerror = error => reject(error);
+    });
+  };
 
   /**
-   * Start polling for extraction status
+   * Process file with Gemini OCR
    */
-  const startPolling = useCallback((jobId: string) => {
-    setIsPolling(true);
-    pollAttemptsRef.current = 0;
-
-    // Clear any existing interval
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-    }
-
-    // Start polling
-    pollIntervalRef.current = setInterval(() => {
-      pollExtractionStatus(jobId);
-    }, POLL_INTERVAL_MS);
-
-    // Also poll immediately
-    pollExtractionStatus(jobId);
-  }, [pollExtractionStatus]);
-
-  /**
-   * Upload file to backend
-   */
-  const uploadFile = useCallback(async () => {
+  const processFile = useCallback(async () => {
     if (selectedFiles.length === 0) return;
 
     const file = selectedFiles[0];
     setExtractionError(null);
 
     try {
-      // Update status to uploading
       setUploadStatus([{
         fileName: file.name,
-        progress: 0,
+        progress: 10,
         status: 'uploading',
       }]);
 
-      // Upload file
-      const uploadResponse = await reportService.uploadReport(file, userId);
-
-      // Store report metadata
-      setCurrentReportMetadata({
-        reportId: uploadResponse.report_id,
-        fileName: uploadResponse.file_name,
-        fileSize: uploadResponse.file_size,
-        uploadTimestamp: uploadResponse.upload_timestamp,
-      });
-
-      // Update progress to show upload complete
+      const base64Data = await fileToBase64(file);
+      
       setUploadStatus([{
         fileName: file.name,
-        progress: 30,
+        progress: 40,
         status: 'uploading',
       }]);
 
-      // Store job ID and start polling
-      setCurrentJobId(uploadResponse.job_id);
-      startPolling(uploadResponse.job_id);
+      const extractionResult = await geminiAI.extractFromReport(base64Data, file.type);
+      
+      setUploadStatus([{
+        fileName: file.name,
+        progress: 80,
+        status: 'uploading',
+      }]);
+
+      const jobId = `job_${Date.now()}`;
+      const reportMetadata = {
+        reportId: `report_${Date.now()}`,
+        fileName: file.name,
+        fileSize: file.size,
+        uploadTimestamp: new Date().toISOString(),
+      };
+
+      await firebaseService.saveToCollection('analyses', {
+        jobId,
+        userId,
+        status: 'complete',
+        extractionData: extractionResult,
+        reportMetadata,
+        method: 'frontend_gemini_ocr'
+      }, jobId);
+
+      setUploadStatus([{
+        fileName: file.name,
+        progress: 100,
+        status: 'completed',
+      }]);
+
+      onUploadComplete(extractionResult as any, jobId, reportMetadata);
 
     } catch (error: any) {
-      console.error('Upload error:', error);
-
-      const errorMessage = error.response?.data?.message || 'Upload failed';
-      const errorCode = error.response?.data?.error_code || 'upload_failed';
-
+      console.error('OCR error:', error);
+      const errorMessage = error.message || 'Failed to process report';
       setExtractionError(errorMessage);
-
       setUploadStatus([{
         fileName: file.name,
         progress: 0,
@@ -276,58 +152,42 @@ export const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
         error: errorMessage,
       }]);
 
-      onUploadError({
-        code: errorCode,
-        message: errorMessage,
-        details: error.response?.data?.details,
-      });
+      firebaseService.logError(error, 'FileUploadComponent.processFile');
+      onUploadError({ code: 'ocr_failed', message: errorMessage });
     }
-  }, [selectedFiles, userId, startPolling, onUploadError]);
+  }, [selectedFiles, userId, onUploadComplete, onUploadError]);
 
   /**
-   * Retry upload after failure
+   * Retry processing
    */
   const handleRetry = useCallback(() => {
     setRetryCount(prev => prev + 1);
     setExtractionError(null);
-    uploadFile();
-  }, [uploadFile]);
+    processFile();
+  }, [processFile]);
 
   /**
-   * Cancel upload and reset
+   * Cancel and reset
    */
   const handleCancel = useCallback(() => {
-    // Stop polling
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
-    }
-    setIsPolling(false);
-
-    // Reset state
     setSelectedFiles([]);
     setUploadStatus([]);
     setExtractionError(null);
-    setCurrentJobId(null);
-    setCurrentReportMetadata(null);
     setRetryCount(0);
-    pollAttemptsRef.current = 0;
   }, []);
 
-  // Auto-upload when file is selected
   useEffect(() => {
     if (selectedFiles.length > 0 && uploadStatus.length > 0 && uploadStatus[0].status === 'pending') {
-      uploadFile();
+      processFile();
     }
-  }, [selectedFiles, uploadStatus, uploadFile]);
+  }, [selectedFiles, uploadStatus, processFile]);
 
   const hasError = uploadStatus.some(file => file.status === 'error');
-  const isUploading = uploadStatus.some(file => file.status === 'uploading') || isPolling;
+  const isUploading = uploadStatus.some(file => file.status === 'uploading');
   const isComplete = uploadStatus.some(file => file.status === 'completed');
 
   return (
     <Box>
-      {/* File Selection */}
       {selectedFiles.length === 0 && (
         <FileDropzone
           onFilesSelected={handleFilesSelected}
@@ -336,7 +196,6 @@ export const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
         />
       )}
 
-      {/* File Preview */}
       {selectedFiles.length > 0 && !isUploading && !isComplete && (
         <FilePreview
           files={selectedFiles}
@@ -344,12 +203,10 @@ export const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
         />
       )}
 
-      {/* Upload Progress */}
       {uploadStatus.length > 0 && (
         <UploadProgress files={uploadStatus} />
       )}
 
-      {/* Error Display with Retry */}
       {hasError && extractionError && (
         <Alert
           severity="error"
@@ -377,25 +234,17 @@ export const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
         </Alert>
       )}
 
-      {/* Success Message */}
       {isComplete && (
         <Alert severity="success" sx={{ mt: 2 }}>
           <Typography variant="body2" fontWeight="medium">
-            Report uploaded and processed successfully!
-          </Typography>
-          <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
-            Your assessment form has been populated with the extracted data.
+            Report processed successfully!
           </Typography>
         </Alert>
       )}
 
-      {/* Action Buttons */}
       {(hasError || isComplete) && (
-        <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
-          <Button
-            variant="outlined"
-            onClick={handleCancel}
-          >
+        <Box sx={{ mt: 2 }}>
+          <Button variant="outlined" onClick={handleCancel}>
             Upload Another Report
           </Button>
         </Box>
@@ -403,3 +252,4 @@ export const FileUploadComponent: React.FC<FileUploadComponentProps> = ({
     </Box>
   );
 };
+

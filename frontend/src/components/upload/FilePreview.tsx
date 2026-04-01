@@ -79,10 +79,12 @@ const FilePreviewCard: React.FC<{ file: File; index: number; onRemove: (index: n
           position: 'absolute',
           top: 8,
           right: 8,
-          backgroundColor: 'background.paper',
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          color: 'white',
+          backdropFilter: 'blur(4px)',
           '&:hover': {
-            backgroundColor: 'error.light',
-            color: 'error.contrastText',
+            backgroundColor: '#ef4444',
+            color: 'white',
           },
           zIndex: 1,
         }}
@@ -97,7 +99,8 @@ const FilePreviewCard: React.FC<{ file: File; index: number; onRemove: (index: n
           alignItems: 'center',
           justifyContent: 'center',
           height: 120,
-          backgroundColor: 'grey.100',
+          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
           overflow: 'hidden',
         }}
       >

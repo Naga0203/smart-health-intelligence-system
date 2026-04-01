@@ -3,7 +3,7 @@
 // Clean, modern interface matching HealthIntel AI design
 // ============================================================================
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -38,8 +38,13 @@ import { useAuthStore } from '@/stores/authStore';
 import { useUserStore } from '@/stores/userStore';
 import { FileUploadComponent } from '@/components/FileUploadComponent';
 import { ExtractedMedicalData, UploadError } from '@/types/medicalReport';
+import { geminiAI } from '@/services/geminiService';
+import { firebaseService } from '@/services/firebase';
+import { apiService } from '@/services/api';
 
 const COMMON_SYMPTOMS = ['Headache', 'Fever', 'Nausea', 'Fatigue'];
+
+type AssessmentStage = 'IDLE' | 'PREDICTING' | 'ANALYZING' | 'SAVING' | 'COMPLETE' | 'ERROR';
 
 export const NewAssessmentPage: React.FC = () => {
   const navigate = useNavigate();
@@ -56,7 +61,6 @@ export const NewAssessmentPage: React.FC = () => {
 
   // Extracted data state
   const [extractedData, setExtractedData] = useState<ExtractedMedicalData | null>(null);
-  const [extractionJobId, setExtractionJobId] = useState<string | null>(null);
   const [reportMetadata, setReportMetadata] = useState<{
     reportId: string;
     fileName: string;
@@ -68,25 +72,10 @@ export const NewAssessmentPage: React.FC = () => {
   // Track data sources for each field (manual vs extracted)
   const [dataSources, setDataSources] = useState<Map<string, 'manual' | 'extracted'>>(new Map());
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // Pipeline Stage
+  const [stage, setStage] = useState<AssessmentStage>('IDLE');
+  const [pipelineProgress, setPipelineProgress] = useState(0);
   const [submitError, setSubmitError] = useState<string | null>(null);
-
-  // Polling state
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [jobStatus, setJobStatus] = useState<'pending' | 'processing' | 'complete' | 'error' | null>(null);
-  const [jobProgress, setJobProgress] = useState(0);
-  const [jobResult, setJobResult] = useState<any>(null);
-  const [jobError, setJobError] = useState<string | null>(null);
-  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Clear polling interval on unmount
-  useEffect(() => {
-    return () => {
-      if (pollingIntervalRef.current !== null) {
-        clearInterval(pollingIntervalRef.current);
-      }
-    };
-  }, []);
 
   const { user } = useAuthStore();
   const { profile, fetchProfile } = useUserStore();
@@ -111,7 +100,7 @@ export const NewAssessmentPage: React.FC = () => {
    */
   const handleUploadComplete = (
     data: ExtractedMedicalData,
-    jobId: string,
+    _jobId: string,
     metadata: {
       reportId: string;
       fileName: string;
@@ -120,7 +109,6 @@ export const NewAssessmentPage: React.FC = () => {
     }
   ) => {
     setExtractedData(data);
-    setExtractionJobId(jobId);
     setReportMetadata(metadata);
     setUploadError(null);
 
@@ -134,7 +122,6 @@ export const NewAssessmentPage: React.FC = () => {
   const handleUploadError = (error: UploadError) => {
     setUploadError(error);
     setExtractedData(null);
-    setExtractionJobId(null);
   };
 
   /**
@@ -174,22 +161,6 @@ export const NewAssessmentPage: React.FC = () => {
     // Note: Pain severity is subjective and typically not in reports
     // Lab results, medications, and diagnoses would be displayed separately
     // in a more comprehensive form (future enhancement)
-  };
-
-  /**
-   * Handle entry mode change
-   */
-  const handleEntryModeChange = (
-    _event: React.MouseEvent<HTMLElement>,
-    newMode: 'upload' | 'manual' | null,
-  ) => {
-    if (newMode !== null) {
-      setEntryMode(newMode);
-      // Clear upload-related state when switching to manual
-      if (newMode === 'manual') {
-        setUploadError(null);
-      }
-    }
   };
 
   // Toggle symptom chip
@@ -233,135 +204,121 @@ export const NewAssessmentPage: React.FC = () => {
 
   // Reset form
   const handleReset = () => {
-    // Stop any active polling
-    if (pollingIntervalRef.current !== null) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
-    }
     setDuration('');
     setTemperature('');
     setPainSeverity(4);
     setSubmitError(null);
     setExtractedData(null);
-    setExtractionJobId(null);
     setReportMetadata(null);
     setDataSources(new Map());
-    setJobId(null);
-    setJobStatus(null);
-    setJobProgress(0);
-    setJobResult(null);
-    setJobError(null);
+    setStage('IDLE');
+    setPipelineProgress(0);
   };
 
   // Submit form
   const handleSubmit = async () => {
-    setIsSubmitting(true);
+    setStage('PREDICTING');
+    setPipelineProgress(10);
     setSubmitError(null);
-    setJobId(null);
-    setJobStatus(null);
-    setJobProgress(0);
-    setJobResult(null);
-    setJobError(null);
 
     try {
-      // Combine description and selected symptoms
+      // 1. Prepare symptoms
       const symptomsArray: string[] = [];
-      
       if (symptomDescription.trim()) {
-        const descriptionSymptoms = symptomDescription
-          .split(',')
-          .map(s => s.trim())
-          .filter(Boolean);
-        symptomsArray.push(...descriptionSymptoms);
+        symptomsArray.push(...symptomDescription.split(',').map(s => s.trim()).filter(Boolean));
       }
-      
       symptomsArray.push(...selectedSymptoms);
-      
-      // Remove duplicates (case-insensitive)
-      const uniqueSymptoms = Array.from(
-        new Set(symptomsArray.map(s => s.toLowerCase()))
-      ).map(s => symptomsArray.find(orig => orig.toLowerCase() === s) || s);
+      const uniqueSymptoms = Array.from(new Set(symptomsArray.map(s => s.toLowerCase())))
+        .map(s => symptomsArray.find(orig => orig.toLowerCase() === s) || s);
 
       if (uniqueSymptoms.length === 0) {
-        setSubmitError('Please describe your symptoms or select from the list.');
-        setIsSubmitting(false);
+        setSubmitError('Please describe your symptoms.');
+        setStage('IDLE');
         return;
       }
 
-      console.log('Submitting symptoms:', uniqueSymptoms);
-
-      const reportMetadataPayload = reportMetadata && extractionJobId ? {
-        reportId: reportMetadata.reportId,
-        extractionJobId: extractionJobId,
-        hasExtractedData: extractedData !== null,
-      } : undefined;
-
-      const dataSourcesObject: Record<string, 'manual' | 'extracted'> = {};
-      dataSources.forEach((value, key) => {
-        dataSourcesObject[key] = value;
-      });
-
-      const { apiService } = await import('@/services/api');
-      const response = await apiService.predict(
+      // 2. STEP 1: NN Prediction (Backend)
+      setPipelineProgress(30);
+      const predictionResponse = await apiService.predictSymptoms(
         uniqueSymptoms,
-        reportMetadataPayload,
-        extractedData,
-        Object.keys(dataSourcesObject).length > 0 ? dataSourcesObject : undefined,
         profile?.age || undefined,
         profile?.gender || undefined,
-        {
-          duration,
-          temperature: temperature ? parseFloat(temperature.replace(/[^\d.]/g, '')) : undefined,
-          pain_severity: painSeverity
-        }
+        extractedData
       );
 
-      console.log('Prediction Response:', response);
+      // Save Prediction to Firestore
+      const predictionId = `pred_${Date.now()}`;
+      await firebaseService.saveToCollection('predictions', {
+        userId,
+        symptoms: uniqueSymptoms,
+        results: predictionResponse.predictions || predictionResponse,
+        timestamp: new Date().toISOString()
+      }, predictionId);
 
-      // HTTP 202 async path — start polling
-      if (response && response.job_id && (response.status === 'pending' || response.status === 'processing')) {
-        setJobId(response.job_id);
-        setJobStatus(response.status);
-        setIsSubmitting(false);
+      // 3. STEP 2: Agent Analysis (Gemini)
+      setStage('ANALYZING');
+      setPipelineProgress(60);
+      
+      // We need a mock or real ExtractionResult if manual
+      const ocrDataToAnalyze = extractedData || {
+        patientInfo: { age: profile?.age, gender: profile?.gender },
+        symptoms: uniqueSymptoms,
+        testResults: [],
+        vitals: { temperature: temperature ? parseFloat(temperature) : null },
+        confidence: 1.0
+      };
 
-        // Start polling every 2 seconds
-        pollingIntervalRef.current = setInterval(async () => {
-          try {
-            const statusResponse = await apiService.pollJobStatus(response.job_id);
-            setJobStatus(statusResponse.status);
-            setJobProgress(statusResponse.progress ?? 0);
+      const agentAnalysis = await geminiAI.analyzeHealthCase(
+        ocrDataToAnalyze as any, 
+        predictionResponse.predictions || [predictionResponse]
+      );
 
-            if (statusResponse.status === 'complete') {
-              clearInterval(pollingIntervalRef.current!);
-              pollingIntervalRef.current = null;
-              setJobResult(statusResponse.result);
-              // Navigate to results page
-              const assessmentId = statusResponse.result?.assessment_id || response.job_id;
-              navigate(`/app/assessment/${assessmentId}`, { state: { result: statusResponse.result } });
-            } else if (statusResponse.status === 'error') {
-              clearInterval(pollingIntervalRef.current!);
-              pollingIntervalRef.current = null;
-              setJobError(statusResponse.error || 'The analysis failed. Please try again.');
-            }
-          } catch (pollError: any) {
-            console.error('Polling error:', pollError);
-            // Don't stop polling on transient network errors — let it retry
-          }
-        }, 2000);
+      // 4. STEP 3: Final Persistence (Firestore)
+      setStage('SAVING');
+      setPipelineProgress(90);
 
-        return;
-      }
+      const assessmentId = `assess_${Date.now()}`;
+      
+      // Save Assessment
+      await firebaseService.saveToCollection('assessments', {
+        ...agentAnalysis,
+        userId,
+        predictionId,
+        reportId: reportMetadata?.reportId || null,
+        status: 'completed'
+      }, assessmentId);
 
-      // HTTP 200 synchronous path (legacy / fallback)
-      const assessmentId = response.assessment_id || 'new';
-      navigate(`/app/assessment/${assessmentId}`, { state: { result: response } });
+      // Save Recommendations
+      await firebaseService.saveToCollection('recommendations', {
+        assessmentId,
+        userId,
+        ...agentAnalysis.recommendations
+      });
+
+      // Save Explanation
+      await firebaseService.saveToCollection('explanations', {
+        assessmentId,
+        userId,
+        ...agentAnalysis.explanation
+      });
+
+      // 5. COMPLETE
+      setPipelineProgress(100);
+      setStage('COMPLETE');
+
+      // Navigate to results page
+      setTimeout(() => {
+        navigate(`/app/assessment/${assessmentId}`, { state: { result: agentAnalysis } });
+      }, 1500);
 
     } catch (error: any) {
-      console.error('Prediction failed:', error);
-      const errorMessage = error.response?.data?.message || error.message || 'Failed to submit symptoms. Please try again.';
+      console.error('Analysis Pipeline Failed:', error);
+      const errorMessage = error.message || 'The AI analysis failed. Please try again.';
       setSubmitError(errorMessage);
-    } finally {
-      setIsSubmitting(false);
+      setStage('ERROR');
+      
+      // Log to Firestore
+      firebaseService.logError(error, 'NewAssessmentPage.handleSubmit');
     }
   };
 
@@ -369,7 +326,7 @@ export const NewAssessmentPage: React.FC = () => {
 
   return (
     <Fade in={true} timeout={500}>
-      <Box sx={{ bgcolor: '#F9FAFB', minHeight: '100vh', pb: 8 }}>
+      <Box sx={{ minHeight: '100vh', pb: 8, pt: 4 }}>
         <Container
           maxWidth="md"
           sx={{
@@ -408,9 +365,9 @@ export const NewAssessmentPage: React.FC = () => {
               sx={{
                 height: 6,
                 borderRadius: 1,
-                bgcolor: '#E5E7EB',
+                bgcolor: 'rgba(255, 255, 255, 0.1)',
                 '& .MuiLinearProgress-bar': {
-                  bgcolor: '#2563EB',
+                  background: 'linear-gradient(to right, #3b82f6, #7c3aed)',
                   borderRadius: 1,
                 }
               }}
@@ -424,7 +381,7 @@ export const NewAssessmentPage: React.FC = () => {
               sx={{
                 fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
                 fontWeight: 700,
-                color: '#111827',
+                color: 'text.primary',
                 mb: 1.5,
               }}
             >
@@ -433,7 +390,7 @@ export const NewAssessmentPage: React.FC = () => {
             <Typography
               variant="body1"
               sx={{
-                color: '#6B7280',
+                color: 'text.secondary',
                 fontSize: { xs: '0.875rem', sm: '1rem' },
               }}
             >
@@ -456,11 +413,11 @@ export const NewAssessmentPage: React.FC = () => {
               elevation={0}
               sx={{
                 border: '2px solid',
-                borderColor: entryMode === 'upload' ? '#2563EB' : '#E5E7EB',
+                borderColor: entryMode === 'upload' ? '#0ea5e9' : 'rgba(255, 255, 255, 0.1)',
                 borderRadius: 3,
                 transition: 'all 0.2s ease',
-                bgcolor: entryMode === 'upload' ? '#EEF2FF' : 'white',
-                '&:hover': { borderColor: '#2563EB', boxShadow: '0 4px 12px rgba(37,99,235,0.12)' },
+                background: entryMode === 'upload' ? 'rgba(14, 165, 233, 0.1)' : 'transparent',
+                '&:hover': { borderColor: '#0ea5e9', boxShadow: '0 4px 20px rgba(14, 165, 233, 0.2)' },
               }}
             >
               <CardActionArea
@@ -472,21 +429,21 @@ export const NewAssessmentPage: React.FC = () => {
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                   <Box sx={{
                     display: 'flex', alignItems: 'center', gap: 1.5,
-                    color: entryMode === 'upload' ? '#2563EB' : '#6B7280',
+                    color: entryMode === 'upload' ? '#0ea5e9' : 'text.secondary',
                   }}>
                     <Description sx={{ fontSize: 28 }} />
-                    <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: 'inherit' }}>
+                    <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
                       Medical Reports + Symptoms
                     </Typography>
                   </Box>
-                  <Typography variant="body2" sx={{ color: '#6B7280', fontSize: '0.8rem', lineHeight: 1.5 }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.8rem', lineHeight: 1.5 }}>
                     Upload a medical report (PDF/image) and our AI will extract your data, then you can review and add symptoms.
                   </Typography>
                   {entryMode === 'upload' && (
                     <Chip
                       label="Selected"
                       size="small"
-                      sx={{ alignSelf: 'flex-start', bgcolor: '#2563EB', color: 'white', fontWeight: 600, fontSize: '0.7rem', mt: 0.5 }}
+                      sx={{ alignSelf: 'flex-start', background: 'linear-gradient(to right, #3b82f6, #7c3aed)', color: 'white', fontWeight: 600, fontSize: '0.7rem', mt: 0.5 }}
                     />
                   )}
                 </Box>
@@ -499,11 +456,11 @@ export const NewAssessmentPage: React.FC = () => {
               elevation={0}
               sx={{
                 border: '2px solid',
-                borderColor: entryMode === 'manual' ? '#2563EB' : '#E5E7EB',
+                borderColor: entryMode === 'manual' ? '#0ea5e9' : 'rgba(255, 255, 255, 0.1)',
                 borderRadius: 3,
                 transition: 'all 0.2s ease',
-                bgcolor: entryMode === 'manual' ? '#EEF2FF' : 'white',
-                '&:hover': { borderColor: '#2563EB', boxShadow: '0 4px 12px rgba(37,99,235,0.12)' },
+                background: entryMode === 'manual' ? 'rgba(14, 165, 233, 0.1)' : 'transparent',
+                '&:hover': { borderColor: '#0ea5e9', boxShadow: '0 4px 20px rgba(14, 165, 233, 0.2)' },
               }}
             >
               <CardActionArea
@@ -515,21 +472,21 @@ export const NewAssessmentPage: React.FC = () => {
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                   <Box sx={{
                     display: 'flex', alignItems: 'center', gap: 1.5,
-                    color: entryMode === 'manual' ? '#2563EB' : '#6B7280',
+                    color: entryMode === 'manual' ? '#0ea5e9' : 'text.secondary',
                   }}>
                     <Edit sx={{ fontSize: 28 }} />
-                    <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: 'inherit' }}>
+                    <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
                       Symptoms Only
                     </Typography>
                   </Box>
-                  <Typography variant="body2" sx={{ color: '#6B7280', fontSize: '0.8rem', lineHeight: 1.5 }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.8rem', lineHeight: 1.5 }}>
                     Describe your symptoms manually. Quick and easy — no report required.
                   </Typography>
                   {entryMode === 'manual' && (
                     <Chip
                       label="Selected"
                       size="small"
-                      sx={{ alignSelf: 'flex-start', bgcolor: '#2563EB', color: 'white', fontWeight: 600, fontSize: '0.7rem', mt: 0.5 }}
+                      sx={{ alignSelf: 'flex-start', background: 'linear-gradient(to right, #3b82f6, #7c3aed)', color: 'white', fontWeight: 600, fontSize: '0.7rem', mt: 0.5 }}
                     />
                   )}
                 </Box>
@@ -544,7 +501,7 @@ export const NewAssessmentPage: React.FC = () => {
                 variant="subtitle1"
                 sx={{
                   fontWeight: 600,
-                  color: '#111827',
+                  color: 'text.primary',
                   mb: 1.5,
                   fontSize: { xs: '0.875rem', sm: '1rem' },
                 }}
@@ -554,7 +511,7 @@ export const NewAssessmentPage: React.FC = () => {
               <Typography
                 variant="body2"
                 sx={{
-                  color: '#6B7280',
+                  color: 'text.secondary',
                   mb: 2,
                   fontSize: { xs: '0.75rem', sm: '0.875rem' },
                 }}
@@ -573,12 +530,13 @@ export const NewAssessmentPage: React.FC = () => {
               {/* Show divider after successful upload */}
               {extractedData && (
                 <Box sx={{ mt: 4, mb: 4 }}>
-                  <Divider>
+                  <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
                     <Chip
                       label="Extracted Data - Review and Edit Below"
                       sx={{
-                        bgcolor: '#EEF2FF',
-                        color: '#2563EB',
+                        background: 'rgba(14, 165, 233, 0.15)',
+                        color: '#38bdf8',
+                        border: '1px solid rgba(14, 165, 233, 0.3)',
                         fontWeight: 600,
                         fontSize: '0.75rem',
                       }}
@@ -640,12 +598,12 @@ export const NewAssessmentPage: React.FC = () => {
                   sx={{
                     ml: 1.5,
                     height: 24,
-                    bgcolor: '#ECFDF5',
-                    color: '#059669',
+                    background: 'rgba(52, 211, 153, 0.15)',
+                    color: '#34d399',
                     fontSize: '0.7rem',
                     fontWeight: 600,
                     '& .MuiChip-icon': {
-                      color: '#059669',
+                      color: '#34d399',
                     },
                   }}
                 />
@@ -666,21 +624,21 @@ export const NewAssessmentPage: React.FC = () => {
               placeholder="Describe your symptoms here (e.g., I've had a throbbing headache and fever for 2 days...). Our AI will assist you."
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  bgcolor: extractedData && symptomDescription ? '#F0FDF4' : 'white',
+                  background: extractedData && symptomDescription ? 'rgba(52, 211, 153, 0.1)' : 'rgba(255, 255, 255, 0.05)',
                   borderRadius: 2,
                   fontSize: { xs: '0.875rem', sm: '1rem' },
                   '& fieldset': {
-                    borderColor: extractedData && symptomDescription ? '#86EFAC' : '#E5E7EB',
+                    borderColor: extractedData && symptomDescription ? '#34d399' : 'rgba(255, 255, 255, 0.1)',
                   },
                   '&:hover fieldset': {
-                    borderColor: extractedData && symptomDescription ? '#4ADE80' : '#D1D5DB',
+                    borderColor: extractedData && symptomDescription ? '#10b981' : 'rgba(255, 255, 255, 0.2)',
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: '#2563EB',
+                    borderColor: '#0ea5e9',
                   },
                 },
                 '& .MuiInputBase-input::placeholder': {
-                  color: '#9CA3AF',
+                  color: 'text.secondary',
                   opacity: 1,
                 },
               }}
@@ -718,17 +676,17 @@ export const NewAssessmentPage: React.FC = () => {
                   onClick={() => toggleSymptom(symptom)}
                   icon={<Box component="span" sx={{ fontSize: '1rem' }}>+</Box>}
                   sx={{
-                    bgcolor: selectedSymptoms.includes(symptom) ? '#EEF2FF' : 'white',
+                    background: selectedSymptoms.includes(symptom) ? 'rgba(14, 165, 233, 0.15)' : 'rgba(255, 255, 255, 0.05)',
                     border: '1px solid',
-                    borderColor: selectedSymptoms.includes(symptom) ? '#2563EB' : '#E5E7EB',
-                    color: selectedSymptoms.includes(symptom) ? '#2563EB' : '#6B7280',
+                    borderColor: selectedSymptoms.includes(symptom) ? '#0ea5e9' : 'rgba(255, 255, 255, 0.1)',
+                    color: selectedSymptoms.includes(symptom) ? '#38bdf8' : 'text.secondary',
                     fontWeight: 500,
                     fontSize: { xs: '0.75rem', sm: '0.875rem' },
                     px: 0.5,
                     transition: 'all 0.2s',
                     '&:hover': {
-                      bgcolor: '#EEF2FF',
-                      borderColor: '#2563EB',
+                      background: 'rgba(14, 165, 233, 0.2)',
+                      borderColor: '#0ea5e9',
                     },
                     '& .MuiChip-icon': {
                       color: 'inherit',
@@ -796,17 +754,17 @@ export const NewAssessmentPage: React.FC = () => {
                   }}
                   sx={{
                     '& .MuiOutlinedInput-root': {
-                      bgcolor: 'white',
+                      background: 'rgba(255, 255, 255, 0.05)',
                       borderRadius: 2,
                       fontSize: { xs: '0.875rem', sm: '0.875rem' },
                       '& fieldset': {
-                        borderColor: '#E5E7EB',
+                        borderColor: 'rgba(255, 255, 255, 0.1)',
                       },
                       '&:hover fieldset': {
-                        borderColor: '#D1D5DB',
+                        borderColor: 'rgba(255, 255, 255, 0.2)',
                       },
                       '&.Mui-focused fieldset': {
-                        borderColor: '#2563EB',
+                        borderColor: '#0ea5e9',
                       },
                     },
                   }}
@@ -834,12 +792,12 @@ export const NewAssessmentPage: React.FC = () => {
                       sx={{
                         ml: 1,
                         height: 18,
-                        bgcolor: '#ECFDF5',
-                        color: '#059669',
+                        background: 'rgba(52, 211, 153, 0.15)',
+                        color: '#34d399',
                         fontSize: '0.65rem',
                         fontWeight: 600,
                         '& .MuiChip-icon': {
-                          color: '#059669',
+                          color: '#34d399',
                           marginLeft: '4px',
                         },
                         '& .MuiChip-label': {
@@ -871,17 +829,17 @@ export const NewAssessmentPage: React.FC = () => {
                   }}
                   sx={{
                     '& .MuiOutlinedInput-root': {
-                      bgcolor: extractedData && temperature ? '#F0FDF4' : 'white',
+                      background: extractedData && temperature ? 'rgba(52, 211, 153, 0.1)' : 'rgba(255, 255, 255, 0.05)',
                       borderRadius: 2,
                       fontSize: { xs: '0.875rem', sm: '0.875rem' },
                       '& fieldset': {
-                        borderColor: extractedData && temperature ? '#86EFAC' : '#E5E7EB',
+                        borderColor: extractedData && temperature ? '#34d399' : 'rgba(255, 255, 255, 0.1)',
                       },
                       '&:hover fieldset': {
-                        borderColor: extractedData && temperature ? '#4ADE80' : '#D1D5DB',
+                        borderColor: extractedData && temperature ? '#10b981' : 'rgba(255, 255, 255, 0.2)',
                       },
                       '&.Mui-focused fieldset': {
-                        borderColor: '#2563EB',
+                        borderColor: '#0ea5e9',
                       },
                     },
                   }}
@@ -895,7 +853,7 @@ export const NewAssessmentPage: React.FC = () => {
                     variant="caption"
                     sx={{
                       fontWeight: 600,
-                      color: '#6B7280',
+                      color: 'text.secondary',
                       fontSize: '0.75rem',
                     }}
                   >
@@ -905,7 +863,7 @@ export const NewAssessmentPage: React.FC = () => {
                     variant="caption"
                     sx={{
                       fontWeight: 600,
-                      color: '#2563EB',
+                      color: '#38bdf8',
                       fontSize: '0.75rem',
                     }}
                   >
@@ -925,20 +883,20 @@ export const NewAssessmentPage: React.FC = () => {
                   max={10}
                   step={1}
                   sx={{
-                    color: '#2563EB',
+                    color: '#38bdf8',
                     '& .MuiSlider-thumb': {
                       width: 20,
                       height: 20,
-                      bgcolor: '#2563EB',
-                      border: '3px solid white',
+                      bgcolor: '#38bdf8',
+                      border: '3px solid #070612',
                       boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                     },
                     '& .MuiSlider-track': {
-                      bgcolor: '#2563EB',
+                      bgcolor: '#38bdf8',
                       border: 'none',
                     },
                     '& .MuiSlider-rail': {
-                      bgcolor: '#E5E7EB',
+                      bgcolor: 'rgba(255, 255, 255, 0.1)',
                     },
                   }}
                 />
@@ -948,48 +906,48 @@ export const NewAssessmentPage: React.FC = () => {
 
 
 
-          {/* Job Polling Status */}
-          {jobId && (
+          {/* Pipeline Status */}
+          {stage !== 'IDLE' && (
             <Box sx={{ mb: 4 }}>
-              {/* Polling in progress */}
-              {(jobStatus === 'pending' || jobStatus === 'processing') && (
+              {/* Analysis in progress */}
+              {(stage === 'PREDICTING' || stage === 'ANALYZING' || stage === 'SAVING') && (
                 <Alert
-                  icon={<CircularProgress size={20} sx={{ color: '#2563EB' }} />}
+                  icon={<CircularProgress size={20} sx={{ color: '#0ea5e9' }} />}
                   sx={{
-                    bgcolor: '#EEF2FF',
-                    border: '1px solid #DBEAFE',
+                    background: 'rgba(14, 165, 233, 0.1)',
+                    border: '1px solid rgba(14, 165, 233, 0.3)',
                     borderRadius: 2,
-                    '& .MuiAlert-message': { color: '#1E40AF', width: '100%' },
+                    '& .MuiAlert-message': { color: '#38bdf8', width: '100%' },
                   }}
                 >
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5, fontSize: '0.875rem' }}>
-                    {jobStatus === 'pending' ? 'Analysis queued…' : 'Analyzing your symptoms…'}
+                    {stage === 'PREDICTING' ? 'Consulting Neural Network…' : stage === 'ANALYZING' ? 'AI Specialist Analyzing Findings…' : 'Finalizing Health Assessment…'}
                   </Typography>
                   <Typography variant="caption" sx={{ fontSize: '0.75rem', display: 'block', mb: 1 }}>
-                    {jobProgress}% complete
+                    {pipelineProgress}% complete
                   </Typography>
                   <LinearProgress
-                    variant={jobProgress > 0 ? 'determinate' : 'indeterminate'}
-                    value={jobProgress}
+                    variant="determinate"
+                    value={pipelineProgress}
                     sx={{
                       height: 6,
                       borderRadius: 1,
-                      bgcolor: '#DBEAFE',
-                      '& .MuiLinearProgress-bar': { bgcolor: '#2563EB', borderRadius: 1 },
+                      bgcolor: 'rgba(14, 165, 233, 0.2)',
+                      '& .MuiLinearProgress-bar': { background: 'linear-gradient(to right, #3b82f6, #7c3aed)', borderRadius: 1 },
                     }}
                   />
                 </Alert>
               )}
 
               {/* Complete */}
-              {jobStatus === 'complete' && (
+              {stage === 'COMPLETE' && (
                 <Alert
-                  icon={<CheckCircle sx={{ color: '#059669' }} />}
+                  icon={<CheckCircle sx={{ color: '#10b981' }} />}
                   sx={{
-                    bgcolor: '#ECFDF5',
-                    border: '1px solid #A7F3D0',
+                    background: 'rgba(52, 211, 153, 0.1)',
+                    border: '1px solid rgba(52, 211, 153, 0.3)',
                     borderRadius: 2,
-                    '& .MuiAlert-message': { color: '#065F46' },
+                    '& .MuiAlert-message': { color: '#34d399' },
                   }}
                 >
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>
@@ -999,19 +957,19 @@ export const NewAssessmentPage: React.FC = () => {
               )}
 
               {/* Error */}
-              {jobStatus === 'error' && (
+              {stage === 'ERROR' && (
                 <Alert
                   severity="error"
                   icon={<ErrorOutline />}
                   sx={{ borderRadius: 2 }}
-                  onClose={() => { setJobId(null); setJobStatus(null); setJobError(null); }}
+                  onClose={() => { setStage('IDLE'); setSubmitError(null); }}
                 >
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>
                     Analysis failed
                   </Typography>
-                  {jobError && (
+                  {submitError && (
                     <Typography variant="caption" sx={{ fontSize: '0.75rem', display: 'block', mt: 0.5 }}>
-                      {jobError}
+                      {submitError}
                     </Typography>
                   )}
                 </Alert>
@@ -1021,14 +979,14 @@ export const NewAssessmentPage: React.FC = () => {
 
           {/* AI Ready Alert */}
           <Alert
-            icon={<AutoAwesome sx={{ color: '#2563EB' }} />}
+            icon={<AutoAwesome sx={{ color: '#38bdf8' }} />}
             sx={{
               mb: 4,
-              bgcolor: '#EEF2FF',
-              border: '1px solid #DBEAFE',
+              background: 'rgba(14, 165, 233, 0.1)',
+              border: '1px solid rgba(14, 165, 233, 0.3)',
               borderRadius: 2,
               '& .MuiAlert-message': {
-                color: '#1E40AF',
+                color: '#38bdf8',
               },
             }}
           >
@@ -1055,7 +1013,7 @@ export const NewAssessmentPage: React.FC = () => {
               <Typography
                 variant="caption"
                 sx={{
-                  color: '#6B7280',
+                  color: 'text.secondary',
                   fontSize: '0.75rem',
                 }}
               >
@@ -1073,7 +1031,7 @@ export const NewAssessmentPage: React.FC = () => {
               <Button
                 variant="outlined"
                 onClick={handleReset}
-                disabled={isSubmitting}
+                disabled={stage !== 'IDLE'}
                 sx={{
                   minHeight: { xs: 44, sm: 40 },
                   minWidth: { sm: 120 },
@@ -1081,11 +1039,11 @@ export const NewAssessmentPage: React.FC = () => {
                   textTransform: 'none',
                   fontWeight: 600,
                   fontSize: { xs: '0.875rem', sm: '0.875rem' },
-                  borderColor: '#E5E7EB',
-                  color: '#6B7280',
+                  borderColor: 'rgba(255, 255, 255, 0.1)',
+                  color: 'text.secondary',
                   '&:hover': {
-                    borderColor: '#D1D5DB',
-                    bgcolor: '#F9FAFB',
+                    borderColor: 'rgba(255, 255, 255, 0.2)',
+                    background: 'rgba(255, 255, 255, 0.05)',
                   },
                 }}
               >
@@ -1095,8 +1053,8 @@ export const NewAssessmentPage: React.FC = () => {
               <Button
                 variant="contained"
                 onClick={handleSubmit}
-                disabled={!symptomDescription || isSubmitting || jobStatus === 'pending' || jobStatus === 'processing'}
-                endIcon={!isSubmitting && !jobStatus && <Box component="span" sx={{ fontSize: '1.2rem' }}>→</Box>}
+                disabled={!symptomDescription || stage !== 'IDLE'}
+                endIcon={stage === 'IDLE' && <Box component="span" sx={{ fontSize: '1.2rem' }}>→</Box>}
                 sx={{
                   minHeight: { xs: 44, sm: 40 },
                   minWidth: { sm: 160 },
@@ -1104,19 +1062,19 @@ export const NewAssessmentPage: React.FC = () => {
                   textTransform: 'none',
                   fontWeight: 600,
                   fontSize: { xs: '0.875rem', sm: '0.875rem' },
-                  bgcolor: '#2563EB',
+                  background: 'linear-gradient(to right, #3b82f6, #7c3aed)',
                   boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
                   '&:hover': {
-                    bgcolor: '#1D4ED8',
+                    filter: 'brightness(1.1)',
                     boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
                   },
                   '&:disabled': {
-                    bgcolor: '#E5E7EB',
-                    color: '#9CA3AF',
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    color: 'rgba(255, 255, 255, 0.3)',
                   },
                 }}
               >
-                {isSubmitting ? 'Submitting…' : (jobStatus === 'pending' || jobStatus === 'processing') ? 'Analyzing…' : 'Submit Symptoms'}
+                {stage === 'IDLE' ? 'Submit Symptoms' : 'Analyzing…'}
               </Button>
             </Box>
           </Box>

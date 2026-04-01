@@ -1,0 +1,334 @@
+﻿src/components/__tests__/ClinicalGuidelinesModal.accessibility.test.tsx(17,37): error TS2307: Cannot find module '../ClinicalGuidelinesModal' or its corresponding type declarations.
+src/components/__tests__/ClinicalGuidelinesModal.accessibility.test.tsx(18,45): error TS2307: Cannot find module '../ClinicalGuidelinesModal' or its corresponding type declarations.
+src/components/__tests__/ClinicalGuidelinesModal.accessibility.test.tsx(80,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.accessibility.test.tsx(92,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.accessibility.test.tsx(104,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.accessibility.test.tsx(116,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.accessibility.test.tsx(128,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.accessibility.test.tsx(140,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.accessibility.test.tsx(152,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.accessibility.test.tsx(167,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.accessibility.test.tsx(191,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.accessibility.test.tsx(216,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.accessibility.test.tsx(232,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.accessibility.test.tsx(248,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.accessibility.test.tsx(263,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.accessibility.test.tsx(277,23): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.accessibility.test.tsx(282,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.accessibility.test.tsx(314,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.accessibility.test.tsx(324,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.accessibility.test.tsx(334,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.accessibility.test.tsx(346,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.accessibility.test.tsx(358,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.accessibility.test.tsx(372,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(17,37): error TS2307: Cannot find module '../ClinicalGuidelinesModal' or its corresponding type declarations.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(18,45): error TS2307: Cannot find module '../ClinicalGuidelinesModal' or its corresponding type declarations.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(103,19): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(114,19): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(120,25): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(127,19): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(145,19): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(164,19): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(180,19): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(197,19): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(211,19): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(221,40): error TS7006: Parameter 'source' implicitly has an 'any' type.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(227,19): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(245,19): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(257,19): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(274,19): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(289,25): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(295,19): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(313,19): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(329,19): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(348,19): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(362,19): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(376,19): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(391,19): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(405,19): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(415,19): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(421,25): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(434,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(468,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(480,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(587,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(599,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(610,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(621,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(640,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(655,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(671,19): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(687,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(712,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(731,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(748,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(758,23): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(765,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(794,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(816,25): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(819,23): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.integration.test.tsx(827,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.test.tsx(13,1): error TS6133: 'React' is declared but its value is never read.
+src/components/__tests__/ClinicalGuidelinesModal.test.tsx(21,8): error TS2307: Cannot find module './ClinicalGuidelinesModal' or its corresponding type declarations.
+src/components/__tests__/ClinicalGuidelinesModal.test.tsx(36,7): error TS6133: 'clinicalGuidelinesDataGenerator' is declared but its value is never read.
+src/components/__tests__/ClinicalGuidelinesModal.test.tsx(67,17): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.test.tsx(243,19): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.test.tsx(320,19): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.test.tsx(466,21): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.test.tsx(483,21): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.test.tsx(652,21): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.test.tsx(656,15): error TS6133: 'rerender' is declared but its value is never read.
+src/components/__tests__/ClinicalGuidelinesModal.test.tsx(665,21): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.test.tsx(682,21): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/__tests__/ClinicalGuidelinesModal.test.tsx(723,21): error TS2339: Property 'fetchClinicalGuidelines' does not exist on type 'APIService'.
+src/components/assessment/VitalsForm.tsx(90,10): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element; item: true; xs: number; sm: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element; item: true; xs: number; sm: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'item' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+src/components/assessment/VitalsForm.tsx(117,10): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element; item: true; xs: number; sm: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element; item: true; xs: number; sm: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'item' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+src/components/assessment/VitalsForm.tsx(143,10): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element; item: true; xs: number; sm: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element; item: true; xs: number; sm: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'item' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+src/components/assessment/VitalsForm.tsx(169,10): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element; item: true; xs: number; sm: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element; item: true; xs: number; sm: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'item' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+src/components/assessment/VitalsForm.tsx(195,10): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element; item: true; xs: number; sm: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element; item: true; xs: number; sm: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'item' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+src/components/auth/GoogleAuthButton.tsx(7,18): error TS6133: 'Box' is declared but its value is never read.
+src/components/auth/LoginForm.tsx(13,3): error TS6133: 'Typography' is declared but its value is never read.
+src/components/common/DataQualityAlert.tsx(8,29): error TS6133: 'Box' is declared but its value is never read.
+src/components/common/ErrorBoundary.tsx(5,8): error TS6133: 'React' is declared but its value is never read.
+src/components/dashboard/QuickActions.tsx(3,3): error TS6133: 'Box' is declared but its value is never read.
+src/components/dashboard/RecentAssessments.tsx(27,29): error TS7006: Parameter 'confidence' implicitly has an 'any' type.
+src/components/dashboard/RecentAssessments.tsx(45,7): error TS6133: 'getRiskLevelColor' is declared but its value is never read.
+src/components/dashboard/RecentAssessments.tsx(45,28): error TS7006: Parameter 'riskLevel' implicitly has an 'any' type.
+src/components/dashboard/RecentAssessments.tsx(68,45): error TS7031: Binding element 'assessments' implicitly has an 'any' type.
+src/components/dashboard/RecentAssessments.tsx(68,58): error TS7031: Binding element 'loading' implicitly has an 'any' type.
+src/components/dashboard/RecentAssessments.tsx(71,34): error TS7006: Parameter 'assessmentId' implicitly has an 'any' type.
+src/components/dashboard/RecentAssessments.tsx(111,29): error TS7006: Parameter 'assessment' implicitly has an 'any' type.
+src/components/dashboard/SystemStatus.tsx(26,27): error TS7006: Parameter 'status' implicitly has an 'any' type.
+src/components/dashboard/SystemStatus.tsx(63,40): error TS7031: Binding element 'status' implicitly has an 'any' type.
+src/components/dashboard/SystemStatus.tsx(63,48): error TS7031: Binding element 'modelInfo' implicitly has an 'any' type.
+src/components/dashboard/SystemStatus.tsx(63,59): error TS7031: Binding element 'loading' implicitly has an 'any' type.
+src/components/dashboard/UserStatistics.tsx(24,42): error TS7031: Binding element 'statistics' implicitly has an 'any' type.
+src/components/dashboard/UserStatistics.tsx(24,54): error TS7031: Binding element 'loading' implicitly has an 'any' type.
+src/components/dashboard/UserStatistics.tsx(109,69): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/components/dashboard/UserStatistics.tsx(109,75): error TS7006: Parameter 'index' implicitly has an 'any' type.
+src/components/FileUploadComponent.tsx(39,10): error TS6133: 'currentJobId' is declared but its value is never read.
+src/components/history/RiskTrendChart.tsx(7,3): error TS6133: 'Box' is declared but its value is never read.
+src/components/history/RiskTrendChart.tsx(167,13): error TS2322: Type '{ wrapperStyle: { fontSize: string; }; payload: { value: string; type: string; color: string; }[]; }' is not assignable to type 'IntrinsicAttributes & Omit<Props, "verticalAlign" | "ref" | "payload"> & { content?: ContentType | undefined; wrapperStyle?: CSSProperties | undefined; ... 6 more ...; verticalAlign?: VerticalAlignmentType | undefined; }'.
+  Property 'payload' does not exist on type 'IntrinsicAttributes & Omit<Props, "verticalAlign" | "ref" | "payload"> & { content?: ContentType | undefined; wrapperStyle?: CSSProperties | undefined; ... 6 more ...; verticalAlign?: VerticalAlignmentType | undefined; }'.
+src/components/layout/AppLayout.tsx(15,9): error TS6133: 'isTablet' is declared but its value is never read.
+src/components/profile/ProfileForm.tsx(159,14): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element; item: true; xs: number; sm: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element; item: true; xs: number; sm: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'item' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+src/components/profile/ProfileForm.tsx(177,14): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element; item: true; xs: number; sm: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element; item: true; xs: number; sm: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'item' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+src/components/profile/ProfileForm.tsx(196,14): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element; item: true; xs: number; sm: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element; item: true; xs: number; sm: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'item' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+src/components/profile/ProfileForm.tsx(221,14): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element; item: true; xs: number; sm: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element; item: true; xs: number; sm: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'item' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+src/components/profile/ProfileForm.tsx(238,14): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element[]; item: true; xs: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element[]; item: true; xs: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'item' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+src/components/profile/ProfileForm.tsx(273,14): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element[]; item: true; xs: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element[]; item: true; xs: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'item' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+src/components/profile/ProfileForm.tsx(309,14): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element[]; item: true; xs: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element[]; item: true; xs: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'item' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+src/components/profile/ProfileForm.tsx(345,14): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element; item: true; xs: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element; item: true; xs: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'item' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+src/components/profile/ProfileView.tsx(35,12): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element[]; item: true; xs: number; sm: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element[]; item: true; xs: number; sm: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'item' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+src/components/profile/ProfileView.tsx(42,12): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element[]; item: true; xs: number; sm: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element[]; item: true; xs: number; sm: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'item' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+src/components/profile/ProfileView.tsx(51,12): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element[]; item: true; xs: number; sm: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element[]; item: true; xs: number; sm: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'item' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+src/components/profile/ProfileView.tsx(60,12): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element[]; item: true; xs: number; sm: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element[]; item: true; xs: number; sm: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'item' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+src/components/profile/ProfileView.tsx(69,12): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element[]; item: true; xs: number; sm: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element[]; item: true; xs: number; sm: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'item' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+src/components/profile/ProfileView.tsx(78,12): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element[]; item: true; xs: number; sm: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element[]; item: true; xs: number; sm: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'item' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+src/components/profile/ProfileView.tsx(90,14): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element[]; item: true; xs: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element[]; item: true; xs: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'item' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+src/components/profile/ProfileView.tsx(103,14): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element[]; item: true; xs: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element[]; item: true; xs: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'item' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+src/components/profile/ProfileView.tsx(116,14): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element[]; item: true; xs: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element[]; item: true; xs: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'item' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+src/components/profile/ProfileView.tsx(128,12): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element[]; item: true; xs: number; sm: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element[]; item: true; xs: number; sm: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'item' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+src/components/profile/ProfileView.tsx(137,12): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element[]; item: true; xs: number; sm: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element[]; item: true; xs: number; sm: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'item' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+src/components/treatment/AllopathyPanel.tsx(3,10): error TS2305: Module '"@/types"' has no exported member 'TreatmentDetail'.
+src/components/treatment/AllopathyPanel.tsx(47,51): error TS7006: Parameter 'rec' implicitly has an 'any' type.
+src/components/treatment/AllopathyPanel.tsx(47,56): error TS7006: Parameter 'recIndex' implicitly has an 'any' type.
+src/components/treatment/AyurvedaPanel.tsx(3,10): error TS2305: Module '"@/types"' has no exported member 'TreatmentDetail'.
+src/components/treatment/AyurvedaPanel.tsx(47,51): error TS7006: Parameter 'rec' implicitly has an 'any' type.
+src/components/treatment/AyurvedaPanel.tsx(47,56): error TS7006: Parameter 'recIndex' implicitly has an 'any' type.
+src/components/treatment/HomeopathyPanel.tsx(3,10): error TS2305: Module '"@/types"' has no exported member 'TreatmentDetail'.
+src/components/treatment/HomeopathyPanel.tsx(47,51): error TS7006: Parameter 'rec' implicitly has an 'any' type.
+src/components/treatment/HomeopathyPanel.tsx(47,56): error TS7006: Parameter 'recIndex' implicitly has an 'any' type.
+src/components/treatment/LifestylePanel.tsx(3,10): error TS2305: Module '"@/types"' has no exported member 'TreatmentDetail'.
+src/components/treatment/LifestylePanel.tsx(47,51): error TS7006: Parameter 'rec' implicitly has an 'any' type.
+src/components/treatment/LifestylePanel.tsx(47,56): error TS7006: Parameter 'recIndex' implicitly has an 'any' type.
+src/components/treatment/TreatmentTabs.tsx(3,10): error TS2305: Module '"@/types"' has no exported member 'TreatmentInfo'.
+src/components/treatment/TreatmentTabs.tsx(51,25): error TS6133: 'event' is declared but its value is never read.
+src/components/ui/BlurIn.tsx(2,1): error TS6133: 'cn' is declared but its value is never read.
+src/components/ui/SplitText.tsx(58,22): error TS2322: Type '{ visible: { opacity: number; y: number; filter: string; transition: { type: string; damping: number; stiffness: number; }; }; hidden: { opacity: number; y: number; filter: string; transition: { type: string; damping: number; stiffness: number; }; }; }' is not assignable to type 'Variants'.
+  Property 'visible' is incompatible with index signature.
+    Type '{ opacity: number; y: number; filter: string; transition: { type: string; damping: number; stiffness: number; }; }' is not assignable to type 'Variant'.
+      Type '{ opacity: number; y: number; filter: string; transition: { type: string; damping: number; stiffness: number; }; }' is not assignable to type 'TargetAndTransition'.
+        Type '{ opacity: number; y: number; filter: string; transition: { type: string; damping: number; stiffness: number; }; }' is not assignable to type '{ transition?: Transition<any> | undefined; transitionEnd?: ResolvedValues$1 | undefined; }'.
+          Types of property 'transition' are incompatible.
+            Type '{ type: string; damping: number; stiffness: number; }' is not assignable to type 'Transition<any> | undefined'.
+              Type '{ type: string; damping: number; stiffness: number; }' is not assignable to type 'TransitionWithValueOverrides<any>'.
+                Type '{ type: string; damping: number; stiffness: number; }' is not assignable to type 'ValueAnimationTransition<any>'.
+                  Types of property 'type' are incompatible.
+                    Type 'string' is not assignable to type 'AnimationGeneratorType | undefined'.
+src/hooks/useLazyComponent.ts(72,20): error TS2345: Argument of type '() => LazyExoticComponent<T>' is not assignable to parameter of type 'SetStateAction<T | null>'.
+  Type '() => LazyExoticComponent<T>' is not assignable to type '(prevState: T | null) => T | null'.
+    Type 'LazyExoticComponent<T>' is not assignable to type 'T'.
+      'LazyExoticComponent<T>' is assignable to the constraint of type 'T', but 'T' could be instantiated with a different subtype of constraint 'ComponentType<any>'.
+src/pages/AssessmentHistoryPage.tsx(53,9): error TS6133: 'pageSize' is declared but its value is never read.
+src/pages/AssessmentHistoryPage.tsx(57,51): error TS7006: Parameter 'assessment' implicitly has an 'any' type.
+src/pages/AssessmentHistoryPage.tsx(84,30): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/pages/AssessmentHistoryPage.tsx(112,9): error TS2322: Type 'unknown[]' is not assignable to type 'string[]'.
+  Type 'unknown' is not assignable to type 'string'.
+src/pages/AssessmentResultsPage.tsx(42,27): error TS6133: 'setLocalAssessment' is declared but its value is never read.
+src/pages/AssessmentResultsPage.tsx(101,11): error TS7034: Variable 'drivers' implicitly has type 'any[]' in some locations where its type cannot be determined.
+src/pages/AssessmentResultsPage.tsx(143,12): error TS7005: Variable 'drivers' implicitly has an 'any[]' type.
+src/pages/AssessmentResultsPage.tsx(203,12): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element; item: true; xs: number; md: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element; item: true; xs: number; md: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'item' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+src/pages/AssessmentResultsPage.tsx(300,12): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: { component: ElementType<any, keyof IntrinsicElements>; } & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<...> & Omit<...>): Element | null', gave the following error.
+    Property 'component' is missing in type '{ children: Element; item: true; xs: number; md: number; }' but required in type '{ component: ElementType<any, keyof IntrinsicElements>; }'.
+  Overload 2 of 2, '(props: DefaultComponentProps<GridTypeMap<{}, "div">>): Element | null', gave the following error.
+    Type '{ children: Element; item: true; xs: number; md: number; }' is not assignable to type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+      Property 'item' does not exist on type 'IntrinsicAttributes & GridBaseProps & { sx?: SxProps<Theme> | undefined; } & SystemProps<Theme> & Omit<...>'.
+src/pages/NewAssessmentPage.tsx(78,10): error TS6133: 'jobResult' is declared but its value is never read.
+src/pages/NewAssessmentPage.tsx(182,9): error TS6133: 'handleEntryModeChange' is declared but its value is never read.
+src/pages/UploadReportPage.tsx(23,3): error TS6133: 'Alert' is declared but its value is never read.
+src/pages/UploadReportPage.tsx(34,3): error TS6133: 'Warning' is declared but its value is never read.
+src/pages/UploadReportPage.tsx(55,9): error TS6133: 'isMobile' is declared but its value is never read.
+src/pages/UploadReportPage.tsx(189,9): error TS6133: 'getStatusColor' is declared but its value is never read.
+src/services/api.ts(202,25): error TS7006: Parameter 'data' implicitly has an 'any' type.
+src/services/api.ts(222,27): error TS7006: Parameter 'data' implicitly has an 'any' type.
+src/services/api.ts(252,29): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/services/api.ts(264,27): error TS7006: Parameter 'symptoms' implicitly has an 'any' type.
+src/services/api.ts(264,37): error TS7006: Parameter 'age' implicitly has an 'any' type.
+src/services/api.ts(264,42): error TS7006: Parameter 'gender' implicitly has an 'any' type.
+src/services/firebase.ts(111,21): error TS7006: Parameter 'callback' implicitly has an 'any' type.
+src/stores/assessmentStore.ts(37,28): error TS18046: 'error' is of type 'unknown'.
+src/stores/assessmentStore.ts(52,16): error TS18046: 'error' is of type 'unknown'.
+src/stores/assessmentStore.ts(67,16): error TS18046: 'error' is of type 'unknown'.
+src/stores/authStore.ts(35,11): error TS6133: 'get' is declared but its value is never read.
+src/stores/authStore.ts(43,50): error TS7006: Parameter 'firebaseUser' implicitly has an 'any' type.
+src/stores/authStore.ts(81,20): error TS18046: 'error' is of type 'unknown'.
+src/stores/authStore.ts(125,20): error TS18046: 'error' is of type 'unknown'.
+src/stores/systemStore.ts(9,5): error TS7034: Variable 'pollingInterval' implicitly has type 'any' in some locations where its type cannot be determined.
+src/stores/systemStore.ts(20,28): error TS2571: Object is of type 'unknown'.
+src/stores/systemStore.ts(54,16): error TS18046: 'error' is of type 'unknown'.
+src/stores/systemStore.ts(68,16): error TS18046: 'error' is of type 'unknown'.
+src/stores/systemStore.ts(83,16): error TS18046: 'error' is of type 'unknown'.
+src/stores/systemStore.ts(90,13): error TS2339: Property 'fetchSystemStatus' does not exist on type 'unknown'.
+src/stores/systemStore.ts(90,32): error TS2339: Property 'fetchModelInfo' does not exist on type 'unknown'.
+src/stores/systemStore.ts(97,10): error TS7005: Variable 'pollingInterval' implicitly has an 'any' type.
+src/stores/systemStore.ts(107,9): error TS7005: Variable 'pollingInterval' implicitly has an 'any' type.
+src/utils/colorContrast.ts(182,5): error TS2556: A spread argument must either have a tuple type or be passed to a rest parameter.
+src/utils/errorHandler.ts(36,48): error TS2339: Property 'message' does not exist on type '{}'.
+src/utils/errorHandler.ts(106,20): error TS2339: Property 'response' does not exist on type 'object & Record<"isAxiosError", unknown>'.

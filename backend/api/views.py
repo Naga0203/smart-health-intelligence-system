@@ -1585,8 +1585,8 @@ class UserProfileAPIView(APIView):
             update_data = serializer.validated_data
             update_data['updated_at'] = datetime.utcnow()
             
-            # Update profile in Firestore
-            db.collection('users').document(user_id).update(update_data)
+            # Update profile in Firestore (set with merge handles both new and existing docs)
+            db.collection('users').document(user_id).set(update_data, merge=True)
             
             # Fetch updated profile
             updated_doc = db.collection('users').document(user_id).get()

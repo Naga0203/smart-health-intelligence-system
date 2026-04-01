@@ -65,7 +65,7 @@ class GeminiOCRService:
             
             if self.api_key:
                 self.vision_model = ChatGoogleGenerativeAI(
-                    model="gemini-1.5-pro-vision",
+                    model="gemini-1.5-pro",
                     google_api_key=self.api_key,
                     temperature=0  # Deterministic for OCR
                 )
@@ -145,7 +145,7 @@ class GeminiOCRService:
                 extraction_time=extraction_time,
                 metadata={
                     'method': 'gemini_vision',
-                    'model': 'gemini-1.5-pro-vision'
+                    'model': 'gemini-1.5-pro'
                 }
             )
             

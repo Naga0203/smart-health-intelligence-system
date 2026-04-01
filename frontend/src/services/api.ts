@@ -199,7 +199,7 @@ class APIService {
   /**
    * POST /api/assess/ - Anonymous health assessment
    */
-  async assessAnonymous(data) {
+  async assessAnonymous(data: any) {
     const response = await this.client.post('/api/assess/', data);
     return response.data;
   }
@@ -219,7 +219,7 @@ class APIService {
   /**
    * PUT /api/user/profile/ - Update user profile
    */
-  async updateUserProfile(data) {
+  async updateUserProfile(data: any) {
     const response = await this.client.put('/api/user/profile/', data);
     return response.data;
   }
@@ -249,7 +249,7 @@ class APIService {
   /**
    * GET /api/user/assessments/{id}/ - Get assessment detail
    */
-  async getAssessmentDetail(id) {
+  async getAssessmentDetail(id: string | number) {
     const response = await this.client.get(`/api/user/assessments/${id}/`);
     return response.data;
   }
@@ -261,7 +261,7 @@ class APIService {
   /**
    * POST /api/predict/top/ - Get top N predictions
    */
-  async getTopPredictions(symptoms, age, gender, n = 5) {
+  async getTopPredictions(symptoms: string[], age?: number, gender?: string, n: number = 5) {
     const response = await this.client.post('/api/predict/top/', {
       symptoms,
       age,
@@ -272,37 +272,22 @@ class APIService {
   }
 
   /**
-   * POST /api/predict/symptoms/ - Get symptom-based disease predictions
+   * POST /api/predict/symptoms/ - Get symptom-based disease predictions (NN Engine)
    */
   async predictSymptoms(
-    symptoms: string[] | string,
-    reportMetadata?: {
-      reportId: string;
-      extractionJobId: string;
-      hasExtractedData: boolean;
-    },
-    extractedData?: any,
-    dataSources?: Record<string, 'manual' | 'extracted'>
+    symptoms: string[],
+    age?: number,
+    gender?: string,
+    extractedData?: any
   ) {
     const payload: any = {
       symptoms,
+      age,
+      gender,
     };
-
-    // Include report data if available
-    if (reportMetadata) {
-      payload.report_metadata = {
-        report_id: reportMetadata.reportId,
-        extraction_job_id: reportMetadata.extractionJobId,
-        has_extracted_data: reportMetadata.hasExtractedData,
-      };
-    }
 
     if (extractedData) {
       payload.extracted_data = extractedData;
-    }
-
-    if (dataSources) {
-      payload.data_sources = dataSources;
     }
 
     const response = await this.client.post('/api/predict/symptoms/', payload);
@@ -310,75 +295,14 @@ class APIService {
   }
 
   /**
-   * POST /api/predict/ - Full disease prediction (Orchestrator)
-   * Returns job_id + status:"pending" when backend responds HTTP 202 (async pipeline),
-   * or the full result directly when backend responds HTTP 200 (sync / legacy).
+   * DEPRECATED: Full disease prediction (Legacy Orchestrator)
+   * Use geminiService + predictSymptoms instead.
    */
-  async predict(
-    symptoms: string[] | string,
-    reportMetadata?: {
-      reportId: string;
-      extractionJobId: string;
-      hasExtractedData: boolean;
-    },
-    extractedData?: any,
-    dataSources?: Record<string, 'manual' | 'extracted'>,
-    age?: number,
-    gender?: string,
-    additionalInfo?: any
-  ): Promise<{ job_id: string; status: 'pending' } | any> {
-    const payload: any = {
-      symptoms,
-      age,
-      gender,
-      additional_info: additionalInfo
-    };
-
-    // Include report data if available
-    if (reportMetadata) {
-      payload.report_metadata = {
-        report_id: reportMetadata.reportId,
-        extraction_job_id: reportMetadata.extractionJobId,
-        has_extracted_data: reportMetadata.hasExtractedData,
-      };
-    }
-
-    if (extractedData) {
-      payload.extracted_data = extractedData;
-    }
-
-    if (dataSources) {
-      payload.data_sources = dataSources;
-    }
-
-    const response = await this.client.post('/api/predict/', payload, {
-      timeout: 10000, // Short timeout — expect 202 quickly; polling handles the rest
-      // Allow 202 Accepted to pass through without error
-      validateStatus: (status) => (status >= 200 && status < 300) || status === 202,
-    });
-
-    // HTTP 202 → async job accepted; return job_id for polling
-    if (response.status === 202) {
-      return response.data as { job_id: string; status: 'pending' };
-    }
-
-    // HTTP 200 → synchronous result (legacy / fallback)
+  async predictLegacy(data: any) {
+    const response = await this.client.post('/api/predict/', data);
     return response.data;
   }
 
-  /**
-   * GET /api/jobs/{jobId}/status/ - Poll async job status
-   * Returns { status: 'pending'|'processing'|'complete'|'error', progress: number, result?: any }
-   */
-  async pollJobStatus(jobId: string): Promise<{
-    status: 'pending' | 'processing' | 'complete' | 'error';
-    progress: number;
-    result?: any;
-    error?: string;
-  }> {
-    const response = await this.client.get(`/api/jobs/${jobId}/status/`);
-    return response.data;
-  }
 
   // ============================================================================
   // System Status Endpoints

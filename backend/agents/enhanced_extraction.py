@@ -225,7 +225,7 @@ Return ONLY the JSON object, no additional text."""
                         'extraction_time_seconds': time.time() - start_time,
                         'ocr_used': True,
                         'pages_processed': 1,
-                        'gemini_model': 'gemini-1.5-pro-vision',
+                        'gemini_model': 'gemini-1.5-pro',
                         'report_type': report_type
                     }
                 }
@@ -283,7 +283,7 @@ Return ONLY the JSON object, no additional text."""
                 'extraction_time_seconds': round(extraction_time, 2),
                 'ocr_used': True,
                 'pages_processed': 1,
-                'gemini_model': 'gemini-1.5-pro-vision',
+                'gemini_model': 'gemini-1.5-pro',
                 'text_length': len(ocr_result.text),
                 'validation_passed': validation_result['valid'],
                 'flagged_fields': validation_result.get('flagged_fields', []),
@@ -320,7 +320,7 @@ Return ONLY the JSON object, no additional text."""
                     'extraction_time_seconds': time.time() - start_time,
                     'ocr_used': True,
                     'pages_processed': 0,
-                    'gemini_model': 'gemini-1.5-pro-vision'
+                    'gemini_model': 'gemini-1.5-pro'
                 }
             }
     

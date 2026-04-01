@@ -56,11 +56,11 @@ export const LoginPage: React.FC = () => {
         }}
       >
         <Paper
-          elevation={3}
+          className="card-gradient"
+          elevation={0}
           sx={{
             p: 4,
             width: '100%',
-            borderRadius: 2,
           }}
         >
           <Typography

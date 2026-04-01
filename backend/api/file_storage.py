@@ -1,22 +1,26 @@
 """
-Firebase Storage Service for Medical Report Upload
+Local File Storage Service for Medical Report Upload
 
 Handles file upload, validation, storage, and retrieval for medical reports.
-Integrates with Firebase Storage for secure, scalable file storage.
+Uses local filesystem storage instead of Firebase Storage to avoid
+Cloud Storage bucket dependency (works on Firebase free Spark plan).
+
+Report metadata is stored in Firestore; actual files are stored locally.
 """
 
-import firebase_admin
-from firebase_admin import storage
 from django.conf import settings
-from typing import Dict, Any, Optional, BinaryIO
+from typing import Dict, Any, Optional
 from io import BytesIO
 import uuid
 import logging
-from datetime import timedelta
 import mimetypes
 import os
+import shutil
 
 logger = logging.getLogger('health_ai.file_storage')
+
+# Base directory for storing uploaded medical reports
+MEDIA_ROOT = os.path.join(settings.BASE_DIR, 'media', 'medical_reports')
 
 
 class ValidationResult:
@@ -32,35 +36,29 @@ class ValidationResult:
 
 class FileStorageService:
     """
-    Service for managing medical report file storage in Firebase Storage.
+    Service for managing medical report file storage on local filesystem.
     
     Handles:
     - File validation (type, size)
-    - Upload to Firebase Storage
-    - Signed URL generation
-    - File retrieval
+    - Upload to local filesystem
+    - File retrieval as stream
     - File deletion
+    
+    Files are stored at: media/medical_reports/{user_id}/{report_id}{extension}
     """
     
     def __init__(self):
-        """Initialize Firebase Storage service."""
+        """Initialize local file storage service."""
         self.max_file_size = getattr(settings, 'MAX_FILE_SIZE_MB', 10) * 1024 * 1024  # Convert MB to bytes
         self.allowed_types = [
             'application/pdf',
             'image/jpeg',
             'image/png'
         ]
-        self.storage_bucket = self._get_storage_bucket()
-    
-    def _get_storage_bucket(self):
-        """Get Firebase Storage bucket."""
-        try:
-            bucket = storage.bucket()
-            logger.info("Firebase Storage bucket initialized")
-            return bucket
-        except Exception as e:
-            logger.error(f"Failed to initialize Firebase Storage bucket: {e}")
-            raise
+        self.storage_root = MEDIA_ROOT
+        # Ensure base directory exists
+        os.makedirs(self.storage_root, exist_ok=True)
+        logger.info(f"Local file storage initialized at: {self.storage_root}")
     
     def validate_file(self, file: Any) -> ValidationResult:
         """
@@ -103,7 +101,7 @@ class FileStorageService:
     
     def upload_file(self, file: Any, user_id: str) -> Dict[str, Any]:
         """
-        Upload file to Firebase Storage.
+        Save file to local filesystem.
         
         Args:
             file: Uploaded file object
@@ -129,17 +127,20 @@ class FileStorageService:
             file_name = file.name if hasattr(file, 'name') else 'report'
             file_extension = os.path.splitext(file_name)[1]
             
-            # Create storage path: medical_reports/{user_id}/{report_id}{extension}
-            storage_path = f"medical_reports/{user_id}/{report_id}{file_extension}"
+            # Create storage path: media/medical_reports/{user_id}/{report_id}{extension}
+            user_dir = os.path.join(self.storage_root, user_id)
+            os.makedirs(user_dir, exist_ok=True)
             
-            # Get blob reference
-            blob = self.storage_bucket.blob(storage_path)
+            stored_filename = f"{report_id}{file_extension}"
+            full_path = os.path.join(user_dir, stored_filename)
             
-            # Set content type
+            # Relative path for storing in metadata
+            storage_path = f"medical_reports/{user_id}/{stored_filename}"
+            
+            # Get content type
             content_type = file.content_type if hasattr(file, 'content_type') else mimetypes.guess_type(file_name)[0]
-            blob.content_type = content_type
             
-            # Upload file
+            # Read file content
             if hasattr(file, 'read'):
                 file_content = file.read()
                 if hasattr(file, 'seek'):
@@ -147,11 +148,13 @@ class FileStorageService:
             else:
                 file_content = file
             
-            blob.upload_from_string(file_content, content_type=content_type)
+            # Write to local filesystem
+            with open(full_path, 'wb') as f:
+                f.write(file_content)
             
             file_size = len(file_content)
             
-            logger.info(f"File uploaded successfully: {storage_path}, size: {file_size} bytes")
+            logger.info(f"File saved locally: {storage_path}, size: {file_size} bytes")
             
             return {
                 'report_id': report_id,
@@ -167,45 +170,32 @@ class FileStorageService:
     
     def get_file_url(self, report_id: str, user_id: str, expiration_minutes: int = 60) -> str:
         """
-        Generate signed URL for file download.
+        Get local file path (no signed URLs needed for local storage).
         
         Args:
             report_id: Report ID
             user_id: User ID for path construction
-            expiration_minutes: URL expiration time in minutes
+            expiration_minutes: Unused (kept for API compatibility)
             
         Returns:
-            Signed URL string
+            Local file path string
             
         Raises:
             FileNotFoundError: If file doesn't exist
         """
         try:
-            # Find the file by searching for blobs with the report_id
-            prefix = f"medical_reports/{user_id}/{report_id}"
-            blobs = list(self.storage_bucket.list_blobs(prefix=prefix))
-            
-            if not blobs:
+            file_path = self._find_file(report_id, user_id)
+            if not file_path:
                 raise FileNotFoundError(f"Report not found: {report_id}")
             
-            blob = blobs[0]
-            
-            # Generate signed URL
-            url = blob.generate_signed_url(
-                version="v4",
-                expiration=timedelta(minutes=expiration_minutes),
-                method="GET"
-            )
-            
-            logger.info(f"Generated signed URL for report: {report_id}")
-            
-            return url
+            logger.info(f"File path for report: {report_id}")
+            return file_path
             
         except FileNotFoundError:
             raise
         except Exception as e:
-            logger.error(f"Failed to generate signed URL: {e}")
-            raise Exception(f"Failed to generate download URL: {str(e)}")
+            logger.error(f"Failed to get file path: {e}")
+            raise Exception(f"Failed to get file path: {str(e)}")
     
     def get_file_stream(self, report_id: str, user_id: str) -> BytesIO:
         """
@@ -222,20 +212,15 @@ class FileStorageService:
             FileNotFoundError: If file doesn't exist
         """
         try:
-            # Find the file
-            prefix = f"medical_reports/{user_id}/{report_id}"
-            blobs = list(self.storage_bucket.list_blobs(prefix=prefix))
-            
-            if not blobs:
+            file_path = self._find_file(report_id, user_id)
+            if not file_path:
                 raise FileNotFoundError(f"Report not found: {report_id}")
             
-            blob = blobs[0]
-            
-            # Download to bytes
-            file_bytes = blob.download_as_bytes()
+            # Read file into BytesIO
+            with open(file_path, 'rb') as f:
+                file_bytes = f.read()
             
             logger.info(f"Retrieved file stream for report: {report_id}")
-            
             return BytesIO(file_bytes)
             
         except FileNotFoundError:
@@ -246,7 +231,7 @@ class FileStorageService:
     
     def delete_file(self, report_id: str, user_id: str) -> bool:
         """
-        Delete file from storage.
+        Delete file from local storage.
         
         Args:
             report_id: Report ID
@@ -259,18 +244,12 @@ class FileStorageService:
             FileNotFoundError: If file doesn't exist
         """
         try:
-            # Find the file
-            prefix = f"medical_reports/{user_id}/{report_id}"
-            blobs = list(self.storage_bucket.list_blobs(prefix=prefix))
-            
-            if not blobs:
+            file_path = self._find_file(report_id, user_id)
+            if not file_path:
                 raise FileNotFoundError(f"Report not found: {report_id}")
             
-            blob = blobs[0]
-            blob.delete()
-            
+            os.remove(file_path)
             logger.info(f"Deleted file: {report_id}")
-            
             return True
             
         except FileNotFoundError:
@@ -291,13 +270,37 @@ class FileStorageService:
             Storage path or None if not found
         """
         try:
-            prefix = f"medical_reports/{user_id}/{report_id}"
-            blobs = list(self.storage_bucket.list_blobs(prefix=prefix))
-            
-            if blobs:
-                return blobs[0].name
+            file_path = self._find_file(report_id, user_id)
+            if file_path:
+                # Return relative path
+                return os.path.relpath(file_path, settings.BASE_DIR)
             return None
             
         except Exception as e:
             logger.error(f"Failed to get storage path: {e}")
             return None
+    
+    def _find_file(self, report_id: str, user_id: str) -> Optional[str]:
+        """
+        Find a file on disk by report_id and user_id.
+        
+        Searches for files matching the report_id in the user's directory.
+        
+        Args:
+            report_id: Report UUID
+            user_id: User ID
+            
+        Returns:
+            Full file path if found, None otherwise
+        """
+        user_dir = os.path.join(self.storage_root, user_id)
+        
+        if not os.path.isdir(user_dir):
+            return None
+        
+        # Search for files starting with the report_id
+        for filename in os.listdir(user_dir):
+            if filename.startswith(report_id):
+                return os.path.join(user_dir, filename)
+        
+        return None

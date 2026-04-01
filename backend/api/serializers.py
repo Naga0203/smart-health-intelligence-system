@@ -17,10 +17,14 @@ class HealthAssessmentInputSerializer(serializers.Serializer):
     age = serializers.IntegerField(
         min_value=1,
         max_value=120,
+        required=False,
+        default=30,
         help_text="Patient age in years"
     )
     gender = serializers.ChoiceField(
         choices=['male', 'female', 'other'],
+        required=False,
+        default='other',
         help_text="Patient gender"
     )
     user_id = serializers.CharField(
@@ -115,8 +119,17 @@ class TopPredictionsInputSerializer(serializers.Serializer):
     symptoms = serializers.ListField(
         child=serializers.CharField(max_length=200)
     )
-    age = serializers.IntegerField(min_value=1, max_value=120)
-    gender = serializers.ChoiceField(choices=['male', 'female', 'other'])
+    age = serializers.IntegerField(
+        min_value=1,
+        max_value=120,
+        required=False,
+        default=30
+    )
+    gender = serializers.ChoiceField(
+        choices=['male', 'female', 'other'],
+        required=False,
+        default='other'
+    )
     n = serializers.IntegerField(
         min_value=1,
         max_value=20,

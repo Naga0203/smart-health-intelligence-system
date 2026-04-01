@@ -31,7 +31,7 @@ export const AppLayout = () => {
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', flexDirection: 'column', height: 'auto' }}>
-      <Header onMenuClick={toggleSidebar} />
+      <Header onMenuClick={toggleSidebar} sidebarOpen={sidebarOpen} />
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <Box

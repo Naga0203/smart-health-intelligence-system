@@ -8,10 +8,9 @@ import { z } from 'zod';
 import {
   Box,
   TextField,
-  Button,
   Alert,
-  Typography,
 } from '@mui/material';
+import { ShinyButton } from '@/components/ui/shiny-button';
 
 // Validation schema
 const loginSchema = z.object({
@@ -72,16 +71,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, error, loading }
         autoComplete="current-password"
       />
 
-      <Button
+      <ShinyButton
         type="submit"
-        variant="contained"
-        fullWidth
-        size="large"
+        className="w-full mt-6 mb-4 h-12"
         disabled={loading}
-        sx={{ mt: 3, mb: 2 }}
       >
         {loading ? 'Signing in...' : 'Sign In'}
-      </Button>
+      </ShinyButton>
     </Box>
   );
 };

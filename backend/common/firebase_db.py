@@ -18,7 +18,6 @@ from firebase_admin import credentials, firestore, auth
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 import logging
-import json
 from pathlib import Path
 from django.conf import settings
 
@@ -74,6 +73,9 @@ class FirebaseDatabase:
             
             # Initialize with service account
             cred = credentials.Certificate(str(cred_file))
+            
+            # Initialize Firebase Admin SDK (Firestore only, no Cloud Storage needed)
+            # Medical report files are stored locally on the filesystem
             firebase_admin.initialize_app(cred)
             logger.info(f"Firebase initialized with credentials from: {cred_path}")
             

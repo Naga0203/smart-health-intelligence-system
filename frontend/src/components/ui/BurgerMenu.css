@@ -1,0 +1,72 @@
+/* ============================================================================
+   BurgerMenu - Animated hamburger toggle
+   ============================================================================ */
+
+.burger-btn {
+  position: relative;
+  width: 40px;
+  height: 30px;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0;
+  border: none;
+  outline: none;
+  /* Ensure proper touch target */
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+}
+
+.burger-line {
+  display: block;
+  position: absolute;
+  height: 3px;
+  width: 28px;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 9px;
+  opacity: 1;
+  left: 50%;
+  transform: translateX(-50%);
+  transition: 0.25s ease-in-out;
+}
+
+.burger-line--1 {
+  top: 8px;
+  transform-origin: left center;
+  transform: translateX(-50%);
+}
+
+.burger-line--2 {
+  top: 50%;
+  transform: translateX(-50%) translateY(-50%);
+  transform-origin: left center;
+}
+
+.burger-line--3 {
+  bottom: 8px;
+  transform-origin: left center;
+  transform: translateX(-50%);
+}
+
+/* Open state */
+.burger-line--1.open {
+  transform: rotate(45deg) translate(-2px, -1px);
+  top: 10px;
+  left: calc(50% - 10px);
+}
+
+.burger-line--2.open {
+  width: 0;
+  opacity: 0;
+}
+
+.burger-line--3.open {
+  transform: rotate(-45deg) translate(-2px, 1px);
+  bottom: 10px;
+  left: calc(50% - 10px);
+}
